@@ -61,7 +61,7 @@ def check_ollama_availability() -> str | None:
         import requests
 
         # Check if Ollama is running
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        response = requests.get("http://aurora.local:11434/api/tags", timeout=5)
         if response.status_code != 200:
             print(f"  ❌ Ollama API not accessible: {response.status_code}")
             return None
@@ -72,7 +72,7 @@ def check_ollama_availability() -> str | None:
             return None
 
         # Look for a small model suitable for testing
-        preferred_models = ["llama3.2:1b", "llama3.2", "llama2", "phi3", "qwen2:0.5b"]
+        preferred_models = ["qwen3:1.7b", "llama3.2:1b", "llama3.2", "llama2", "phi3", "qwen2:0.5b"]
         available_models = [model["name"] for model in models]
 
         print(f"  📋 Available models: {', '.join(available_models)}")
@@ -102,7 +102,7 @@ def run_basic_llm_test(model_name: str):
         # Initialize Ollama LLM
         llm = OllamaLLM(
             model=model_name,
-            base_url="http://localhost:11434",
+            base_url="http://aurora.local:11434",
             temperature=0.1,
         )
 
@@ -138,7 +138,7 @@ def run_chain_test(model_name: str):
         # Initialize Ollama LLM
         llm = OllamaLLM(
             model=model_name,
-            base_url="http://localhost:11434",
+            base_url="http://aurora.local:11434",
             temperature=0.1,
         )
 

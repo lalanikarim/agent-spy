@@ -25,19 +25,32 @@ class RunRepository:
         """Create a new run."""
         logger.debug(f"Creating run: {run_data.id}")
 
+        # For prompt/parser runs, if they have end_time or outputs, they're complete
+        # These are synchronous operations that LangChain sometimes sends as complete in the POST
+        initial_status = "running"
+        if run_data.run_type in ["prompt", "parser"]:
+            if run_data.end_time is not None or run_data.outputs is not None:
+                initial_status = "completed"
+                logger.info(f"Auto-completing {run_data.run_type} run with data: {run_data.id}")
+            else:
+                # If no completion data, it might come in a PATCH later
+                logger.info(f"Creating {run_data.run_type} run, awaiting completion: {run_data.id}")
+
         run = Run(
             id=run_data.id,
             name=run_data.name,
             run_type=run_data.run_type,
             start_time=run_data.start_time,
+            end_time=run_data.end_time,
             parent_run_id=run_data.parent_run_id,
             inputs=run_data.inputs,
+            outputs=run_data.outputs,
             extra=run_data.extra,
             serialized=run_data.serialized,
             events=run_data.events,
             tags=run_data.tags,
             project_name=run_data.project_name,
-            status="running",
+            status=initial_status,
         )
 
         self.session.add(run)

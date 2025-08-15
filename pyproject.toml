@@ -30,6 +30,7 @@ dev = [
     "basedpyright>=1.21.0",
     "bandit[toml]>=1.8.0",
     "pre-commit>=4.0.0",
+    "debugpy>=1.8.16",
 ]
 
 # Bandit security linting configuration
