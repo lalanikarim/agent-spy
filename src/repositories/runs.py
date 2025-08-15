@@ -162,8 +162,148 @@ class RunRepository:
         logger.info(f"Found {len(runs)} runs")
         return list(runs)
     
+    async def get_root_runs(
+        self,
+        project_name: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        search: str | None = None,
+        start_time_gte: datetime | None = None,
+        start_time_lte: datetime | None = None,
+    ) -> list[Run]:
+        """Get root runs (parent_run_id is NULL) for dashboard master table."""
+        logger.debug(f"Getting root runs with filters: project={project_name}, status={status}, search={search}")
+        
+        stmt = select(Run).where(Run.parent_run_id.is_(None))
+        
+        # Apply filters
+        conditions = []
+        
+        if project_name is not None:
+            conditions.append(Run.project_name == project_name)
+        
+        if status is not None:
+            conditions.append(Run.status == status)
+        
+        if search is not None:
+            # Search in name and project_name
+            search_pattern = f"%{search}%"
+            conditions.append(
+                (Run.name.ilike(search_pattern)) | 
+                (Run.project_name.ilike(search_pattern))
+            )
+        
+        if start_time_gte is not None:
+            conditions.append(Run.start_time >= start_time_gte)
+        
+        if start_time_lte is not None:
+            conditions.append(Run.start_time <= start_time_lte)
+        
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
+        
+        # Order by start_time descending (most recent first)
+        stmt = stmt.order_by(desc(Run.start_time))
+        
+        # Apply pagination
+        stmt = stmt.offset(offset).limit(limit)
+        
+        result = await self.session.execute(stmt)
+        runs = result.scalars().all()
+        
+        logger.info(f"Found {len(runs)} root runs")
+        return list(runs)
+    
+    async def count_root_runs(
+        self,
+        project_name: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+        start_time_gte: datetime | None = None,
+        start_time_lte: datetime | None = None,
+    ) -> int:
+        """Count root runs with optional filtering."""
+        logger.debug("Counting root runs with filters")
+        
+        stmt = select(func.count(Run.id)).where(Run.parent_run_id.is_(None))
+        
+        # Apply filters
+        conditions = []
+        
+        if project_name is not None:
+            conditions.append(Run.project_name == project_name)
+        
+        if status is not None:
+            conditions.append(Run.status == status)
+        
+        if search is not None:
+            search_pattern = f"%{search}%"
+            conditions.append(
+                (Run.name.ilike(search_pattern)) | 
+                (Run.project_name.ilike(search_pattern))
+            )
+        
+        if start_time_gte is not None:
+            conditions.append(Run.start_time >= start_time_gte)
+        
+        if start_time_lte is not None:
+            conditions.append(Run.start_time <= start_time_lte)
+        
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
+        
+        result = await self.session.execute(stmt)
+        count = result.scalar()
+        
+        logger.debug(f"Total root runs count: {count}")
+        return count or 0
+
+    async def get_run_hierarchy(self, root_run_id: UUID) -> list[Run]:
+        """Get complete run hierarchy starting from a root run (recursive)."""
+        logger.debug(f"Getting complete hierarchy for root: {root_run_id}")
+        
+        # First verify the root run exists and is actually a root
+        root_stmt = select(Run).where(Run.id == root_run_id)
+        root_result = await self.session.execute(root_stmt)
+        root_run = root_result.scalar_one_or_none()
+        
+        if not root_run:
+            logger.warning(f"Root run not found: {root_run_id}")
+            return []
+        
+        # Get all runs that belong to this trace hierarchy
+        # This uses a recursive approach to find all descendants
+        all_runs = []
+        runs_to_process = [root_run_id]
+        processed_ids = set()
+        
+        while runs_to_process:
+            current_id = runs_to_process.pop(0)
+            if current_id in processed_ids:
+                continue
+            
+            processed_ids.add(current_id)
+            
+            # Get current run and its direct children
+            stmt = select(Run).where(
+                (Run.id == current_id) | (Run.parent_run_id == current_id)
+            ).order_by(Run.start_time)
+            
+            result = await self.session.execute(stmt)
+            runs = result.scalars().all()
+            
+            for run in runs:
+                if run.id not in processed_ids:
+                    all_runs.append(run)
+                    if run.id != current_id:  # Don't re-process the current run
+                        runs_to_process.append(run.id)
+        
+        logger.info(f"Found {len(all_runs)} runs in hierarchy for root {root_run_id}")
+        return all_runs
+
     async def get_run_tree(self, root_run_id: UUID) -> list[Run]:
-        """Get a complete run tree starting from a root run."""
+        """Get a complete run tree starting from a root run (legacy method)."""
         logger.debug(f"Getting run tree for root: {root_run_id}")
         
         # This is a recursive query to get all descendants
@@ -232,6 +372,56 @@ class RunRepository:
         
         logger.debug(f"Run types: {run_types}")
         return run_types
+    
+    async def get_dashboard_stats(self) -> dict[str, Any]:
+        """Get comprehensive dashboard statistics."""
+        logger.debug("Getting dashboard statistics")
+        
+        # Total runs
+        total_runs_stmt = select(func.count(Run.id))
+        total_runs_result = await self.session.execute(total_runs_stmt)
+        total_runs = total_runs_result.scalar() or 0
+        
+        # Root runs (traces)
+        root_runs_stmt = select(func.count(Run.id)).where(Run.parent_run_id.is_(None))
+        root_runs_result = await self.session.execute(root_runs_stmt)
+        total_traces = root_runs_result.scalar() or 0
+        
+        # Status distribution
+        status_stmt = select(Run.status, func.count(Run.id)).group_by(Run.status)
+        status_result = await self.session.execute(status_stmt)
+        status_distribution = dict(status_result.fetchall())
+        
+        # Run type distribution
+        type_stmt = select(Run.run_type, func.count(Run.id)).group_by(Run.run_type)
+        type_result = await self.session.execute(type_stmt)
+        run_type_distribution = dict(type_result.fetchall())
+        
+        # Project distribution (filter out None project names)
+        project_stmt = select(Run.project_name, func.count(Run.id)).where(
+            Run.project_name.is_not(None)
+        ).group_by(Run.project_name)
+        project_result = await self.session.execute(project_stmt)
+        project_distribution = dict(project_result.fetchall())
+        
+        # Recent activity (last 24 hours)
+        from datetime import timedelta
+        twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
+        recent_stmt = select(func.count(Run.id)).where(Run.start_time >= twenty_four_hours_ago)
+        recent_result = await self.session.execute(recent_stmt)
+        recent_runs = recent_result.scalar() or 0
+        
+        stats = {
+            "total_runs": total_runs,
+            "total_traces": total_traces,
+            "recent_runs_24h": recent_runs,
+            "status_distribution": status_distribution,
+            "run_type_distribution": run_type_distribution,
+            "project_distribution": project_distribution,
+        }
+        
+        logger.info(f"Dashboard stats: {stats}")
+        return stats
     
     async def delete(self, run_id: UUID) -> bool:
         """Delete a run by ID."""

@@ -42,3 +42,6 @@ htmlcov/
 
 # Temporary files
 .cursor/artifacts/*
+
+# Planning documents
+docs/plans/
