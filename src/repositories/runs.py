@@ -283,8 +283,6 @@ class RunRepository:
             if current_id in processed_ids:
                 continue
             
-            processed_ids.add(current_id)
-            
             # Get current run and its direct children
             stmt = select(Run).where(
                 (Run.id == current_id) | (Run.parent_run_id == current_id)
@@ -296,6 +294,7 @@ class RunRepository:
             for run in runs:
                 if run.id not in processed_ids:
                     all_runs.append(run)
+                    processed_ids.add(run.id)
                     if run.id != current_id:  # Don't re-process the current run
                         runs_to_process.append(run.id)
         
