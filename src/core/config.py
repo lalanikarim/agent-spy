@@ -50,10 +50,10 @@ class Settings(BaseSettings):
     require_auth: bool = Field(default=False, description="Require authentication for all endpoints")
 
     # CORS Settings
-    cors_origins: list[str] = Field(default=["*"], description="Allowed CORS origins")
+    cors_origins: list[str] | str = Field(default=["*"], description="Allowed CORS origins")
     cors_credentials: bool = Field(default=True, description="Allow credentials in CORS requests")
-    cors_methods: list[str] = Field(default=["*"], description="Allowed CORS methods")
-    cors_headers: list[str] = Field(default=["*"], description="Allowed CORS headers")
+    cors_methods: list[str] | str = Field(default=["*"], description="Allowed CORS methods")
+    cors_headers: list[str] | str = Field(default=["*"], description="Allowed CORS headers")
 
     # LangSmith Compatibility Settings
     langsmith_endpoint_base: str = Field(default="/api/v1", description="Base path for LangSmith-compatible endpoints")
@@ -76,14 +76,16 @@ class Settings(BaseSettings):
             return [key.strip() for key in v.split(",") if key.strip()]
         return v if isinstance(v, list) else None
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "cors_methods", "cors_headers", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
-        """Parse CORS origins from environment variable."""
+    def parse_cors_list(cls, v: str | list[str]) -> list[str]:
+        """Parse CORS settings from environment variable."""
         if isinstance(v, str):
             if v == "*":
                 return ["*"]
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
+            # Handle comma-separated values
+            return [item.strip() for item in v.split(",") if item.strip()]
+        # v is already a list[str] at this point
         return v
 
     @field_validator("environment")

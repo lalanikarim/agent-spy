@@ -497,7 +497,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                         <div className="h-full overflow-auto p-4">
                           <TraceTimeline
                             hierarchy={data.hierarchy}
-                            selectedNodeId={selectedNodeKey}
+                            selectedNodeId={selectedNodeKey || undefined}
                             onNodeSelect={(nodeId) => {
                               setSelectedNodeKey(nodeId);
                               const findNode = (node: RunHierarchyNode): RunHierarchyNode | null => {
@@ -527,7 +527,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                         <div className="h-full overflow-auto p-4">
                           <SimpleTimeline
                             hierarchy={data.hierarchy}
-                            selectedNodeId={selectedNodeKey}
+                            selectedNodeId={selectedNodeKey || undefined}
                             onNodeSelect={(nodeId) => {
                               setSelectedNodeKey(nodeId);
                               const findNode = (node: RunHierarchyNode): RunHierarchyNode | null => {

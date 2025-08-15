@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Agent Spy Backend API (Development)
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+    container_name: agentspy-backend-dev
+    restart: unless-stopped
+    environment:
+      # Application Settings
+      ENVIRONMENT: development
+      DEBUG: true
+      HOST: 0.0.0.0
+      PORT: 8000
+      RELOAD: true
+
+      # Database Settings
+      DATABASE_URL: sqlite+aiosqlite:////app/data/agentspy_dev.db
+      DATABASE_ECHO: ${DATABASE_ECHO:-true}
+
+      # API Settings
+      API_PREFIX: /api/v1
+      REQUIRE_AUTH: false
+
+      # CORS Settings - Allow all origins in development
+      CORS_ORIGINS: "*"
+      CORS_CREDENTIALS: true
+
+      # Performance Settings
+      MAX_TRACE_SIZE_MB: ${MAX_TRACE_SIZE_MB:-50}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-60}
+
+      # Logging Settings
+      LOG_LEVEL: DEBUG
+      LOG_FORMAT: text
+    ports:
+      - "${BACKEND_PORT:-8001}:8000"
+    volumes:
+      # Mount source code for development
+      - ../src:/app/src:ro
+      - ../pyproject.toml:/app/pyproject.toml:ro
+      - ../uv.lock:/app/uv.lock:ro
+      # SQLite database volume
+      - sqlite_dev_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - agentspy-dev-network
+
+  # Agent Spy Frontend (Development)
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/frontend/Dockerfile
+      target: builder
+    container_name: agentspy-frontend-dev
+    restart: unless-stopped
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "${FRONTEND_PORT:-3000}:5173"
+    volumes:
+      # Mount source code for hot reloading
+      - ../frontend/src:/app/src:ro
+      - ../frontend/public:/app/public:ro
+      - ../frontend/index.html:/app/index.html:ro
+      - ../frontend/vite.config.ts:/app/vite.config.ts:ro
+      - ../frontend/package.json:/app/package.json:ro
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:${BACKEND_PORT:-8001}
+    networks:
+      - agentspy-dev-network
+
+volumes:
+  sqlite_dev_data:
+    driver: local
+
+networks:
+  agentspy-dev-network:
+    driver: bridge

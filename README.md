@@ -66,6 +66,103 @@ The server will be running at `http://localhost:8000` with the API documentation
 
    These examples demonstrate the smart completion detection for tool calls, conditional nodes, and complex agent workflows.
 
+## 🐳 Docker Compose Setup
+
+For production deployments or if you prefer containerized environments, Agent Spy provides comprehensive Docker Compose configurations.
+
+### Prerequisites
+- [Docker](https://docker.com/) and [Docker Compose](https://docs.docker.com/compose/)
+
+### Quick Start with Docker Compose
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/lalanikarim/agent-spy.git
+   cd agent-spy
+   ```
+
+2. **Configure environment**
+   ```bash
+   # Copy the environment template
+   cp env.example .env
+
+   # Edit the .env file with your preferred settings
+   nano .env
+   ```
+
+3. **Start Agent Spy (Production)**
+   ```bash
+   # Using the convenience script
+   bash scripts/docker-start.sh
+
+   # Or manually with docker compose
+   docker compose -f docker/docker-compose.yml up -d
+   ```
+
+4. **Start Agent Spy (Development)**
+   ```bash
+   # Using the convenience script
+   bash scripts/docker-dev.sh
+
+   # Or manually with docker compose
+   docker compose -f docker/docker-compose.dev.yml up -d
+   ```
+
+### Services Overview
+
+The Docker Compose setup includes:
+
+- **Frontend**: React-based web dashboard (Port 80/3000)
+- **Backend**: FastAPI server with Agent Spy API (Port 8000/8001)
+- **Database**: SQLite with persistent volume storage
+
+### Environment Configuration
+
+Key environment variables in `.env`:
+
+```bash
+# Database settings
+DATABASE_ECHO=false
+
+# Application ports
+FRONTEND_PORT=80
+BACKEND_PORT=8000
+
+# Security settings
+REQUIRE_AUTH=false
+API_KEYS=your-api-key-1,your-api-key-2
+
+# CORS configuration
+CORS_ORIGINS=http://localhost:3000,https://yourdomain.com
+```
+
+### Docker Commands
+
+```bash
+# View running services
+docker compose -f docker/docker-compose.yml ps
+
+# View logs
+docker compose -f docker/docker-compose.yml logs -f
+
+# Stop services
+docker compose -f docker/docker-compose.yml down
+
+# Rebuild and restart
+docker compose -f docker/docker-compose.yml up -d --build
+
+# Clean up (removes volumes)
+docker compose -f docker/docker-compose.yml down -v
+```
+
+### Accessing the Application
+
+After starting the containers:
+
+- **Web Dashboard**: http://localhost (or your configured FRONTEND_PORT)
+- **API Documentation**: http://localhost:8000/docs (or your configured BACKEND_PORT)
+- **Health Check**: http://localhost:8000/health
+
 ## 📖 Usage
 
 ### Agent Integration

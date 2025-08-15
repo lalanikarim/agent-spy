@@ -124,7 +124,7 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
           <Tooltip content={<CustomTooltip />} />
           <Bar
             dataKey="relativeDuration"
-            fill={(entry: any) => entry.color}
+            fill="#3B82F6"
             onClick={handleBarClick}
             cursor="pointer"
           />

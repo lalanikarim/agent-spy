@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Agent Spy Backend API
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+    container_name: agentspy-backend
+    restart: unless-stopped
+    environment:
+      # Application Settings
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-false}
+      HOST: 0.0.0.0
+      PORT: 8000
+
+      # Database Settings
+      DATABASE_URL: sqlite+aiosqlite:////app/data/agentspy.db
+      DATABASE_ECHO: ${DATABASE_ECHO:-false}
+
+      # API Settings
+      API_PREFIX: /api/v1
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
+      API_KEYS: ${API_KEYS:-}
+
+      # CORS Settings
+      CORS_ORIGINS: "*"
+      CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
+
+      # Performance Settings
+      MAX_TRACE_SIZE_MB: ${MAX_TRACE_SIZE_MB:-10}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-30}
+
+      # Logging Settings
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - sqlite_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - agentspy-network
+
+  # Agent Spy Frontend
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/frontend/Dockerfile
+    container_name: agentspy-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:${BACKEND_PORT:-8000}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - agentspy-network
+
+volumes:
+  sqlite_data:
+    driver: local
+
+networks:
+  agentspy-network:
+    driver: bridge
