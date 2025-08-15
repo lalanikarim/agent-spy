@@ -11,6 +11,7 @@ const { Title } = Typography;
 
 const Dashboard: React.FC = () => {
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
+  const [isDetailExpanded, setIsDetailExpanded] = useState<boolean>(false);
   
   // Health check to ensure backend is available
   const { isLoading: healthLoading, error: healthError } = useHealth();
@@ -21,6 +22,11 @@ const Dashboard: React.FC = () => {
 
   const handleTraceDeselect = () => {
     setSelectedTraceId(null);
+    setIsDetailExpanded(false); // Reset expansion when closing detail
+  };
+
+  const handleToggleExpansion = () => {
+    setIsDetailExpanded(!isDetailExpanded);
   };
 
   return (
@@ -73,24 +79,33 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Main Dashboard Content */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="flex gap-6 overflow-hidden">
           {/* Master Table - Root Traces */}
-          <div className="xl:col-span-2">
-            <TraceTable
-              selectedTraceId={selectedTraceId}
-              onTraceSelect={handleTraceSelect}
-              disabled={!!healthError}
-            />
-          </div>
+          {!isDetailExpanded && (
+            <div className={selectedTraceId ? 'flex-1 min-w-0 overflow-hidden' : 'w-full'}>
+              <TraceTable
+                selectedTraceId={selectedTraceId}
+                onTraceSelect={handleTraceSelect}
+                disabled={!!healthError}
+              />
+            </div>
+          )}
 
-          {/* Detail View - Trace Hierarchy */}
-          <div className="xl:col-span-1">
-            <TraceDetail
-              traceId={selectedTraceId}
-              onClose={handleTraceDeselect}
-              disabled={!!healthError}
-            />
-          </div>
+          {/* Detail View - Trace Hierarchy (only show when trace selected) */}
+          {selectedTraceId && (
+            <div 
+              className={isDetailExpanded ? 'w-full overflow-hidden' : 'w-120 flex-shrink-0 overflow-hidden'}
+              style={!isDetailExpanded ? { width: '480px', minWidth: '480px', maxWidth: '480px' } : {}}
+            >
+              <TraceDetail
+                traceId={selectedTraceId}
+                onClose={handleTraceDeselect}
+                onToggleExpansion={handleToggleExpansion}
+                isExpanded={isDetailExpanded}
+                disabled={!!healthError}
+              />
+            </div>
+          )}
         </div>
       </Content>
     </Layout>

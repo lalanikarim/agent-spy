@@ -19,6 +19,8 @@ import {
   ClockCircleOutlined,
   InfoCircleOutlined,
   CodeOutlined,
+  ExpandOutlined,
+  CompressOutlined,
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 
@@ -36,12 +38,16 @@ const { Panel } = Collapse;
 interface TraceDetailProps {
   traceId: string | null;
   onClose: () => void;
+  onToggleExpansion: () => void;
+  isExpanded: boolean;
   disabled?: boolean;
 }
 
 const TraceDetail: React.FC<TraceDetailProps> = ({
   traceId,
   onClose,
+  onToggleExpansion,
+  isExpanded,
   disabled = false,
 }) => {
   // Fetch trace hierarchy
@@ -56,17 +62,17 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
     return {
       key: node.id,
       title: (
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center space-x-2 flex-1 min-w-0">
+        <div className="flex items-center justify-between w-full max-w-full overflow-hidden">
+          <div className="flex items-center space-x-2 flex-1 min-w-0 overflow-hidden">
             <span>{typeIcon}</span>
-            <Text strong className="truncate">
-              {formatters.truncateString(node.name, 25)}
+            <Text strong className="truncate max-w-full overflow-hidden">
+              {formatters.truncateString(node.name, 35)}
             </Text>
             <Tag color={statusColor}>
               {statusText}
             </Tag>
           </div>
-          <Text type="secondary" className="text-xs ml-2">
+          <Text type="secondary" className="text-xs ml-2 flex-shrink-0">
             {duration}
           </Text>
         </div>
@@ -79,6 +85,12 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
   // Handle tree node selection
   const [selectedNodeKey, setSelectedNodeKey] = React.useState<string | null>(null);
   const [selectedNode, setSelectedNode] = React.useState<RunHierarchyNode | null>(null);
+
+  // Clear selected node when trace changes
+  React.useEffect(() => {
+    setSelectedNodeKey(null);
+    setSelectedNode(null);
+  }, [traceId]);
 
   const handleNodeSelect = (selectedKeys: React.Key[], info: any) => {
     if (selectedKeys.length > 0) {
@@ -99,74 +111,153 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
 
     return (
       <div className="space-y-4">
-        <Descriptions title="Run Details" size="small" column={1} bordered>
-          <Descriptions.Item label="ID">
-            <Text copyable className="font-mono text-xs">
-              {node.id}
-            </Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Name">
-            <Text strong>{node.name}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Type">
-            <Space>
-              <span>{typeIcon}</span>
-              <Text>{typeText}</Text>
-            </Space>
-          </Descriptions.Item>
-          <Descriptions.Item label="Status">
-            <Tag color={statusColor}>{statusText}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="Duration">
-            <Text className="font-mono">
-              {formatters.formatDuration(node.duration_ms)}
-            </Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Started">
-            <Tooltip title={formatters.formatDateTime(node.start_time)}>
-              <Text>{formatters.formatRelativeTime(node.start_time)}</Text>
-            </Tooltip>
-          </Descriptions.Item>
-          {node.end_time && (
-            <Descriptions.Item label="Ended">
-              <Tooltip title={formatters.formatDateTime(node.end_time)}>
-                <Text>{formatters.formatRelativeTime(node.end_time)}</Text>
+        <div className="max-w-full">
+          <Descriptions title="Run Details" size="small" column={1} bordered layout="horizontal" labelStyle={{ width: '100px', minWidth: '100px' }}>
+            <Descriptions.Item label="ID">
+              <Text copyable className="font-mono text-xs break-all">
+                {node.id}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Name">
+              <Text strong className="break-words">{node.name}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Type">
+              <Space>
+                <span>{typeIcon}</span>
+                <Text>{typeText}</Text>
+              </Space>
+            </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              <Tag color={statusColor}>{statusText}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Duration">
+              <Text className="font-mono">
+                {formatters.formatDuration(node.duration_ms)}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Started">
+              <Tooltip title={formatters.formatDateTime(node.start_time)}>
+                <Text>{formatters.formatRelativeTime(node.start_time)}</Text>
               </Tooltip>
             </Descriptions.Item>
-          )}
-        </Descriptions>
+            {node.end_time && (
+              <Descriptions.Item label="Ended">
+                <Tooltip title={formatters.formatDateTime(node.end_time)}>
+                  <Text>{formatters.formatRelativeTime(node.end_time)}</Text>
+                </Tooltip>
+              </Descriptions.Item>
+            )}
+          </Descriptions>
+        </div>
 
         {/* Inputs/Outputs/Error */}
-        <Collapse size="small">
-          {node.inputs && (
-            <Panel header="Inputs" key="inputs" extra={<CodeOutlined />}>
-              <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-40">
-                {formatters.formatJSON(node.inputs)}
-              </pre>
-            </Panel>
-          )}
-          {node.outputs && (
-            <Panel header="Outputs" key="outputs" extra={<CodeOutlined />}>
-              <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-40">
-                {formatters.formatJSON(node.outputs)}
-              </pre>
-            </Panel>
-          )}
-          {node.error && (
-            <Panel header="Error" key="error" extra={<InfoCircleOutlined className="text-red-500" />}>
-              <Text type="danger" className="text-sm">
-                {node.error}
-              </Text>
-            </Panel>
-          )}
-          {node.extra && (
-            <Panel header="Extra Data" key="extra" extra={<InfoCircleOutlined />}>
-              <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-40">
-                {formatters.formatJSON(node.extra)}
-              </pre>
-            </Panel>
-          )}
-        </Collapse>
+        <div 
+          className="w-full max-w-full overflow-hidden" 
+          style={{ 
+            width: '100%', 
+            maxWidth: isExpanded ? '100%' : '440px',
+            boxSizing: 'border-box'
+          }}
+        >
+          <Collapse 
+            size="small" 
+            className="w-full max-w-full"
+            style={{ 
+              width: '100%', 
+              maxWidth: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            {node.inputs && (
+              <Panel header="Inputs" key="inputs" extra={<CodeOutlined />}>
+                <div 
+                  className="max-h-32 overflow-auto w-full max-w-full"
+                  style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                >
+                  <pre 
+                    className="text-xs bg-gray-50 p-2 rounded whitespace-pre overflow-x-auto overflow-y-auto block max-w-full"
+                    style={{ 
+                      width: '100%', 
+                      maxWidth: '100%', 
+                      minWidth: '0',
+                      wordWrap: 'break-word',
+                      wordBreak: 'break-all',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    {formatters.formatJSON(node.inputs)}
+                  </pre>
+                </div>
+              </Panel>
+            )}
+            {node.outputs && (
+              <Panel header="Outputs" key="outputs" extra={<CodeOutlined />}>
+                <div 
+                  className="max-h-32 overflow-auto w-full max-w-full"
+                  style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                >
+                  <pre 
+                    className="text-xs bg-gray-50 p-2 rounded whitespace-pre overflow-x-auto overflow-y-auto block max-w-full"
+                    style={{ 
+                      width: '100%', 
+                      maxWidth: '100%', 
+                      minWidth: '0',
+                      wordWrap: 'break-word',
+                      wordBreak: 'break-all',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    {formatters.formatJSON(node.outputs)}
+                  </pre>
+                </div>
+              </Panel>
+            )}
+            {node.error && (
+              <Panel header="Error" key="error" extra={<InfoCircleOutlined className="text-red-500" />}>
+                <div 
+                  className="max-h-32 overflow-auto w-full max-w-full"
+                  style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                >
+                  <div 
+                    className="text-xs text-red-600 whitespace-pre overflow-x-auto overflow-y-auto p-2 bg-red-50 rounded max-w-full"
+                    style={{ 
+                      width: '100%', 
+                      maxWidth: '100%', 
+                      minWidth: '0',
+                      wordWrap: 'break-word',
+                      wordBreak: 'break-all',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    {node.error}
+                  </div>
+                </div>
+              </Panel>
+            )}
+            {node.extra && (
+              <Panel header="Extra Data" key="extra" extra={<InfoCircleOutlined />}>
+                <div 
+                  className="max-h-32 overflow-auto w-full max-w-full"
+                  style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                >
+                  <pre 
+                    className="text-xs bg-gray-50 p-2 rounded whitespace-pre overflow-x-auto overflow-y-auto block max-w-full"
+                    style={{ 
+                      width: '100%', 
+                      maxWidth: '100%', 
+                      minWidth: '0',
+                      wordWrap: 'break-word',
+                      wordBreak: 'break-all',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    {formatters.formatJSON(node.extra)}
+                  </pre>
+                </div>
+              </Panel>
+            )}
+          </Collapse>
+        </div>
       </div>
     );
   };
@@ -195,15 +286,34 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </Tag>
             )}
           </Space>
-          <Button
-            type="text"
-            icon={<CloseOutlined />}
-            onClick={onClose}
-            disabled={disabled}
-          />
+          <Space>
+            <Button
+              type="text"
+              icon={isExpanded ? <CompressOutlined /> : <ExpandOutlined />}
+              onClick={onToggleExpansion}
+              disabled={disabled}
+              title={isExpanded ? "Collapse to sidebar" : "Expand to full screen"}
+            />
+            <Button
+              type="text"
+              icon={<CloseOutlined />}
+              onClick={onClose}
+              disabled={disabled}
+              title="Close trace details"
+            />
+          </Space>
         </div>
       }
-      className="h-full"
+      className={`h-full flex flex-col ${isExpanded ? '' : 'max-w-full w-full'}`}
+      style={!isExpanded ? { width: '100%', maxWidth: '480px', minWidth: '480px' } : {}}
+      bodyStyle={{ 
+        flex: 1, 
+        overflow: 'hidden', 
+        padding: isExpanded ? '24px' : '16px', 
+        maxWidth: isExpanded ? '100%' : '480px',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
     >
       {isLoading && (
         <div className="flex items-center justify-center py-8">
@@ -222,10 +332,18 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
       )}
 
       {data && (
-        <div className="space-y-4">
+        <div 
+          className="flex flex-col h-full space-y-4 overflow-hidden max-w-full" 
+          style={{ 
+            width: '100%', 
+            maxWidth: isExpanded ? '100%' : '480px', 
+            minWidth: isExpanded ? 'auto' : '480px',
+            boxSizing: 'border-box'
+          }}
+        >
           {/* Hierarchy Overview */}
-          <div className="bg-gray-50 p-3 rounded">
-            <Space split={<span className="text-gray-300">|</span>}>
+          <div className="bg-gray-50 p-3 rounded flex-shrink-0">
+            <Space split={<span className="text-gray-300">|</span>} wrap>
               <span className="text-sm">
                 <ClockCircleOutlined className="mr-1" />
                 Started: {formatters.formatRelativeTime(data.hierarchy.start_time)}
@@ -242,9 +360,10 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
           </div>
 
           {/* Tree View */}
-          <div className="hierarchy-scroll max-h-96 overflow-auto">
+          <div className="flex-shrink-0 max-h-48 overflow-auto border rounded w-full max-w-full">
             <Tree
-              className="trace-hierarchy-tree"
+              className="trace-hierarchy-tree p-2 w-full max-w-full"
+              style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}
               treeData={[convertToTreeData(data.hierarchy)]}
               defaultExpandAll
               showLine={{ showLeafIcon: false }}
@@ -255,11 +374,13 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
 
           {/* Selected Node Details */}
           {selectedNode && (
-            <div className="border-t pt-4">
+            <div className="flex-1 border-t pt-4 overflow-auto min-h-0 max-w-full w-full">
               <Title level={5} className="mb-3">
                 Node Details
               </Title>
-              {renderNodeDetails(selectedNode)}
+              <div className="overflow-auto max-w-full w-full">
+                {renderNodeDetails(selectedNode)}
+              </div>
             </div>
           )}
         </div>

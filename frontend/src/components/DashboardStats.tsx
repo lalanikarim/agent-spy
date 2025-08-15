@@ -6,7 +6,7 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  LoadingOutlined,
+  FastForwardOutlined,
 } from '@ant-design/icons';
 import { useDashboardSummary } from '../hooks/useTraces';
 import { formatters } from '../utils/formatters';
@@ -111,7 +111,7 @@ const DashboardStats: React.FC = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span className="flex items-center">
-                  <LoadingOutlined className="text-blue-500 mr-2" />
+                  <FastForwardOutlined className="text-blue-500 mr-2" />
                   Running
                 </span>
                 <span className="font-semibold">{formatters.formatNumber(runningCount)}</span>
