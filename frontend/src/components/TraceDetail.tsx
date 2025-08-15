@@ -12,6 +12,7 @@ import {
   Empty,
   Tooltip,
   Spin,
+  Tabs,
 } from 'antd';
 import {
   CloseOutlined,
@@ -21,6 +22,7 @@ import {
   CodeOutlined,
   ExpandOutlined,
   CompressOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 
@@ -31,6 +33,8 @@ interface TraceDataNode extends DataNode {
 import { useTraceHierarchy } from '../hooks/useTraces';
 import type { RunHierarchyNode } from '../types/traces';
 import { formatters } from '../utils/formatters';
+import { TraceTimeline } from './TraceTimeline';
+import { SimpleTimeline } from './SimpleTimeline';
 
 const { Text, Title } = Typography;
 const { Panel } = Collapse;
@@ -357,16 +361,96 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                 </Space>
               </div>
 
-              {/* Tree View - Full height in expanded mode */}
-              <div className="flex-1 overflow-auto border rounded">
-                <Tree
-                  className="trace-hierarchy-tree p-2"
-                  style={{ width: '100%', overflow: 'hidden' }}
-                  treeData={[convertToTreeData(data.hierarchy)]}
-                  defaultExpandAll
-                  showLine={{ showLeafIcon: false }}
-                  onSelect={handleNodeSelect}
-                  selectedKeys={selectedNodeKey ? [selectedNodeKey] : []}
+              {/* Tree View and Timeline - Full height in expanded mode */}
+              <div className="flex-1 overflow-hidden border rounded">
+                <Tabs
+                  defaultActiveKey="tree"
+                  size="small"
+                  className="h-full"
+                  items={[
+                    {
+                      key: 'tree',
+                      label: (
+                        <span>
+                          <BranchesOutlined />
+                          Tree View
+                        </span>
+                      ),
+                      children: (
+                        <div className="h-full overflow-auto">
+                          <Tree
+                            className="trace-hierarchy-tree p-2"
+                            style={{ width: '100%', overflow: 'hidden' }}
+                            treeData={[convertToTreeData(data.hierarchy)]}
+                            defaultExpandAll
+                            showLine={{ showLeafIcon: false }}
+                            onSelect={handleNodeSelect}
+                            selectedKeys={selectedNodeKey ? [selectedNodeKey] : []}
+                          />
+                        </div>
+                      ),
+                    },
+                    {
+                      key: 'timeline',
+                      label: (
+                        <span>
+                          <BarChartOutlined />
+                          Timeline
+                        </span>
+                      ),
+                      children: (
+                        <div className="h-full overflow-auto p-4">
+                          <TraceTimeline
+                            hierarchy={data.hierarchy}
+                            selectedNodeId={selectedNodeKey}
+                            onNodeSelect={(nodeId) => {
+                              setSelectedNodeKey(nodeId);
+                              const findNode = (node: RunHierarchyNode): RunHierarchyNode | null => {
+                                if (node.id === nodeId) return node;
+                                for (const child of node.children) {
+                                  const found = findNode(child);
+                                  if (found) return found;
+                                }
+                                return null;
+                              };
+                              const node = findNode(data.hierarchy);
+                              if (node) setSelectedNode(node);
+                            }}
+                          />
+                        </div>
+                      ),
+                    },
+                    {
+                      key: 'gantt',
+                      label: (
+                        <span>
+                          <ClockCircleOutlined />
+                          Gantt Chart
+                        </span>
+                      ),
+                      children: (
+                        <div className="h-full overflow-auto p-4">
+                          <SimpleTimeline
+                            hierarchy={data.hierarchy}
+                            selectedNodeId={selectedNodeKey}
+                            onNodeSelect={(nodeId) => {
+                              setSelectedNodeKey(nodeId);
+                              const findNode = (node: RunHierarchyNode): RunHierarchyNode | null => {
+                                if (node.id === nodeId) return node;
+                                for (const child of node.children) {
+                                  const found = findNode(child);
+                                  if (found) return found;
+                                }
+                                return null;
+                              };
+                              const node = findNode(data.hierarchy);
+                              if (node) setSelectedNode(node);
+                            }}
+                          />
+                        </div>
+                      ),
+                    },
+                  ]}
                 />
               </div>
             </div>
