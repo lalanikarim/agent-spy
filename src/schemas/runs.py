@@ -88,6 +88,7 @@ class RunUpdate(BaseModel):
     tags: list[str] | None = None
     parent_run_id: UUID | None = None
     reference_example_id: UUID | None = None
+    project_name: str | None = None
 
     # Token usage fields (for LLM runs)
     prompt_tokens: int | None = Field(None, description="Number of prompt tokens")
