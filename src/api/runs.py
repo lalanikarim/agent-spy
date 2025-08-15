@@ -1,5 +1,6 @@
 """Runs/traces endpoints for LangSmith compatibility and dashboard."""
 
+import json
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -80,18 +81,39 @@ async def batch_ingest_runs(
                 logger.info(f"🎯 Found project in header {header}: {value}")
 
     # Debug: Log the first few items to see the structure
+    debug_info = {}
     if request.post:
-        logger.info(f"📝 First POST item: {request.post[0].model_dump()}")
+        first_item = request.post[0]
+        debug_info["first_post_item"] = first_item.model_dump()
+        logger.info(f"📝 First POST item full dump: {first_item.model_dump()}")
+
+        # Check if metadata contains project info
+        if hasattr(first_item, "extra") and first_item.extra:
+            debug_info["extra_structure"] = first_item.extra
+            logger.info(f"📋 Extra data structure: {json.dumps(first_item.extra, indent=2, default=str)}")
+        else:
+            debug_info["extra_structure"] = None
+            logger.info("📋 No extra data found or extra is empty")
     if request.patch:
         logger.info(f"📝 First PATCH item: {request.patch[0].model_dump()}")
+
+    # Temporarily log debug info to a file we can read
+    import os
+
+    debug_file = os.path.join(os.getcwd(), "debug_request.json")
+    logger.info(f"🔍 Writing debug info to: {debug_file}")
+    with open(debug_file, "w") as f:
+        json.dump(debug_info, f, indent=2, default=str)
 
     run_repo = RunRepository(db)
     created_count = 0
     updated_count = 0
     errors = 0
 
-    # Extract project name from headers if not in request body
+    # Extract project name from headers or metadata if not in request body
     project_from_headers = None
+    project_from_metadata = None
+
     if http_request:
         project_headers = ["x-langsmith-project", "langsmith-project", "project", "x-project"]
         for header in project_headers:
@@ -101,15 +123,64 @@ async def batch_ingest_runs(
                 logger.info(f"🎯 Using project from header {header}: {value}")
                 break
 
+    # Check first item's metadata for project name
+    if request.post and len(request.post) > 0:
+        first_item = request.post[0]
+        if hasattr(first_item, "extra") and first_item.extra:
+            # Look for project name in metadata structure: extra.metadata.LANGSMITH_PROJECT
+            extra = first_item.extra
+            logger.info(f"📋 Extra data keys: {list(extra.keys()) if extra else 'no extra data'}")
+
+            if extra and "metadata" in extra:
+                metadata = extra["metadata"]
+                logger.info(f"📋 Metadata keys: {list(metadata.keys()) if isinstance(metadata, dict) else 'not a dict'}")
+
+                if isinstance(metadata, dict):
+                    logger.info(f"🔍 Checking metadata dict with keys: {list(metadata.keys())}")
+                    # Check for LANGSMITH_PROJECT in metadata
+                    if "LANGSMITH_PROJECT" in metadata:
+                        project_from_metadata = metadata["LANGSMITH_PROJECT"]
+                        logger.info(f"🎯 Found project in metadata.LANGSMITH_PROJECT: {project_from_metadata}")
+                    # Fallback to other possible keys
+                    elif "project" in metadata:
+                        project_from_metadata = metadata["project"]
+                        logger.info(f"🎯 Found project in metadata.project: {project_from_metadata}")
+                    elif "project_name" in metadata:
+                        project_from_metadata = metadata["project_name"]
+                        logger.info(f"🎯 Found project in metadata.project_name: {project_from_metadata}")
+                    else:
+                        logger.info(f"❌ No project found in metadata keys: {list(metadata.keys())}")
+
+            # Also check for direct project keys in extra (fallback)
+            elif extra:
+                if "project" in extra:
+                    project_from_metadata = extra["project"]
+                    logger.info(f"🎯 Found project in extra.project: {project_from_metadata}")
+                elif "LANGSMITH_PROJECT" in extra:
+                    project_from_metadata = extra["LANGSMITH_PROJECT"]
+                    logger.info(f"🎯 Found project in extra.LANGSMITH_PROJECT: {project_from_metadata}")
+
     # Process new runs (POST operations)
     for run_create in request.post:
         try:
-            # If project_name is not set in the run data, use the one from headers
-            if not run_create.project_name and project_from_headers:
-                run_create.project_name = project_from_headers
-                logger.info(f"📝 Set project_name from headers: {project_from_headers}")
+            # If project_name is not set in the run data, use the one from metadata or headers
+            logger.info(f"🔍 Before assignment - run_create.project_name: {run_create.project_name}")
+            logger.info(f"🔍 Available - project_from_metadata: {project_from_metadata}")
+            logger.info(f"🔍 Available - project_from_headers: {project_from_headers}")
 
-            logger.info(f"🔄 Creating run: {run_create.id} (project: {run_create.project_name})")
+            if not run_create.project_name:
+                if project_from_metadata:
+                    run_create.project_name = project_from_metadata
+                    logger.info(f"📝 Set project_name from metadata: {project_from_metadata}")
+                elif project_from_headers:
+                    run_create.project_name = project_from_headers
+                    logger.info(f"📝 Set project_name from headers: {project_from_headers}")
+                else:
+                    logger.info("❌ No project source available")
+            else:
+                logger.info(f"📝 Project already set in run_create: {run_create.project_name}")
+
+            logger.info(f"🔄 Creating run: {run_create.id} (final project: {run_create.project_name})")
             await run_repo.create(run_create)
             created_count += 1
             logger.info(f"✅ Created run: {run_create.id}")
@@ -533,3 +604,16 @@ async def cleanup_stale_runs(
         logger.error(f"Failed to cleanup stale runs: {e}")
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to cleanup stale runs: {e}")
+
+
+@router.get("/debug/last-request", summary="Debug: Get Last Request Structure")
+async def get_last_request_debug():
+    """Temporary debug endpoint to see the last request structure."""
+    import os
+
+    debug_file = os.path.join(os.getcwd(), "debug_request.json")
+    if os.path.exists(debug_file):
+        with open(debug_file) as f:
+            return json.load(f)
+    else:
+        return {"error": "No debug file found", "expected_path": debug_file}
