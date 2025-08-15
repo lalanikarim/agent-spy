@@ -27,4 +27,43 @@ dev = [
     "pytest-cov>=6.2.1",
     "requests>=2.32.4",
     "ruff>=0.12.9",
+    "basedpyright>=1.21.0",
+    "bandit[toml]>=1.8.0",
+    "pre-commit>=4.0.0",
 ]
+
+# Bandit security linting configuration
+[tool.bandit]
+exclude_dirs = ["tests", "examples", "frontend"]
+skips = ["B101"]  # Skip assert_used test since we use asserts in tests
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "test_*.py"]
+
+# Basedpyright type checking configuration
+[tool.basedpyright]
+include = ["src"]
+exclude = ["tests", "examples", "frontend"]
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+reportUnknownParameterType = false
+reportCallInDefaultInitializer = false
+reportImplicitOverride = false
+reportExplicitAny = false
+reportUnannotatedClassAttribute = false
+reportMissingParameterType = false
+reportAttributeAccessIssue = false
+reportDeprecated = false
+reportUnusedCallResult = false
+reportUnusedParameter = false
+reportUnusedFunction = false
+reportUnusedImport = false
+reportMissingTypeArgument = false
+reportIncompatibleVariableOverride = false
+reportCallIssue = false
+reportReturnType = false
+reportArgumentType = false
+reportGeneralTypeIssues = false
+pythonVersion = "3.13"

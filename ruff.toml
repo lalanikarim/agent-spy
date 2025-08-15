@@ -25,8 +25,8 @@ exclude = [
     "venv",
 ]
 
-# Same as Black.
-line-length = 88
+# Increased line length for better readability
+line-length = 127
 indent-width = 4
 
 # Assume Python 3.13
@@ -48,7 +48,12 @@ select = [
     # isort
     "I",
 ]
-ignore = []
+ignore = [
+    # FastAPI dependency injection pattern
+    "B008",  # Do not perform function call in argument defaults (FastAPI Depends)
+    # Exception handling - we want to catch and re-raise as HTTP exceptions
+    "B904",  # Within `except` clause, raise exceptions with `raise ... from err`
+]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
