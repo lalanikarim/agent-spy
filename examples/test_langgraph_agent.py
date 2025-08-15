@@ -6,10 +6,10 @@ from datetime import datetime
 from typing import Annotated, Literal, TypedDict
 
 # Configure LangChain tracing for Agent Spy
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_ENDPOINT"] = "http://localhost:8000/api/v1"
-os.environ["LANGCHAIN_API_KEY"] = "test-key"
-os.environ["LANGCHAIN_PROJECT"] = "langgraph-agent-test"
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_ENDPOINT"] = "http://localhost:8000/api/v1"
+os.environ["LANGSMITH_API_KEY"] = "test-key"
+os.environ["LANGSMITH_PROJECT"] = "langgraph-agent-test"
 
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool

@@ -59,6 +59,8 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
     const { icon: typeIcon } = formatters.formatRunType(node.run_type);
     const duration = formatters.formatDuration(node.duration_ms);
 
+
+
     return {
       key: node.id,
       title: (
@@ -77,7 +79,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
           </Text>
         </div>
       ),
-      children: node.children.map(convertToTreeData),
+      children: node.children?.map(convertToTreeData) || [],
       data: node, // Store the full node data
     };
   };

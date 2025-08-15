@@ -256,38 +256,35 @@ class RunRepository:
         """Get complete run hierarchy starting from a root run (recursive)."""
         logger.debug(f"Getting complete hierarchy for root: {root_run_id}")
 
-        # First verify the root run exists and is actually a root
-        root_stmt = select(Run).where(Run.id == root_run_id)
-        root_result = await self.session.execute(root_stmt)
-        root_run = root_result.scalar_one_or_none()
-
-        if not root_run:
-            logger.warning(f"Root run not found: {root_run_id}")
-            return []
-
-        # Get all runs that belong to this trace hierarchy
-        # This uses a recursive approach to find all descendants
+        # Use a simple recursive approach to get all descendants
         all_runs = []
-        runs_to_process = [root_run_id]
-        processed_ids = set()
+        visited_ids = set()
 
-        while runs_to_process:
-            current_id = runs_to_process.pop(0)
-            if current_id in processed_ids:
-                continue
+        async def collect_descendants(run_id: UUID):
+            """Recursively collect all descendants of a run."""
+            if run_id in visited_ids:
+                return
+            visited_ids.add(run_id)
 
-            # Get current run and its direct children
-            stmt = select(Run).where((Run.id == current_id) | (Run.parent_run_id == current_id)).order_by(Run.start_time)
+            # Get the run itself
+            run_stmt = select(Run).where(Run.id == run_id)
+            run_result = await self.session.execute(run_stmt)
+            run = run_result.scalar_one_or_none()
 
-            result = await self.session.execute(stmt)
-            runs = result.scalars().all()
+            if run:
+                all_runs.append(run)
 
-            for run in runs:
-                if run.id not in processed_ids:
-                    all_runs.append(run)
-                    processed_ids.add(run.id)
-                    if run.id != current_id:  # Don't re-process the current run
-                        runs_to_process.append(run.id)
+                # Get all direct children
+                children_stmt = select(Run).where(Run.parent_run_id == run_id).order_by(Run.start_time)
+                children_result = await self.session.execute(children_stmt)
+                children = children_result.scalars().all()
+
+                # Recursively collect descendants of each child
+                for child in children:
+                    await collect_descendants(child.id)
+
+        # Start the recursive collection from the root
+        await collect_descendants(root_run_id)
 
         logger.info(f"Found {len(all_runs)} runs in hierarchy for root {root_run_id}")
         return all_runs

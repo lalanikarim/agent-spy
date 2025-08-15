@@ -25,10 +25,10 @@ from langchain_ollama import ChatOllama
 from langgraph.graph import END, StateGraph
 
 # Configure LangChain tracing to Agent Spy
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_ENDPOINT"] = "http://localhost:8000/api/v1"
-os.environ["LANGCHAIN_API_KEY"] = "test-key"
-os.environ["LANGCHAIN_PROJECT"] = "ComplexWorkflow"
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_ENDPOINT"] = "http://localhost:8000/api/v1"
+os.environ["LANGSMITH_API_KEY"] = "test-key"
+os.environ["LANGSMITH_PROJECT"] = "ComplexWorkflow"
 
 # Initialize Ollama LLM
 llm = ChatOllama(model="qwen3:8b", base_url="http://aurora.local:11434", temperature=0.7)

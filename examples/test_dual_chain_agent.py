@@ -24,10 +24,25 @@ from langchain_ollama import ChatOllama
 from langgraph.graph import END, StateGraph
 
 # Configure LangChain tracing to Agent Spy
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_ENDPOINT"] = "http://localhost:8000/api/v1"
-os.environ["LANGCHAIN_API_KEY"] = "test-key"
-os.environ["LANGCHAIN_PROJECT"] = "DualChainAgent"
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_ENDPOINT"] = "http://localhost:8000/api/v1"
+os.environ["LANGSMITH_API_KEY"] = "test-key"
+os.environ["LANGSMITH_PROJECT"] = "DualChainAgent"
+
+# Debug: Print environment variables to verify they're set
+print("🔧 Environment variables:")
+print(f"  LANGSMITH_TRACING: {os.environ.get('LANGSMITH_TRACING')}")
+print(f"  LANGSMITH_ENDPOINT: {os.environ.get('LANGSMITH_ENDPOINT')}")
+print(f"  LANGSMITH_PROJECT: {os.environ.get('LANGSMITH_PROJECT')}")
+
+# Also try clearing LangSmith cache if available
+try:
+    from langsmith import utils
+
+    utils.get_env_var.cache_clear()
+    print("  ✅ Cleared LangSmith environment variable cache")
+except ImportError:
+    print("  ⚠️ LangSmith utils not available (cache not cleared)")
 
 # Initialize Ollama LLM
 llm = ChatOllama(model="qwen3:8b", base_url="http://aurora.local:11434", temperature=0.7)

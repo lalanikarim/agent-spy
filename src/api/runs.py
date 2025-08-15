@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
@@ -54,7 +54,9 @@ async def get_service_info() -> LangSmithInfo:
 
 
 @router.post("/runs/batch", response_model=BatchIngestResponse, summary="Batch Ingest Runs")
-async def batch_ingest_runs(request: BatchIngestRequest, db: AsyncSession = Depends(get_db)) -> BatchIngestResponse:
+async def batch_ingest_runs(
+    request: BatchIngestRequest, db: AsyncSession = Depends(get_db), http_request: Request = None
+) -> BatchIngestResponse:
     """
     Batch ingest runs (traces and spans).
 
@@ -62,6 +64,20 @@ async def batch_ingest_runs(request: BatchIngestRequest, db: AsyncSession = Depe
     It accepts both new runs (POST operations) and run updates (PATCH operations).
     """
     logger.info(f"🔍 Batch ingest request: {len(request.post)} creates, {len(request.patch)} updates")
+
+    # Debug: Log headers to check for project name
+    if http_request:
+        logger.info("📋 Request headers:")
+        for header_name, header_value in http_request.headers.items():
+            if "project" in header_name.lower() or "langsmith" in header_name.lower():
+                logger.info(f"  {header_name}: {header_value}")
+
+        # Check common header names for project
+        project_headers = ["x-langsmith-project", "langsmith-project", "project", "x-project"]
+        for header in project_headers:
+            value = http_request.headers.get(header)
+            if value:
+                logger.info(f"🎯 Found project in header {header}: {value}")
 
     # Debug: Log the first few items to see the structure
     if request.post:
@@ -74,10 +90,26 @@ async def batch_ingest_runs(request: BatchIngestRequest, db: AsyncSession = Depe
     updated_count = 0
     errors = 0
 
+    # Extract project name from headers if not in request body
+    project_from_headers = None
+    if http_request:
+        project_headers = ["x-langsmith-project", "langsmith-project", "project", "x-project"]
+        for header in project_headers:
+            value = http_request.headers.get(header)
+            if value:
+                project_from_headers = value
+                logger.info(f"🎯 Using project from header {header}: {value}")
+                break
+
     # Process new runs (POST operations)
     for run_create in request.post:
         try:
-            logger.info(f"🔄 Creating run: {run_create.id}")
+            # If project_name is not set in the run data, use the one from headers
+            if not run_create.project_name and project_from_headers:
+                run_create.project_name = project_from_headers
+                logger.info(f"📝 Set project_name from headers: {project_from_headers}")
+
+            logger.info(f"🔄 Creating run: {run_create.id} (project: {run_create.project_name})")
             await run_repo.create(run_create)
             created_count += 1
             logger.info(f"✅ Created run: {run_create.id}")
@@ -355,6 +387,8 @@ async def get_run_hierarchy(trace_id: UUID, db: AsyncSession = Depends(get_db)) 
         if not runs:
             raise HTTPException(status_code=404, detail=f"Trace {trace_id} not found")
 
+        logger.info(f"API: Repository returned {len(runs)} runs for trace {trace_id}")
+
         # Build hierarchical structure
         runs_by_id = {run.id: RunHierarchyNode.from_run(run) for run in runs}
         root_node = None
@@ -372,6 +406,8 @@ async def get_run_hierarchy(trace_id: UUID, db: AsyncSession = Depends(get_db)) 
                 parent_node = runs_by_id.get(run.parent_run_id)
                 if parent_node:
                     parent_node.children.append(node)
+                else:
+                    logger.warning(f"Parent not found for {run.name}: {run.parent_run_id}")
 
         if not root_node:
             raise HTTPException(status_code=404, detail=f"Root trace {trace_id} not found")

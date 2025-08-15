@@ -61,16 +61,16 @@ To send traces from your agents to Agent Spy, configure these environment variab
 
 ```bash
 # Enable tracing
-LANGCHAIN_TRACING_V2=true
+LANGSMITH_TRACING=true
 
 # Point to Agent Spy instead of LangSmith
-LANGCHAIN_ENDPOINT=http://localhost:8000/api/v1
+LANGSMITH_ENDPOINT=http://localhost:8000/api/v1
 
 # API key (can be any value for now, authentication is optional)
-LANGCHAIN_API_KEY=your-api-key
+LANGSMITH_API_KEY=your-api-key
 
 # Project name for organizing traces
-LANGCHAIN_PROJECT=your-project-name
+LANGSMITH_PROJECT=your-project-name
 ```
 
 ### Basic Trace Ingestion

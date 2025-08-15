@@ -27,14 +27,14 @@ def setup_agent_spy_tracing():
     print("🔧 Configuring LangChain tracing for Agent Spy...")
 
     # Configure LangChain to send traces to our local Agent Spy server
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ["LANGCHAIN_ENDPOINT"] = "http://localhost:8000/api/v1"
-    os.environ["LANGCHAIN_API_KEY"] = "test-api-key-123"
-    os.environ["LANGCHAIN_PROJECT"] = "agent-spy-demo"
+    os.environ["LANGSMITH_TRACING"] = "true"
+    os.environ["LANGSMITH_ENDPOINT"] = "http://localhost:8000/api/v1"
+    os.environ["LANGSMITH_API_KEY"] = "test-api-key-123"
+    os.environ["LANGSMITH_PROJECT"] = "agent-spy-demo"
 
-    print(f"  ✅ Tracing enabled: {os.environ['LANGCHAIN_TRACING_V2']}")
-    print(f"  ✅ Endpoint: {os.environ['LANGCHAIN_ENDPOINT']}")
-    print(f"  ✅ Project: {os.environ['LANGCHAIN_PROJECT']}")
+    print(f"  ✅ Tracing enabled: {os.environ['LANGSMITH_TRACING']}")
+    print(f"  ✅ Endpoint: {os.environ['LANGSMITH_ENDPOINT']}")
+    print(f"  ✅ Project: {os.environ['LANGSMITH_PROJECT']}")
 
 
 def check_agent_spy_health() -> bool:
