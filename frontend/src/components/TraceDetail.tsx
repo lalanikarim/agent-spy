@@ -332,58 +332,117 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
       )}
 
       {data && (
-        <div 
-          className="flex flex-col h-full space-y-4 overflow-hidden max-w-full" 
-          style={{ 
-            width: '100%', 
-            maxWidth: isExpanded ? '100%' : '480px', 
-            minWidth: isExpanded ? 'auto' : '480px',
-            boxSizing: 'border-box'
-          }}
-        >
-          {/* Hierarchy Overview */}
-          <div className="bg-gray-50 p-3 rounded flex-shrink-0">
-            <Space split={<span className="text-gray-300">|</span>} wrap>
-              <span className="text-sm">
-                <ClockCircleOutlined className="mr-1" />
-                Started: {formatters.formatRelativeTime(data.hierarchy.start_time)}
-              </span>
-              <span className="text-sm">
-                Duration: {formatters.formatDuration(data.hierarchy.duration_ms)}
-              </span>
-              <span className="text-sm">
-                Status: <Tag color={formatters.formatStatus(data.hierarchy.status).color}>
-                  {formatters.formatStatus(data.hierarchy.status).text}
-                </Tag>
-              </span>
-            </Space>
-          </div>
+        isExpanded ? (
+          // Expanded Mode: Side-by-side layout (hierarchy left, details right)
+          <div className="flex h-full space-x-6 overflow-hidden">
+            {/* Left Panel: Hierarchy Overview + Tree View */}
+            <div className="flex flex-col w-1/2 space-y-4 overflow-hidden">
+              {/* Hierarchy Overview */}
+              <div className="bg-gray-50 p-3 rounded flex-shrink-0">
+                <Space split={<span className="text-gray-300">|</span>} wrap>
+                  <span className="text-sm">
+                    <ClockCircleOutlined className="mr-1" />
+                    Started: {formatters.formatRelativeTime(data.hierarchy.start_time)}
+                  </span>
+                  <span className="text-sm">
+                    Duration: {formatters.formatDuration(data.hierarchy.duration_ms)}
+                  </span>
+                  <span className="text-sm">
+                    Status: <Tag color={formatters.formatStatus(data.hierarchy.status).color}>
+                      {formatters.formatStatus(data.hierarchy.status).text}
+                    </Tag>
+                  </span>
+                </Space>
+              </div>
 
-          {/* Tree View */}
-          <div className="flex-shrink-0 max-h-48 overflow-auto border rounded w-full max-w-full">
-            <Tree
-              className="trace-hierarchy-tree p-2 w-full max-w-full"
-              style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}
-              treeData={[convertToTreeData(data.hierarchy)]}
-              defaultExpandAll
-              showLine={{ showLeafIcon: false }}
-              onSelect={handleNodeSelect}
-              selectedKeys={selectedNodeKey ? [selectedNodeKey] : []}
-            />
-          </div>
-
-          {/* Selected Node Details */}
-          {selectedNode && (
-            <div className="flex-1 border-t pt-4 overflow-auto min-h-0 max-w-full w-full">
-              <Title level={5} className="mb-3">
-                Node Details
-              </Title>
-              <div className="overflow-auto max-w-full w-full">
-                {renderNodeDetails(selectedNode)}
+              {/* Tree View - Full height in expanded mode */}
+              <div className="flex-1 overflow-auto border rounded">
+                <Tree
+                  className="trace-hierarchy-tree p-2"
+                  style={{ width: '100%', overflow: 'hidden' }}
+                  treeData={[convertToTreeData(data.hierarchy)]}
+                  defaultExpandAll
+                  showLine={{ showLeafIcon: false }}
+                  onSelect={handleNodeSelect}
+                  selectedKeys={selectedNodeKey ? [selectedNodeKey] : []}
+                />
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Right Panel: Node Details */}
+            <div className="flex flex-col w-1/2 overflow-hidden">
+              {selectedNode ? (
+                <div className="flex flex-col h-full overflow-hidden">
+                  <Title level={5} className="mb-3 flex-shrink-0">Node Details</Title>
+                  <div className="flex-1 overflow-auto">
+                    {renderNodeDetails(selectedNode)}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  <div className="text-center">
+                    <span className="text-4xl mb-2 block">🔍</span>
+                    <p>Select a node from the hierarchy to view details</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          // Compact Mode: Stacked layout (current behavior)
+          <div 
+            className="flex flex-col h-full space-y-4 overflow-hidden max-w-full" 
+            style={{ 
+              width: '100%', 
+              maxWidth: '480px', 
+              minWidth: '480px',
+              boxSizing: 'border-box'
+            }}
+          >
+            {/* Hierarchy Overview */}
+            <div className="bg-gray-50 p-3 rounded flex-shrink-0">
+              <Space split={<span className="text-gray-300">|</span>} wrap>
+                <span className="text-sm">
+                  <ClockCircleOutlined className="mr-1" />
+                  Started: {formatters.formatRelativeTime(data.hierarchy.start_time)}
+                </span>
+                <span className="text-sm">
+                  Duration: {formatters.formatDuration(data.hierarchy.duration_ms)}
+                </span>
+                <span className="text-sm">
+                  Status: <Tag color={formatters.formatStatus(data.hierarchy.status).color}>
+                    {formatters.formatStatus(data.hierarchy.status).text}
+                  </Tag>
+                </span>
+              </Space>
+            </div>
+
+            {/* Tree View - Limited height in compact mode */}
+            <div className="flex-shrink-0 max-h-48 overflow-auto border rounded w-full max-w-full">
+              <Tree
+                className="trace-hierarchy-tree p-2 w-full max-w-full"
+                style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}
+                treeData={[convertToTreeData(data.hierarchy)]}
+                defaultExpandAll
+                showLine={{ showLeafIcon: false }}
+                onSelect={handleNodeSelect}
+                selectedKeys={selectedNodeKey ? [selectedNodeKey] : []}
+              />
+            </div>
+
+            {/* Selected Node Details - Below tree in compact mode */}
+            {selectedNode && (
+              <div className="flex-1 border-t pt-4 overflow-auto min-h-0 max-w-full w-full">
+                <Title level={5} className="mb-3">
+                  Node Details
+                </Title>
+                <div className="overflow-auto max-w-full w-full">
+                  {renderNodeDetails(selectedNode)}
+                </div>
+              </div>
+            )}
+          </div>
+        )
       )}
     </Card>
   );
