@@ -155,6 +155,18 @@ LOG_FORMAT=json
 LOG_FILE=/var/log/agentspy.log
 ```
 
+## 📱 Dashboard Screenshots
+
+### Main Dashboard
+The dashboard provides a comprehensive view of all your agent traces with filtering and search capabilities:
+
+![Dashboard](img/Dashboard.png)
+
+### Trace Details View
+Detailed trace exploration with hierarchical visualization and execution timeline:
+
+![Details View](img/DetailsView.png)
+
 ## 🏛️ Architecture
 
 ### Core Components
