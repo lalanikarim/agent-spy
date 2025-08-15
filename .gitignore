@@ -1,0 +1,44 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Database files
+*.db
+*.db-journal
+agentspy.db*
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Test artifacts
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Temporary files
+.cursor/artifacts/*

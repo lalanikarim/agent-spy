@@ -1,0 +1,30 @@
+[project]
+name = "agentspy"
+version = "0.1.0"
+description = "LangSmith-compatible observability layer for AI agents and LangChain applications"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiosqlite>=0.21.0",
+    "fastapi>=0.116.1",
+    "greenlet>=3.2.4",
+    "httpx>=0.28.1",
+    "pydantic>=2.11.7",
+    "pydantic-settings>=2.10.1",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.43",
+    "uvicorn[standard]>=0.35.0",
+]
+
+[dependency-groups]
+dev = [
+    "langchain>=0.3.27",
+    "langchain-ollama>=0.3.6",
+    "langgraph>=0.6.5",
+    "mypy>=1.17.1",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.2.1",
+    "requests>=2.32.4",
+    "ruff>=0.12.9",
+]
