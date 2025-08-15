@@ -42,6 +42,7 @@ htmlcov/
 
 # Temporary files
 .cursor/artifacts/*
+backend/.cursor/artifacts/
 
 # Planning documents
 docs/plans/
