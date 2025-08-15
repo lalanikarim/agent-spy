@@ -357,7 +357,7 @@ async def add_feedback(run_id: UUID, feedback_data: FeedbackCreate, db: AsyncSes
             "score": feedback.score,
             "value": feedback.value,
             "comment": feedback.comment,
-            "created_at": feedback.created_at.isoformat() if feedback.created_at else None,
+            "created_at": feedback.created_at.astimezone().replace(tzinfo=None).isoformat() if feedback.created_at else None,
         }
     except Exception as e:
         logger.error(f"Failed to add feedback to run {run_id}: {e}")
@@ -390,7 +390,7 @@ async def get_stats(
                     "name": run.name,
                     "run_type": run.run_type,
                     "status": run.status,
-                    "start_time": run.start_time.isoformat() if run.start_time else None,
+                    "start_time": run.start_time.astimezone().replace(tzinfo=None).isoformat() if run.start_time else None,
                     "project_name": run.project_name,
                 }
             )

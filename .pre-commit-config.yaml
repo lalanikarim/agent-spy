@@ -2,7 +2,7 @@
 # See https://pre-commit.com for more information
 
 repos:
-  # Ruff - Python linting and formatting
+  # Ruff - Python linting only (formatting done manually)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
@@ -10,10 +10,6 @@ repos:
       - id: ruff
         name: ruff check (with --fix)
         args: [--fix]
-        types: [python]
-      # Run the formatter
-      - id: ruff-format
-        name: ruff format
         types: [python]
 
   # Type checking with basedpyright (local hook)

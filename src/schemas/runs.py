@@ -1,6 +1,6 @@
 """Pydantic models for run/trace data compatible with LangSmith."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
@@ -142,11 +142,34 @@ class RunResponse(RunBase):
             duration = run.end_time - run.start_time
             duration_ms = int(duration.total_seconds() * 1000)
 
+        # Convert UTC timestamps to local time for display
+
+        start_time_local = None
+        end_time_local = None
+
+        if run.start_time:
+            if run.start_time.tzinfo is not None:
+                # Already has timezone info, convert to local
+                start_time_local = run.start_time.astimezone().replace(tzinfo=None)
+            else:
+                # Naive datetime - assume it's UTC and convert to local
+                utc_time = run.start_time.replace(tzinfo=UTC)
+                start_time_local = utc_time.astimezone().replace(tzinfo=None)
+
+        if run.end_time:
+            if run.end_time.tzinfo is not None:
+                # Already has timezone info, convert to local
+                end_time_local = run.end_time.astimezone().replace(tzinfo=None)
+            else:
+                # Naive datetime - assume it's UTC and convert to local
+                utc_time = run.end_time.replace(tzinfo=UTC)
+                end_time_local = utc_time.astimezone().replace(tzinfo=None)
+
         return cls(
             id=run.id,
             name=run.name,
-            start_time=run.start_time,
-            end_time=run.end_time,
+            start_time=start_time_local,
+            end_time=end_time_local,
             run_type=run.run_type,
             inputs=run.inputs or {},
             outputs=run.outputs,
