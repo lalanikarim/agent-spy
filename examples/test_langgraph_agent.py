@@ -6,15 +6,15 @@ from datetime import datetime
 from typing import Annotated, Literal, TypedDict
 
 # Configure LangChain tracing for Agent Spy
-os.environ['LANGCHAIN_TRACING_V2'] = 'true'
-os.environ['LANGCHAIN_ENDPOINT'] = 'http://localhost:8000/api/v1'
-os.environ['LANGCHAIN_API_KEY'] = 'test-key'
-os.environ['LANGCHAIN_PROJECT'] = 'langgraph-agent-test'
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_ENDPOINT"] = "http://localhost:8000/api/v1"
+os.environ["LANGCHAIN_API_KEY"] = "test-key"
+os.environ["LANGCHAIN_PROJECT"] = "langgraph-agent-test"
 
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
 
@@ -34,12 +34,8 @@ class AgentState(TypedDict):
 # Create the LLM with tool binding
 def create_llm():
     """Create and configure the LLM with tools."""
-    llm = ChatOllama(
-        model='qwen3:8b',
-        base_url='http://aurora.local:11434',
-        temperature=0.1
-    )
-    
+    llm = ChatOllama(model="qwen3:8b", base_url="http://aurora.local:11434", temperature=0.1)
+
     # Bind the tool to the LLM
     tools = [get_current_time]
     llm_with_tools = llm.bind_tools(tools)
@@ -51,7 +47,7 @@ def llm_node(state: AgentState):
     """LLM node that can decide to use tools or end the conversation."""
     llm = create_llm()
     response = llm.invoke(state["messages"])
-    
+
     # Add the response to messages
     return {"messages": [response]}
 
@@ -61,9 +57,9 @@ def should_continue(state: AgentState) -> Literal["tools", "end"]:
     """Determine if we should continue to tools or end."""
     messages = state["messages"]
     last_message = messages[-1]
-    
+
     # If the last message has tool calls, go to tools
-    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         return "tools"
     # Otherwise, we're done
     return "end"
@@ -72,14 +68,14 @@ def should_continue(state: AgentState) -> Literal["tools", "end"]:
 def create_agent_graph():
     """Create the LangGraph agent."""
     print("🔧 Creating LangGraph agent...")
-    
+
     # Create the graph
     workflow = StateGraph(AgentState)
-    
+
     # Add nodes
     workflow.add_node("llm", llm_node)
     workflow.add_node("tools", ToolNode([get_current_time]))
-    
+
     # Add edges
     workflow.add_edge(START, "llm")
     workflow.add_conditional_edges(
@@ -88,13 +84,13 @@ def create_agent_graph():
         {
             "tools": "tools",
             "end": END,
-        }
+        },
     )
     workflow.add_edge("tools", "llm")
-    
+
     # Compile the graph
     app = workflow.compile()
-    
+
     print("✅ LangGraph agent created successfully!")
     return app
 
@@ -108,39 +104,38 @@ def main():
     print("🔧 Tracing: Agent Spy (localhost:8000)")
     print("🛠️ Tool: get_current_time")
     print()
-    
+
     try:
         # Create the agent
         agent = create_agent_graph()
-        
+
         # Test the agent with a time-related question
         print("📝 Testing agent with: 'What time is it now?'")
         print()
-        
-        initial_state = {
-            "messages": [HumanMessage(content="What time is it now?")]
-        }
-        
+
+        initial_state = {"messages": [HumanMessage(content="What time is it now?")]}
+
         print("🔄 Running agent...")
         result = agent.invoke(initial_state)
-        
+
         print("✅ Agent execution completed!")
         print()
         print("📋 Final messages:")
         for i, message in enumerate(result["messages"], 1):
             print(f"  {i}. {type(message).__name__}: {message.content[:100]}...")
-        
+
         print()
         print("🎉 LangGraph agent test completed successfully!")
         print("📊 Check the Agent Spy server logs to see the detailed trace hierarchy:")
         print("   - Initial LLM call")
-        print("   - Tool invocation") 
+        print("   - Tool invocation")
         print("   - Follow-up LLM call")
         print("   - Final response")
-        
+
     except Exception as e:
         print(f"❌ Error running LangGraph agent: {e}")
         import traceback
+
         traceback.print_exc()
 
 

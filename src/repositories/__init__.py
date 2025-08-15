@@ -1,7 +1,6 @@
 """Repository pattern for data access."""
 
-from .runs import RunRepository
 from .feedback import FeedbackRepository
+from .runs import RunRepository
 
 __all__ = ["RunRepository", "FeedbackRepository"]
-

@@ -1,7 +1,7 @@
 """Runs/traces endpoints for LangSmith compatibility and dashboard."""
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,9 +15,9 @@ from src.schemas.dashboard import (
     DashboardStats,
     DashboardSummary,
     ProjectInfo,
+    RootRunsResponse,
     RunHierarchyNode,
     RunHierarchyResponse,
-    RootRunsResponse,
 )
 from src.schemas.feedback import FeedbackCreate
 from src.schemas.runs import (
@@ -37,48 +37,43 @@ router = APIRouter()
 async def get_service_info() -> LangSmithInfo:
     """
     Get service information endpoint that LangSmith clients expect.
-    
+
     This endpoint provides information about the service capabilities
     and configuration that LangSmith clients use for compatibility.
     """
     logger.debug("Service info requested")
-    
+
     info = LangSmithInfo(
         version="0.1.0",
         license_expiration_time=None,  # No license expiration for local service
-        tenant_handle="agent-spy-local"
+        tenant_handle="agent-spy-local",
     )
-    
+
     logger.info("Service info provided")
     return info
 
 
 @router.post("/runs/batch", response_model=BatchIngestResponse, summary="Batch Ingest Runs")
-async def batch_ingest_runs(
-    request: BatchIngestRequest, 
-    db: AsyncSession = Depends(get_db)
-) -> BatchIngestResponse:
+async def batch_ingest_runs(request: BatchIngestRequest, db: AsyncSession = Depends(get_db)) -> BatchIngestResponse:
     """
     Batch ingest runs (traces and spans).
-    
+
     This is the main endpoint that LangChain uses to send trace data.
     It accepts both new runs (POST operations) and run updates (PATCH operations).
     """
-    logger.info(
-        f"🔍 Batch ingest request: {len(request.post)} creates, {len(request.patch)} updates"
-    )
-    
+    logger.info(f"🔍 Batch ingest request: {len(request.post)} creates, {len(request.patch)} updates")
+
     # Debug: Log the first few items to see the structure
     if request.post:
         logger.info(f"📝 First POST item: {request.post[0].model_dump()}")
     if request.patch:
         logger.info(f"📝 First PATCH item: {request.patch[0].model_dump()}")
-    
+
     run_repo = RunRepository(db)
     created_count = 0
     updated_count = 0
     errors = 0
-    
+
     # Process new runs (POST operations)
     for run_create in request.post:
         try:
@@ -89,10 +84,11 @@ async def batch_ingest_runs(
         except Exception as e:
             logger.error(f"❌ Failed to create run {run_create.id}: {e}")
             import traceback
+
             logger.error(f"📍 Traceback: {traceback.format_exc()}")
             errors += 1
-    
-    # Process run updates (PATCH operations)  
+
+    # Process run updates (PATCH operations)
     for run_update in request.patch:
         try:
             updated_run = await run_repo.update(run_update.id, run_update)
@@ -105,26 +101,23 @@ async def batch_ingest_runs(
         except Exception as e:
             logger.error(f"Failed to update run {run_update.id}: {e}")
             errors += 1
-    
+
     logger.info(f"Batch ingest completed: created={created_count}, updated={updated_count}, errors={errors}")
     return BatchIngestResponse(
         success=True,
         created_count=created_count,
         updated_count=updated_count,
-        errors=[] if errors == 0 else [f"{errors} errors occurred"]
+        errors=[] if errors == 0 else [f"{errors} errors occurred"],
     )
 
 
 @router.post("/runs", response_model=RunResponse, summary="Create a new run")
-async def create_run(
-    run_data: RunCreate, 
-    db: AsyncSession = Depends(get_db)
-) -> RunResponse:
+async def create_run(run_data: RunCreate, db: AsyncSession = Depends(get_db)) -> RunResponse:
     """Create a new run (trace or span)."""
     logger.info(f"Creating run: {run_data.id} - {run_data.name}")
-    
+
     run_repo = RunRepository(db)
-    
+
     try:
         run = await run_repo.create(run_data)
         return RunResponse.from_run(run)
@@ -134,21 +127,17 @@ async def create_run(
 
 
 @router.patch("/runs/{run_id}", response_model=RunResponse, summary="Update an existing run")
-async def update_run(
-    run_id: UUID, 
-    run_data: RunUpdate, 
-    db: AsyncSession = Depends(get_db)
-) -> RunResponse:
+async def update_run(run_id: UUID, run_data: RunUpdate, db: AsyncSession = Depends(get_db)) -> RunResponse:
     """Update an existing run (trace or span)."""
     logger.info(f"Updating run: {run_id}")
-    
+
     run_repo = RunRepository(db)
-    
+
     try:
         run = await run_repo.update(run_id, run_data)
         if not run:
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-        
+
         return RunResponse.from_run(run)
     except HTTPException:
         raise
@@ -167,13 +156,13 @@ async def list_runs(
     offset: int = Query(0, description="Number of runs to skip", ge=0),
     start_time_gte: datetime | None = Query(None, description="Filter by start time (>=)"),
     start_time_lte: datetime | None = Query(None, description="Filter by start time (<=)"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> list[RunResponse]:
     """List runs with optional filtering and pagination."""
     logger.info(f"Listing runs with filters: project={project_name}, type={run_type}, limit={limit}")
-    
+
     run_repo = RunRepository(db)
-    
+
     try:
         runs = await run_repo.list_runs(
             project_name=project_name,
@@ -185,7 +174,7 @@ async def list_runs(
             start_time_gte=start_time_gte,
             start_time_lte=start_time_lte,
         )
-        
+
         return [RunResponse.from_run(run) for run in runs]
     except Exception as e:
         logger.error(f"Failed to list runs: {e}")
@@ -193,20 +182,17 @@ async def list_runs(
 
 
 @router.get("/runs/{run_id}", response_model=RunResponse, summary="Get a specific run")
-async def get_run(
-    run_id: UUID, 
-    db: AsyncSession = Depends(get_db)
-) -> RunResponse:
+async def get_run(run_id: UUID, db: AsyncSession = Depends(get_db)) -> RunResponse:
     """Get details for a specific run (trace or span)."""
     logger.info(f"Getting run: {run_id}")
-    
+
     run_repo = RunRepository(db)
-    
+
     try:
         run = await run_repo.get_by_id(run_id)
         if not run:
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-        
+
         return RunResponse.from_run(run)
     except HTTPException:
         raise
@@ -216,27 +202,23 @@ async def get_run(
 
 
 @router.post("/runs/{run_id}/feedback", summary="Add feedback to a run")
-async def add_feedback(
-    run_id: UUID, 
-    feedback_data: FeedbackCreate, 
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
+async def add_feedback(run_id: UUID, feedback_data: FeedbackCreate, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Add feedback to a specific run."""
     logger.info(f"Adding feedback to run: {run_id}")
-    
+
     # First check if the run exists
     run_repo = RunRepository(db)
     run = await run_repo.get_by_id(run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-    
+
     # Create the feedback
     feedback_repo = FeedbackRepository(db)
-    
+
     try:
         feedback = await feedback_repo.create(run_id, feedback_data)
         logger.info(f"Created feedback: {feedback.id} for run: {run_id}")
-        
+
         return {
             "id": str(feedback.id),
             "run_id": str(run_id),
@@ -253,43 +235,41 @@ async def add_feedback(
 @router.get("/stats", summary="Get statistics")
 async def get_stats(
     project_name: str | None = Query(None, description="Filter by project name"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get statistics about runs and feedback."""
     logger.info("Getting statistics")
-    
+
     run_repo = RunRepository(db)
-    
+
     try:
         # Get basic counts
         total_runs = await run_repo.count_runs(project_name=project_name)
         run_types = await run_repo.get_run_types(project_name=project_name)
-        
+
         # Get recent activity (last 10 runs)
-        recent_runs = await run_repo.list_runs(
-            project_name=project_name,
-            limit=10,
-            offset=0
-        )
-        
+        recent_runs = await run_repo.list_runs(project_name=project_name, limit=10, offset=0)
+
         recent_activity = []
         for run in recent_runs:
-            recent_activity.append({
-                "id": str(run.id),
-                "name": run.name,
-                "run_type": run.run_type,
-                "status": run.status,
-                "start_time": run.start_time.isoformat() if run.start_time else None,
-                "project_name": run.project_name,
-            })
-        
+            recent_activity.append(
+                {
+                    "id": str(run.id),
+                    "name": run.name,
+                    "run_type": run.run_type,
+                    "status": run.status,
+                    "start_time": run.start_time.isoformat() if run.start_time else None,
+                    "project_name": run.project_name,
+                }
+            )
+
         stats = {
             "total_runs": total_runs,
             "total_feedback": 0,  # TODO: Implement feedback counting
             "run_types": run_types,
             "recent_activity": recent_activity,
         }
-        
+
         logger.info(f"Statistics: {total_runs} runs, {len(run_types)} run types")
         return stats
     except Exception as e:
@@ -301,22 +281,27 @@ async def get_stats(
 # Dashboard-specific endpoints
 # ================================
 
-@router.get("/dashboard/runs/roots", response_model=RootRunsResponse, summary="Get root traces for dashboard")
+
+@router.get(
+    "/dashboard/runs/roots",
+    response_model=RootRunsResponse,
+    summary="Get root traces for dashboard",
+)
 async def get_root_runs(
-    project_name: Optional[str] = Query(None, description="Filter by project name"),
-    status: Optional[str] = Query(None, description="Filter by status (running, completed, failed)"),
-    search: Optional[str] = Query(None, description="Search in trace names and projects"),
+    project_name: str | None = Query(None, description="Filter by project name"),
+    status: str | None = Query(None, description="Filter by status (running, completed, failed)"),
+    search: str | None = Query(None, description="Search in trace names and projects"),
     limit: int = Query(50, description="Maximum number of traces to return", ge=1, le=200),
     offset: int = Query(0, description="Number of traces to skip", ge=0),
-    start_time_gte: Optional[datetime] = Query(None, description="Filter by start time (>=)"),
-    start_time_lte: Optional[datetime] = Query(None, description="Filter by start time (<=)"),
-    db: AsyncSession = Depends(get_db)
+    start_time_gte: datetime | None = Query(None, description="Filter by start time (>=)"),
+    start_time_lte: datetime | None = Query(None, description="Filter by start time (<=)"),
+    db: AsyncSession = Depends(get_db),
 ) -> RootRunsResponse:
     """Get root traces (parent_run_id = NULL) for dashboard master table."""
     logger.info(f"Getting root runs: project={project_name}, status={status}, search={search}")
-    
+
     run_repo = RunRepository(db)
-    
+
     try:
         # Get root runs
         runs = await run_repo.get_root_runs(
@@ -328,7 +313,7 @@ async def get_root_runs(
             start_time_gte=start_time_gte,
             start_time_lte=start_time_lte,
         )
-        
+
         # Get total count for pagination
         total = await run_repo.count_root_runs(
             project_name=project_name,
@@ -337,47 +322,48 @@ async def get_root_runs(
             start_time_gte=start_time_gte,
             start_time_lte=start_time_lte,
         )
-        
+
         has_more = (offset + len(runs)) < total
-        
+
         return RootRunsResponse(
             runs=[RunResponse.from_run(run) for run in runs],
             total=total,
             limit=limit,
             offset=offset,
-            has_more=has_more
+            has_more=has_more,
         )
     except Exception as e:
         logger.error(f"Failed to get root runs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get root runs: {e}")
 
 
-@router.get("/dashboard/runs/{trace_id}/hierarchy", response_model=RunHierarchyResponse, summary="Get trace hierarchy")
-async def get_run_hierarchy(
-    trace_id: UUID,
-    db: AsyncSession = Depends(get_db)
-) -> RunHierarchyResponse:
+@router.get(
+    "/dashboard/runs/{trace_id}/hierarchy",
+    response_model=RunHierarchyResponse,
+    summary="Get trace hierarchy",
+)
+async def get_run_hierarchy(trace_id: UUID, db: AsyncSession = Depends(get_db)) -> RunHierarchyResponse:
     """Get complete run hierarchy for a trace (for dashboard detail view)."""
     logger.info(f"Getting hierarchy for trace: {trace_id}")
-    
+
     run_repo = RunRepository(db)
-    
+
     try:
         # Get all runs in the hierarchy
         runs = await run_repo.get_run_hierarchy(trace_id)
-        
+
         if not runs:
             raise HTTPException(status_code=404, detail=f"Trace {trace_id} not found")
-        
+
         # Build hierarchical structure
         runs_by_id = {run.id: RunHierarchyNode.from_run(run) for run in runs}
         root_node = None
         max_depth = 0
-        
+
         # First pass: find root and build parent-child relationships
         for run in runs:
             node = runs_by_id[run.id]
-            
+
             if run.parent_run_id is None:
                 # This is the root
                 root_node = node
@@ -386,10 +372,10 @@ async def get_run_hierarchy(
                 parent_node = runs_by_id.get(run.parent_run_id)
                 if parent_node:
                     parent_node.children.append(node)
-        
+
         if not root_node:
             raise HTTPException(status_code=404, detail=f"Root trace {trace_id} not found")
-        
+
         # Calculate max depth
         def calculate_depth(node: RunHierarchyNode, current_depth: int = 0) -> int:
             max_child_depth = current_depth
@@ -397,14 +383,14 @@ async def get_run_hierarchy(
                 child_depth = calculate_depth(child, current_depth + 1)
                 max_child_depth = max(max_child_depth, child_depth)
             return max_child_depth
-        
+
         max_depth = calculate_depth(root_node)
-        
+
         return RunHierarchyResponse(
             root_run_id=trace_id,
             hierarchy=root_node,
             total_runs=len(runs),
-            max_depth=max_depth + 1  # +1 because depth starts at 0
+            max_depth=max_depth + 1,  # +1 because depth starts at 0
         )
     except HTTPException:
         raise
@@ -413,29 +399,38 @@ async def get_run_hierarchy(
         raise HTTPException(status_code=500, detail=f"Failed to get trace hierarchy: {e}")
 
 
-@router.get("/dashboard/stats/summary", response_model=DashboardSummary, summary="Get dashboard summary")
-async def get_dashboard_summary(
-    db: AsyncSession = Depends(get_db)
-) -> DashboardSummary:
+@router.get(
+    "/dashboard/stats/summary",
+    response_model=DashboardSummary,
+    summary="Get dashboard summary",
+)
+async def get_dashboard_summary(db: AsyncSession = Depends(get_db)) -> DashboardSummary:
     """Get comprehensive dashboard statistics and summary."""
     logger.info("Getting dashboard summary")
-    
+
     run_repo = RunRepository(db)
-    
+
     try:
+        # Clean up stale running traces first (30-minute timeout)
+        stale_count = await run_repo.mark_stale_runs_as_failed(timeout_minutes=30)
+        if stale_count > 0:
+            logger.info(f"Automatically marked {stale_count} stale traces as failed")
+            await db.commit()  # Commit the stale run updates
+
         # Get dashboard statistics
         stats_data = await run_repo.get_dashboard_stats()
         stats = DashboardStats(**stats_data)
-        
+
         # Get recent projects (projects with activity in last 7 days)
         from datetime import timedelta
+
         seven_days_ago = datetime.now() - timedelta(days=7)
-        
+
         recent_runs = await run_repo.list_runs(
             start_time_gte=seven_days_ago,
-            limit=1000  # Get enough to analyze projects
+            limit=1000,  # Get enough to analyze projects
         )
-        
+
         # Group by project and get stats
         project_stats = {}
         for run in recent_runs:
@@ -445,29 +440,60 @@ async def get_dashboard_summary(
                     "name": project,
                     "total_runs": 0,
                     "total_traces": 0,
-                    "last_activity": run.start_time
+                    "last_activity": run.start_time,
                 }
-            
+
             project_stats[project]["total_runs"] += 1
             if run.parent_run_id is None:  # Root run
                 project_stats[project]["total_traces"] += 1
-            
+
             # Update last activity
             if run.start_time > project_stats[project]["last_activity"]:
                 project_stats[project]["last_activity"] = run.start_time
-        
+
         # Convert to ProjectInfo objects and sort by last activity
-        recent_projects = [
-            ProjectInfo(**project_data) 
-            for project_data in project_stats.values()
-        ]
+        recent_projects = [ProjectInfo(**project_data) for project_data in project_stats.values()]
         recent_projects.sort(key=lambda p: p.last_activity or datetime.min, reverse=True)
-        
+
         return DashboardSummary(
             stats=stats,
             recent_projects=recent_projects[:10],  # Top 10 most recent
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
     except Exception as e:
         logger.error(f"Failed to get dashboard summary: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get dashboard summary: {e}")
+
+
+@router.post("/dashboard/cleanup/stale-runs", summary="Clean up stale running traces")
+async def cleanup_stale_runs(
+    timeout_minutes: int = Query(30, description="Timeout in minutes for marking traces as failed", ge=1, le=1440),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Manually trigger cleanup of stale running traces that have exceeded the timeout."""
+    logger.info(f"Manual cleanup of stale runs triggered with {timeout_minutes}min timeout")
+
+    run_repo = RunRepository(db)
+
+    try:
+        # Mark stale runs as failed
+        stale_count = await run_repo.mark_stale_runs_as_failed(timeout_minutes=timeout_minutes)
+
+        if stale_count > 0:
+            await db.commit()
+            logger.info(f"Successfully marked {stale_count} stale traces as failed")
+        else:
+            logger.info("No stale traces found to clean up")
+
+        return {
+            "success": True,
+            "message": "Cleanup completed successfully",
+            "stale_runs_marked": stale_count,
+            "timeout_minutes": timeout_minutes,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup stale runs: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup stale runs: {e}")

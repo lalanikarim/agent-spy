@@ -166,7 +166,7 @@ LOG_FILE=/var/log/agentspy.log
 
 **Supported Trace Types**
 - `chain`: Multi-step agent workflows
-- `llm`: Language model interactions  
+- `llm`: Language model interactions
 - `tool`: External tool usage
 - `retrieval`: Knowledge base queries
 - `custom`: User-defined trace types

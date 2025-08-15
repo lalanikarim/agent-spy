@@ -26,12 +26,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Debug mode: {settings.debug}")
-    
+
     # Initialize database connection
     await init_database()
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down application")
     # Close database connections
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    
+
     app = FastAPI(
         title=settings.api_title,
         description=settings.api_description,
@@ -50,7 +50,7 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.is_development else None,
         redoc_url="/redoc" if settings.is_development else None,
     )
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -59,19 +59,20 @@ def create_app() -> FastAPI:
         allow_methods=settings.cors_methods,
         allow_headers=settings.cors_headers,
     )
-    
+
     # Add custom middleware
     @app.middleware("http")
     async def add_request_id(request, call_next):
         """Add request ID to all requests."""
         import uuid
+
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
-        
+
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
-    
+
     # Add exception handlers
     @app.exception_handler(ValueError)
     async def value_error_handler(request, exc):
@@ -81,12 +82,12 @@ def create_app() -> FastAPI:
             status_code=400,
             content={"detail": str(exc)},
         )
-    
+
     @app.exception_handler(Exception)
     async def general_exception_handler(request, exc):
         """Handle general exceptions."""
         logger.error(f"Unhandled exception: {exc}", exc_info=True)
-        
+
         if settings.debug:
             return JSONResponse(
                 status_code=500,
@@ -97,15 +98,11 @@ def create_app() -> FastAPI:
                 status_code=500,
                 content={"detail": "Internal server error"},
             )
-    
+
     # Include routers
     app.include_router(health.router, tags=["health"])
-    app.include_router(
-        runs.router,
-        prefix=settings.langsmith_endpoint_base,
-        tags=["runs"]
-    )
-    
+    app.include_router(runs.router, prefix=settings.langsmith_endpoint_base, tags=["runs"])
+
     return app
 
 
@@ -116,7 +113,7 @@ app = create_app()
 if __name__ == "__main__":
     """Run the application directly."""
     import uvicorn
-    
+
     uvicorn.run(
         "src.main:app",
         host=settings.host,

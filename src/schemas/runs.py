@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class RunTypeEnum(str):
     """Run type enumeration matching LangSmith."""
-    
+
     LLM = "llm"
     CHAIN = "chain"
     TOOL = "tool"
@@ -22,118 +22,118 @@ class RunTypeEnum(str):
 
 class RunBase(BaseModel):
     """Base model for runs matching LangSmith RunBase schema."""
-    
+
     # Required fields
     name: str = Field(..., description="Name of the run")
     start_time: datetime = Field(..., description="Start time of the run")
     run_type: str = Field(..., description="Type of run (llm, chain, tool, etc.)")
     inputs: dict[str, Any] = Field(default_factory=dict, description="Input data")
-    
+
     # Optional core fields
-    id: Optional[UUID] = Field(default_factory=uuid4, description="Unique run ID")
-    end_time: Optional[datetime] = Field(None, description="End time of the run")
-    outputs: Optional[dict[str, Any]] = Field(None, description="Output data")
-    error: Optional[str] = Field(None, description="Error message if run failed")
-    
+    id: UUID | None = Field(default_factory=uuid4, description="Unique run ID")
+    end_time: datetime | None = Field(None, description="End time of the run")
+    outputs: dict[str, Any] | None = Field(None, description="Output data")
+    error: str | None = Field(None, description="Error message if run failed")
+
     # Hierarchy fields
-    parent_run_id: Optional[UUID] = Field(None, description="Parent run ID")
-    trace_id: Optional[UUID] = Field(None, description="Trace ID for grouping related runs")
-    session_id: Optional[UUID] = Field(None, description="Session ID")
-    session_name: Optional[str] = Field(None, description="Session name")
-    
+    parent_run_id: UUID | None = Field(None, description="Parent run ID")
+    trace_id: UUID | None = Field(None, description="Trace ID for grouping related runs")
+    session_id: UUID | None = Field(None, description="Session ID")
+    session_name: str | None = Field(None, description="Session name")
+
     # Metadata fields
-    extra: Optional[dict[str, Any]] = Field(None, description="Extra metadata")
-    serialized: Optional[dict[str, Any]] = Field(None, description="Serialized component info")
-    events: Optional[list[dict[str, Any]]] = Field(None, description="Events during run")
-    tags: Optional[list[str]] = Field(None, description="Tags for categorization")
-    
+    extra: dict[str, Any] | None = Field(None, description="Extra metadata")
+    serialized: dict[str, Any] | None = Field(None, description="Serialized component info")
+    events: list[dict[str, Any]] | None = Field(None, description="Events during run")
+    tags: list[str] | None = Field(None, description="Tags for categorization")
+
     # Reference fields
-    reference_example_id: Optional[UUID] = Field(None, description="Reference example ID")
-    manifest_id: Optional[UUID] = Field(None, description="Manifest ID")
-    
+    reference_example_id: UUID | None = Field(None, description="Reference example ID")
+    manifest_id: UUID | None = Field(None, description="Manifest ID")
+
     # Attachment fields (simplified for now)
-    input_attachments: Optional[dict[str, Any]] = Field(None, description="Input attachments")
-    output_attachments: Optional[dict[str, Any]] = Field(None, description="Output attachments")
-    attachments: Optional[dict[str, Any]] = Field(None, description="General attachments")
-    
+    input_attachments: dict[str, Any] | None = Field(None, description="Input attachments")
+    output_attachments: dict[str, Any] | None = Field(None, description="Output attachments")
+    attachments: dict[str, Any] | None = Field(None, description="General attachments")
+
     # S3 URL fields (for large data)
-    inputs_s3_urls: Optional[dict[str, str]] = Field(None, description="S3 URLs for large inputs")
-    outputs_s3_urls: Optional[dict[str, str]] = Field(None, description="S3 URLs for large outputs")
-    
+    inputs_s3_urls: dict[str, str] | None = Field(None, description="S3 URLs for large inputs")
+    outputs_s3_urls: dict[str, str] | None = Field(None, description="S3 URLs for large outputs")
+
     # Ordering field
-    dotted_order: Optional[str] = Field(None, description="Dotted order for hierarchical sorting")
+    dotted_order: str | None = Field(None, description="Dotted order for hierarchical sorting")
 
 
 class RunCreate(RunBase):
     """Model for creating new runs."""
-    
+
     # Override ID to be required for creation (LangSmith compatibility)
     id: UUID = Field(..., description="Run ID (required for LangSmith compatibility)")
-    
+
     # Add project_name field
-    project_name: Optional[str] = Field(None, description="Project name")
+    project_name: str | None = Field(None, description="Project name")
 
 
 class RunUpdate(BaseModel):
     """Model for updating existing runs."""
-    
+
     # ID is required to identify which run to update
     id: UUID = Field(..., description="ID of the run to update")
-    
+
     # All other fields optional for updates
-    name: Optional[str] = None
-    end_time: Optional[datetime] = None
-    outputs: Optional[dict[str, Any]] = None
-    error: Optional[str] = None
-    extra: Optional[dict[str, Any]] = None
-    events: Optional[list[dict[str, Any]]] = None
-    tags: Optional[list[str]] = None
-    parent_run_id: Optional[UUID] = None
-    reference_example_id: Optional[UUID] = None
-    
+    name: str | None = None
+    end_time: datetime | None = None
+    outputs: dict[str, Any] | None = None
+    error: str | None = None
+    extra: dict[str, Any] | None = None
+    events: list[dict[str, Any]] | None = None
+    tags: list[str] | None = None
+    parent_run_id: UUID | None = None
+    reference_example_id: UUID | None = None
+
     # Token usage fields (for LLM runs)
-    prompt_tokens: Optional[int] = Field(None, description="Number of prompt tokens")
-    completion_tokens: Optional[int] = Field(None, description="Number of completion tokens")
-    total_tokens: Optional[int] = Field(None, description="Total number of tokens")
-    
+    prompt_tokens: int | None = Field(None, description="Number of prompt tokens")
+    completion_tokens: int | None = Field(None, description="Number of completion tokens")
+    total_tokens: int | None = Field(None, description="Total number of tokens")
+
     # Cost fields
-    total_cost: Optional[Decimal] = Field(None, description="Total cost")
-    prompt_cost: Optional[Decimal] = Field(None, description="Prompt cost")
-    completion_cost: Optional[Decimal] = Field(None, description="Completion cost")
-    
+    total_cost: Decimal | None = Field(None, description="Total cost")
+    prompt_cost: Decimal | None = Field(None, description="Prompt cost")
+    completion_cost: Decimal | None = Field(None, description="Completion cost")
+
     # Timing fields
-    first_token_time: Optional[datetime] = Field(None, description="Time of first token")
+    first_token_time: datetime | None = Field(None, description="Time of first token")
 
 
 class RunResponse(RunBase):
     """Model for run responses with additional computed fields."""
-    
+
     # Always present in responses
     id: UUID = Field(..., description="Run ID")
-    
+
     # Child runs (for hierarchical display)
-    child_run_ids: Optional[list[UUID]] = Field(None, description="Child run IDs")
-    child_runs: Optional[list["RunResponse"]] = Field(None, description="Child runs")
-    
+    child_run_ids: list[UUID] | None = Field(None, description="Child run IDs")
+    child_runs: list["RunResponse"] | None = Field(None, description="Child runs")
+
     # Statistics and metadata
-    feedback_stats: Optional[dict[str, Any]] = Field(None, description="Feedback statistics")
-    status: Optional[str] = Field(None, description="Run status")
-    app_path: Optional[str] = Field(None, description="Application path")
-    
+    feedback_stats: dict[str, Any] | None = Field(None, description="Feedback statistics")
+    status: str | None = Field(None, description="Run status")
+    app_path: str | None = Field(None, description="Application path")
+
     # Token usage (computed from events or stored)
-    prompt_tokens: Optional[int] = None
-    completion_tokens: Optional[int] = None
-    total_tokens: Optional[int] = None
-    
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+
     # Cost information
-    total_cost: Optional[Decimal] = None
-    prompt_cost: Optional[Decimal] = None
-    completion_cost: Optional[Decimal] = None
-    
+    total_cost: Decimal | None = None
+    prompt_cost: Decimal | None = None
+    completion_cost: Decimal | None = None
+
     # Additional computed fields
-    duration_ms: Optional[int] = Field(None, description="Duration in milliseconds")
-    in_dataset: Optional[bool] = Field(None, description="Whether run is in a dataset")
-    
+    duration_ms: int | None = Field(None, description="Duration in milliseconds")
+    in_dataset: bool | None = Field(None, description="Whether run is in a dataset")
+
     @classmethod
     def from_run(cls, run: Any) -> "RunResponse":
         """Create a RunResponse from a database Run model."""
@@ -142,7 +142,7 @@ class RunResponse(RunBase):
         if run.start_time and run.end_time:
             duration = run.end_time - run.start_time
             duration_ms = int(duration.total_seconds() * 1000)
-        
+
         return cls(
             id=run.id,
             name=run.name,
@@ -165,7 +165,7 @@ class RunResponse(RunBase):
 
 class BatchIngestRequest(BaseModel):
     """Model for batch ingestion requests."""
-    
+
     post: list[RunCreate] = Field(default_factory=list, description="Runs to create")
     patch: list[RunUpdate] = Field(default_factory=list, description="Runs to update")
     pre_sampled: bool = Field(False, description="Whether data is pre-sampled")
@@ -173,7 +173,7 @@ class BatchIngestRequest(BaseModel):
 
 class BatchIngestResponse(BaseModel):
     """Response for batch ingestion."""
-    
+
     success: bool = Field(..., description="Whether ingestion was successful")
     created_count: int = Field(0, description="Number of runs created")
     updated_count: int = Field(0, description="Number of runs updated")
@@ -182,9 +182,9 @@ class BatchIngestResponse(BaseModel):
 
 class LangSmithInfo(BaseModel):
     """LangSmith service information response."""
-    
+
     version: str = Field(..., description="Service version")
-    license_expiration_time: Optional[datetime] = Field(None, description="License expiration")
+    license_expiration_time: datetime | None = Field(None, description="License expiration")
     batch_ingest_config: dict[str, Any] = Field(
         default_factory=lambda: {
             "size_limit": 20_971_520,  # 20MB
@@ -193,9 +193,9 @@ class LangSmithInfo(BaseModel):
             "scale_up_nthreads_limit": 16,
             "scale_down_nempty_trigger": 4,
         },
-        description="Batch ingestion configuration"
+        description="Batch ingestion configuration",
     )
-    tenant_handle: Optional[str] = Field(None, description="Tenant handle")
+    tenant_handle: str | None = Field(None, description="Tenant handle")
 
 
 # Enable forward references for recursive models

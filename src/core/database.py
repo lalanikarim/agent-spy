@@ -1,7 +1,7 @@
 """Database connection and session management."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -20,10 +20,10 @@ async_session_maker = None
 async def init_database() -> None:
     """Initialize the database connection and create tables."""
     global engine, async_session_maker
-    
+
     settings = get_settings()
     logger.info(f"Initializing database connection: {settings.database_url}")
-    
+
     # Configure engine based on database type
     if settings.database_url.startswith("sqlite"):
         # SQLite-specific configuration
@@ -43,25 +43,25 @@ async def init_database() -> None:
             pool_size=settings.database_pool_size,
             max_overflow=20,
         )
-    
+
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     # Create all tables
     logger.info("Creating database tables...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     logger.info("Database initialization complete")
 
 
 async def close_database() -> None:
     """Close the database connection."""
     global engine
-    
+
     if engine:
         logger.info("Closing database connection...")
         await engine.dispose()
@@ -69,13 +69,13 @@ async def close_database() -> None:
 
 
 @asynccontextmanager
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession]:
     """
     Get a database session.
-    
+
     This is an async context manager that provides a database session
     and handles cleanup automatically.
-    
+
     Usage:
         async with get_db_session() as session:
             # Use session here
@@ -83,7 +83,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     if not async_session_maker:
         raise RuntimeError("Database not initialized. Call init_database() first.")
-    
+
     async with async_session_maker() as session:
         try:
             yield session
@@ -95,13 +95,13 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     """
     Dependency function for FastAPI to get database session.
-    
+
     This is used as a FastAPI dependency to inject database sessions
     into route handlers.
-    
+
     Usage:
         @app.get("/users")
         async def get_users(db: AsyncSession = Depends(get_db)):
@@ -109,4 +109,3 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     async with get_db_session() as session:
         yield session
-

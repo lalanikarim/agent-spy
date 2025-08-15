@@ -16,6 +16,7 @@ router = APIRouter()
 
 class HealthResponse(BaseModel):
     """Health check response model."""
+
     status: str
     timestamp: str
     version: str
@@ -27,6 +28,7 @@ class HealthResponse(BaseModel):
 
 class ReadinessResponse(BaseModel):
     """Readiness check response model."""
+
     ready: bool
     checks: dict[str, bool]
     timestamp: str
@@ -42,23 +44,23 @@ async def health_check(
 ) -> HealthResponse:
     """
     Health check endpoint that returns the current status of the application.
-    
+
     This endpoint is used by load balancers and monitoring systems to determine
     if the application is running and healthy.
     """
     logger.debug("Health check requested")
-    
+
     current_time = time.time()
     uptime = current_time - _start_time
-    
+
     # TODO: Add database connectivity check in Phase 3
     database_status = "not_implemented"
-    
+
     # TODO: Add dependency checks (Redis, external APIs, etc.) in later phases
     dependencies = {
         "database": database_status,
     }
-    
+
     response = HealthResponse(
         status="healthy",
         timestamp=datetime.now(UTC).isoformat(),
@@ -66,44 +68,38 @@ async def health_check(
         environment=settings.environment,
         uptime_seconds=round(uptime, 2),
         database_status=database_status,
-        dependencies=dependencies
+        dependencies=dependencies,
     )
-    
+
     logger.info(f"Health check completed: {response.status}")
     return response
 
 
-@router.get(
-    "/health/ready", response_model=ReadinessResponse, summary="Readiness Check"
-)
+@router.get("/health/ready", response_model=ReadinessResponse, summary="Readiness Check")
 async def readiness_check(
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> ReadinessResponse:
     """
     Readiness check endpoint for determining if app is ready to serve requests.
-    
+
     This endpoint performs deeper checks than the health endpoint and is used by
     Kubernetes and other orchestration systems to determine if the application
     should receive traffic.
     """
     logger.debug("Readiness check requested")
-    
+
     checks = {
         "application": True,  # Application is running if we reach this point
-        "database": False,    # TODO: Implement database connectivity check in Phase 3
+        "database": False,  # TODO: Implement database connectivity check in Phase 3
         "configuration": True,  # Configuration loaded successfully
     }
-    
+
     # Application is ready if all critical checks pass
     ready = checks["application"] and checks["configuration"]
     # Note: Database check will be required in Phase 3
-    
-    response = ReadinessResponse(
-        ready=ready,
-        checks=checks,
-        timestamp=datetime.now(UTC).isoformat()
-    )
-    
+
+    response = ReadinessResponse(ready=ready, checks=checks, timestamp=datetime.now(UTC).isoformat())
+
     logger.info(f"Readiness check completed: ready={ready}")
     return response
 
@@ -112,15 +108,12 @@ async def readiness_check(
 async def liveness_check() -> dict[str, Any]:
     """
     Liveness check endpoint that returns whether the application is alive.
-    
+
     This is the simplest health check that just confirms the application
     process is running and can respond to requests.
     """
     logger.debug("Liveness check requested")
-    
-    response = {
-        "alive": True,
-        "timestamp": datetime.now(UTC).isoformat()
-    }
-    
+
+    response = {"alive": True, "timestamp": datetime.now(UTC).isoformat()}
+
     return response

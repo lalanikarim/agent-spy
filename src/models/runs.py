@@ -4,80 +4,55 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, Index, JSON, String, Text
+from sqlalchemy import JSON, DateTime, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import Base, GUID, ProjectMixin, TimestampMixin
+from .base import GUID, Base, ProjectMixin, TimestampMixin
 
 
 class Run(Base, TimestampMixin, ProjectMixin):
     """
     SQLAlchemy model for runs (traces and spans).
-    
+
     This model stores both traces (root runs) and spans (child runs).
     The parent_run_id field is None for traces and set for spans.
     """
-    
+
     __tablename__ = "runs"
-    
+
     # Primary key
-    id: Mapped[UUID] = mapped_column(
-        GUID(),
-        primary_key=True,
-        index=True
-    )
-    
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, index=True)
+
     # Basic run information
     name: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
     run_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    
+
     # Timing information
-    start_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), 
-        nullable=False, 
-        index=True
-    )
-    end_time: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), 
-        nullable=True,
-        index=True
-    )
-    
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+
     # Hierarchy - parent_run_id is None for root traces
-    parent_run_id: Mapped[UUID | None] = mapped_column(
-        GUID(),
-        nullable=True,
-        index=True
-    )
-    
+    parent_run_id: Mapped[UUID | None] = mapped_column(GUID(), nullable=True, index=True)
+
     # Data fields (stored as JSON)
     inputs: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     outputs: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     extra: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     serialized: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     events: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
-    
+
     # Error information
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    
+
     # Tags (stored as JSON array)
     tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    
+
     # Reference to example (for evaluation)
-    reference_example_id: Mapped[UUID | None] = mapped_column(
-        GUID(),
-        nullable=True,
-        index=True
-    )
-    
+    reference_example_id: Mapped[UUID | None] = mapped_column(GUID(), nullable=True, index=True)
+
     # Status information
-    status: Mapped[str] = mapped_column(
-        String(20), 
-        nullable=False, 
-        default="running",
-        index=True
-    )
-    
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="running", index=True)
+
     # Add composite indexes for common queries
     __table_args__ = (
         # Index for finding child runs of a parent
@@ -89,7 +64,7 @@ class Run(Base, TimestampMixin, ProjectMixin):
         # Index for status queries
         Index("idx_runs_status_time", "status", "start_time"),
     )
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert the model to a dictionary."""
         return {
@@ -112,8 +87,7 @@ class Run(Base, TimestampMixin, ProjectMixin):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
-    
+
     def __repr__(self) -> str:
         """String representation of the run."""
         return f"<Run(id={self.id}, name='{self.name}', type='{self.run_type}', status='{self.status}')>"
-
