@@ -44,6 +44,7 @@ interface TraceDetailProps {
   onClose: () => void;
   onToggleExpansion: () => void;
   isExpanded: boolean;
+  refreshTrigger: number;
   disabled?: boolean;
 }
 
@@ -52,10 +53,18 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
   onClose,
   onToggleExpansion,
   isExpanded,
+  refreshTrigger,
   disabled = false,
 }) => {
   // Fetch trace hierarchy
-  const { data, isLoading, error } = useTraceHierarchy(traceId, { enabled: !disabled });
+  const { data, isLoading, error, refetch } = useTraceHierarchy(traceId, { enabled: !disabled });
+
+  // Trigger refetch when refreshTrigger changes
+  React.useEffect(() => {
+    if (refreshTrigger > 0 && traceId) {
+      refetch();
+    }
+  }, [refreshTrigger, traceId, refetch]);
 
   // Convert hierarchy to tree data
   const convertToTreeData = (node: RunHierarchyNode): TraceDataNode => {

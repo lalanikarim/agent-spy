@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Layout, Typography, Alert, Spin } from 'antd';
 import { DashboardOutlined, ApiOutlined } from '@ant-design/icons';
 import TraceTable from './TraceTable';
@@ -12,6 +12,7 @@ const { Title } = Typography;
 const Dashboard: React.FC = () => {
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
   const [isDetailExpanded, setIsDetailExpanded] = useState<boolean>(false);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   
   // Health check to ensure backend is available
   const { isLoading: healthLoading, error: healthError } = useHealth();
@@ -28,6 +29,11 @@ const Dashboard: React.FC = () => {
   const handleToggleExpansion = () => {
     setIsDetailExpanded(!isDetailExpanded);
   };
+
+  // Coordinated refresh for both root traces and trace detail
+  const handleRefresh = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   return (
     <Layout className="min-h-screen">
@@ -86,6 +92,8 @@ const Dashboard: React.FC = () => {
               <TraceTable
                 selectedTraceId={selectedTraceId}
                 onTraceSelect={handleTraceSelect}
+                onRefresh={handleRefresh}
+                refreshTrigger={refreshTrigger}
                 disabled={!!healthError}
               />
             </div>
@@ -102,6 +110,7 @@ const Dashboard: React.FC = () => {
                 onClose={handleTraceDeselect}
                 onToggleExpansion={handleToggleExpansion}
                 isExpanded={isDetailExpanded}
+                refreshTrigger={refreshTrigger}
                 disabled={!!healthError}
               />
             </div>

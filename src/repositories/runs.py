@@ -25,16 +25,23 @@ class RunRepository:
         """Create a new run."""
         logger.debug(f"Creating run: {run_data.id}")
 
-        # For prompt/parser runs, if they have end_time or outputs, they're complete
-        # These are synchronous operations that LangChain sometimes sends as complete in the POST
+        # Pattern-based completion detection: if a run arrives with both end_time AND outputs, it's complete
+        # This universal pattern works across all run types and is much more reliable than whitelisting
         initial_status = "running"
-        if run_data.run_type in ["prompt", "parser"]:
-            if run_data.end_time is not None or run_data.outputs is not None:
-                initial_status = "completed"
-                logger.info(f"Auto-completing {run_data.run_type} run with data: {run_data.id}")
-            else:
-                # If no completion data, it might come in a PATCH later
-                logger.info(f"Creating {run_data.run_type} run, awaiting completion: {run_data.id}")
+
+        if run_data.end_time is not None and run_data.outputs is not None:
+            # Universal completion pattern: end_time + outputs = completed (unless there's an error)
+            initial_status = "completed" if run_data.error is None else "failed"
+            logger.info(f"Auto-completing {run_data.run_type} run '{run_data.name}' with completion data: {run_data.id}")
+        elif run_data.end_time is not None and run_data.error is not None:
+            # Has end_time but with error = failed
+            initial_status = "failed"
+            logger.info(f"Marking {run_data.run_type} run '{run_data.name}' as failed: {run_data.id}")
+        else:
+            # No completion indicators - will be updated via PATCH later
+            logger.info(
+                f"Creating {run_data.run_type} run '{run_data.name}' in running state, awaiting completion: {run_data.id}"
+            )
 
         run = Run(
             id=run_data.id,

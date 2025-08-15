@@ -30,12 +30,16 @@ const { Option } = Select;
 interface TraceTableProps {
   selectedTraceId: string | null;
   onTraceSelect: (traceId: string) => void;
+  onRefresh: () => void;
+  refreshTrigger: number;
   disabled?: boolean;
 }
 
 const TraceTable: React.FC<TraceTableProps> = ({
   selectedTraceId,
   onTraceSelect,
+  onRefresh,
+  refreshTrigger,
   disabled = false,
 }) => {
   // State for filters and pagination
@@ -49,6 +53,13 @@ const TraceTable: React.FC<TraceTableProps> = ({
     pagination,
     { enabled: !disabled }
   );
+
+  // Trigger refetch when refreshTrigger changes
+  React.useEffect(() => {
+    if (refreshTrigger > 0) {
+      refetch();
+    }
+  }, [refreshTrigger, refetch]);
 
   // Handle filter changes
   const handleFilterChange = (key: keyof TraceFilters, value: string | undefined) => {
@@ -202,7 +213,7 @@ const TraceTable: React.FC<TraceTableProps> = ({
           <Space>
             <Button
               icon={<ReloadOutlined />}
-              onClick={() => refetch()}
+              onClick={onRefresh}
               loading={isLoading}
               disabled={disabled}
             >
