@@ -46,6 +46,7 @@ class RunBase(BaseModel):
     serialized: dict[str, Any] | None = Field(None, description="Serialized component info")
     events: list[dict[str, Any]] | None = Field(None, description="Events during run")
     tags: list[str] | None = Field(None, description="Tags for categorization")
+    project_name: str | None = Field(None, description="Project name")
 
     # Reference fields
     reference_example_id: UUID | None = Field(None, description="Reference example ID")
@@ -69,9 +70,6 @@ class RunCreate(RunBase):
 
     # Override ID to be required for creation (LangSmith compatibility)
     id: UUID = Field(..., description="Run ID (required for LangSmith compatibility)")
-
-    # Add project_name field
-    project_name: str | None = Field(None, description="Project name")
 
 
 class RunUpdate(BaseModel):
@@ -160,6 +158,7 @@ class RunResponse(RunBase):
             reference_example_id=run.reference_example_id,
             status=run.status,
             duration_ms=duration_ms,
+            project_name=run.project_name,
         )
 
 

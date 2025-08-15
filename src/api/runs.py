@@ -123,42 +123,49 @@ async def batch_ingest_runs(
                 logger.info(f"🎯 Using project from header {header}: {value}")
                 break
 
-    # Check first item's metadata for project name
+    # Check first item's metadata for project name (from either POST or PATCH)
+    logger.info("🔍 Starting metadata extraction...")
+    first_item = None
     if request.post and len(request.post) > 0:
         first_item = request.post[0]
-        if hasattr(first_item, "extra") and first_item.extra:
-            # Look for project name in metadata structure: extra.metadata.LANGSMITH_PROJECT
-            extra = first_item.extra
-            logger.info(f"📋 Extra data keys: {list(extra.keys()) if extra else 'no extra data'}")
+        logger.info("🔍 Using POST item for metadata extraction")
+    elif request.patch and len(request.patch) > 0:
+        first_item = request.patch[0]
+        logger.info("🔍 Using PATCH item for metadata extraction")
 
-            if extra and "metadata" in extra:
-                metadata = extra["metadata"]
-                logger.info(f"📋 Metadata keys: {list(metadata.keys()) if isinstance(metadata, dict) else 'not a dict'}")
+    if first_item and hasattr(first_item, "extra") and first_item.extra:
+        # Look for project name in metadata structure: extra.metadata.LANGSMITH_PROJECT
+        extra = first_item.extra
+        logger.info(f"📋 Extra data keys: {list(extra.keys()) if extra else 'no extra data'}")
 
-                if isinstance(metadata, dict):
-                    logger.info(f"🔍 Checking metadata dict with keys: {list(metadata.keys())}")
-                    # Check for LANGSMITH_PROJECT in metadata
-                    if "LANGSMITH_PROJECT" in metadata:
-                        project_from_metadata = metadata["LANGSMITH_PROJECT"]
-                        logger.info(f"🎯 Found project in metadata.LANGSMITH_PROJECT: {project_from_metadata}")
-                    # Fallback to other possible keys
-                    elif "project" in metadata:
-                        project_from_metadata = metadata["project"]
-                        logger.info(f"🎯 Found project in metadata.project: {project_from_metadata}")
-                    elif "project_name" in metadata:
-                        project_from_metadata = metadata["project_name"]
-                        logger.info(f"🎯 Found project in metadata.project_name: {project_from_metadata}")
-                    else:
-                        logger.info(f"❌ No project found in metadata keys: {list(metadata.keys())}")
+        if extra and "metadata" in extra:
+            metadata = extra["metadata"]
+            logger.info(f"📋 Metadata keys: {list(metadata.keys()) if isinstance(metadata, dict) else 'not a dict'}")
 
-            # Also check for direct project keys in extra (fallback)
-            elif extra:
-                if "project" in extra:
-                    project_from_metadata = extra["project"]
-                    logger.info(f"🎯 Found project in extra.project: {project_from_metadata}")
-                elif "LANGSMITH_PROJECT" in extra:
-                    project_from_metadata = extra["LANGSMITH_PROJECT"]
-                    logger.info(f"🎯 Found project in extra.LANGSMITH_PROJECT: {project_from_metadata}")
+            if isinstance(metadata, dict):
+                logger.info(f"🔍 Checking metadata dict with keys: {list(metadata.keys())}")
+                # Check for LANGSMITH_PROJECT in metadata
+                if "LANGSMITH_PROJECT" in metadata:
+                    project_from_metadata = metadata["LANGSMITH_PROJECT"]
+                    logger.info(f"🎯 Found project in metadata.LANGSMITH_PROJECT: {project_from_metadata}")
+                # Fallback to other possible keys
+                elif "project" in metadata:
+                    project_from_metadata = metadata["project"]
+                    logger.info(f"🎯 Found project in metadata.project: {project_from_metadata}")
+                elif "project_name" in metadata:
+                    project_from_metadata = metadata["project_name"]
+                    logger.info(f"🎯 Found project in metadata.project_name: {project_from_metadata}")
+                else:
+                    logger.info(f"❌ No project found in metadata keys: {list(metadata.keys())}")
+
+        # Also check for direct project keys in extra (fallback)
+        elif extra:
+            if "project" in extra:
+                project_from_metadata = extra["project"]
+                logger.info(f"🎯 Found project in extra.project: {project_from_metadata}")
+            elif "LANGSMITH_PROJECT" in extra:
+                project_from_metadata = extra["LANGSMITH_PROJECT"]
+                logger.info(f"🎯 Found project in extra.LANGSMITH_PROJECT: {project_from_metadata}")
 
     # Process new runs (POST operations)
     for run_create in request.post:
@@ -194,6 +201,28 @@ async def batch_ingest_runs(
     # Process run updates (PATCH operations)
     for run_update in request.patch:
         try:
+            # Apply project name extraction to PATCH operations too
+            logger.info(f"🔍 Before PATCH assignment - run_update.project_name: {getattr(run_update, 'project_name', None)}")
+            logger.info(f"🔍 Available - project_from_metadata: {project_from_metadata}")
+            logger.info(f"🔍 Available - project_from_headers: {project_from_headers}")
+
+            # Only set project_name if it's not already set in the update AND we have a source
+            # Don't overwrite existing project_name with None
+            current_project = getattr(run_update, "project_name", None)
+            if not current_project:
+                if project_from_metadata:
+                    run_update.project_name = project_from_metadata
+                    logger.info(f"📝 Set project_name from metadata on PATCH: {project_from_metadata}")
+                elif project_from_headers:
+                    run_update.project_name = project_from_headers
+                    logger.info(f"📝 Set project_name from headers on PATCH: {project_from_headers}")
+                else:
+                    logger.info("❌ No project source available for PATCH - will preserve existing project_name")
+                    # Don't set project_name to None, let the repository preserve the existing value
+            else:
+                logger.info(f"📝 Project already set in run_update: {current_project}")
+
+            logger.info(f"🔄 Updating run: {run_update.id} (final project: {getattr(run_update, 'project_name', None)})")
             updated_run = await run_repo.update(run_update.id, run_update)
             if updated_run:
                 updated_count += 1

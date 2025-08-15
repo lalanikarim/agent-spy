@@ -86,6 +86,9 @@ class RunRepository:
         if run_data.parent_run_id is not None:
             run.parent_run_id = run_data.parent_run_id
 
+        if run_data.project_name is not None:
+            run.project_name = run_data.project_name
+
         if run_data.reference_example_id is not None:
             run.reference_example_id = run_data.reference_example_id
 
