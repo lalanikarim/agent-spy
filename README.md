@@ -8,10 +8,12 @@ A powerful, self-hosted observability platform for AI agents and multi-step work
 - **Real-time Monitoring**: Track agent executions as they happen
 - **Hierarchical Traces**: Visualize complex agent workflows with parent-child relationships
 - **Multi-step Analysis**: Follow agent reasoning through tools, LLMs, and decision points
+- **Smart Completion Detection**: Universal pattern-based detection for accurate run status across all trace types
 - **Performance Metrics**: Monitor execution times, token usage, and resource consumption
 
 ### 📊 **Advanced Analytics**
 - **Dashboard Interface**: Clean, intuitive web interface for trace exploration
+- **Coordinated Refresh**: Synchronized updates across trace table and detail views
 - **Filtering & Search**: Find specific traces by project, status, time range, or content
 - **Statistics & Insights**: Understand agent behavior patterns and performance trends
 - **Export Capabilities**: Export trace data for further analysis
@@ -52,6 +54,17 @@ A powerful, self-hosted observability platform for AI agents and multi-step work
    ```
 
 The server will be running at `http://localhost:8000` with the API documentation available at `http://localhost:8000/docs`.
+
+5. **Try the examples** (optional)
+   ```bash
+   # Test with a LangGraph agent that uses tools
+   uv run python examples/test_langgraph_agent.py
+
+   # Test with a complex multi-chain workflow
+   uv run python examples/test_dual_chain_agent.py
+   ```
+
+   These examples demonstrate the smart completion detection for tool calls, conditional nodes, and complex agent workflows.
 
 ## 📖 Usage
 
@@ -167,9 +180,29 @@ LOG_FILE=/var/log/agentspy.log
 **Supported Trace Types**
 - `chain`: Multi-step agent workflows
 - `llm`: Language model interactions
-- `tool`: External tool usage
+- `tool`: External tool usage (with automatic completion detection)
 - `retrieval`: Knowledge base queries
+- `prompt`: Template processing operations
+- `parser`: Output parsing operations
+- `embedding`: Vector embedding operations
 - `custom`: User-defined trace types
+
+**Advanced Completion Detection**
+Agent Spy uses intelligent pattern-based detection to automatically mark runs as completed when they have both `end_time` and `outputs`, ensuring accurate status tracking across all trace types without manual configuration.
+
+## 🆕 Recent Improvements
+
+### Smart Completion Detection
+- **Universal Pattern Recognition**: Automatically detects completion across all run types (tools, chains, prompts, parsers, etc.)
+- **Intelligent Status Management**: Marks runs as `completed` when they have both `end_time` and `outputs`
+- **Error Handling**: Properly handles failed runs with `end_time` and `error` fields
+- **No Configuration Required**: Works out-of-the-box without manual run type whitelisting
+
+### Coordinated Dashboard Refresh
+- **Synchronized Updates**: Refresh button updates both root traces table and selected trace details
+- **Real-time Status**: Ensures all components show the latest completion status
+- **Improved UX**: Single refresh action updates the entire dashboard view
+- **Efficient Coordination**: Centralized refresh trigger mechanism prevents inconsistent states
 
 ## 🔧 API Reference
 
@@ -311,10 +344,12 @@ agent-spy/
 - [x] SQLite support for development
 - [x] Health monitoring and logging
 
-### Phase 2: Dashboard Interface (In Progress)
-- [ ] React-based web dashboard
-- [ ] Master-detail trace exploration
-- [ ] Real-time updates and filtering
+### Phase 2: Dashboard Interface ✅
+- [x] React-based web dashboard
+- [x] Master-detail trace exploration
+- [x] Real-time updates and filtering
+- [x] Coordinated refresh functionality
+- [x] Smart completion status detection
 - [ ] Timeline visualization
 
 ### Phase 3: Advanced Features

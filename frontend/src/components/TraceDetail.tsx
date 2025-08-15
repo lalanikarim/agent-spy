@@ -23,6 +23,7 @@ import {
   ExpandOutlined,
   CompressOutlined,
   BarChartOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 
@@ -65,6 +66,17 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
       refetch();
     }
   }, [refreshTrigger, traceId, refetch]);
+
+  // Helper function to copy text to clipboard
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // Using a simple notification approach without message component
+      console.log(`${label} copied to clipboard`);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
 
   // Convert hierarchy to tree data
   const convertToTreeData = (node: RunHierarchyNode): TraceDataNode => {
@@ -134,7 +146,9 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Name">
-              <Text strong className="break-words">{node.name}</Text>
+              <Text strong className="break-words" copyable={{ text: node.name }}>
+                {node.name}
+              </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Type">
               <Space>
@@ -184,7 +198,25 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
             }}
           >
             {node.inputs && (
-              <Panel header="Inputs" key="inputs" extra={<CodeOutlined />}>
+              <Panel 
+                header="Inputs" 
+                key="inputs" 
+                extra={
+                  <Space>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined style={{ color: '#1890ff' }} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyToClipboard(formatters.formatJSON(node.inputs), 'Inputs');
+                      }}
+                      title="Copy inputs"
+                    />
+                    <CodeOutlined />
+                  </Space>
+                }
+              >
                 <div 
                   className="max-h-32 overflow-auto w-full max-w-full"
                   style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
@@ -206,7 +238,25 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </Panel>
             )}
             {node.outputs && (
-              <Panel header="Outputs" key="outputs" extra={<CodeOutlined />}>
+              <Panel 
+                header="Outputs" 
+                key="outputs" 
+                extra={
+                  <Space>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined style={{ color: '#1890ff' }} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyToClipboard(formatters.formatJSON(node.outputs), 'Outputs');
+                      }}
+                      title="Copy outputs"
+                    />
+                    <CodeOutlined />
+                  </Space>
+                }
+              >
                 <div 
                   className="max-h-32 overflow-auto w-full max-w-full"
                   style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
@@ -228,7 +278,25 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </Panel>
             )}
             {node.error && (
-              <Panel header="Error" key="error" extra={<InfoCircleOutlined className="text-red-500" />}>
+              <Panel 
+                header="Error" 
+                key="error" 
+                extra={
+                  <Space>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined style={{ color: '#1890ff' }} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyToClipboard(node.error!, 'Error');
+                      }}
+                      title="Copy error"
+                    />
+                    <InfoCircleOutlined className="text-red-500" />
+                  </Space>
+                }
+              >
                 <div 
                   className="max-h-32 overflow-auto w-full max-w-full"
                   style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
@@ -250,7 +318,25 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </Panel>
             )}
             {node.extra && (
-              <Panel header="Extra Data" key="extra" extra={<InfoCircleOutlined />}>
+              <Panel 
+                header="Extra Data" 
+                key="extra" 
+                extra={
+                  <Space>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined style={{ color: '#1890ff' }} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyToClipboard(formatters.formatJSON(node.extra), 'Extra data');
+                      }}
+                      title="Copy extra data"
+                    />
+                    <InfoCircleOutlined />
+                  </Space>
+                }
+              >
                 <div 
                   className="max-h-32 overflow-auto w-full max-w-full"
                   style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
