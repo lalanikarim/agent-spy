@@ -9,8 +9,17 @@ RUN apt-get update && apt-get install -y \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv package manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
 # Set working directory
 WORKDIR /workspace
+
+# Copy Python dependency files (for layer caching)
+COPY pyproject.toml uv.lock* ./
+
+# Install Python dependencies
+RUN uv sync --dev
 
 # Default command
 CMD ["sleep", "infinity"]
