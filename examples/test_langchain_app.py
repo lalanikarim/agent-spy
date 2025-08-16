@@ -28,7 +28,7 @@ def setup_agent_spy_tracing():
 
     # Configure LangChain to send traces to our local Agent Spy server
     os.environ["LANGSMITH_TRACING"] = "true"
-    os.environ["LANGSMITH_ENDPOINT"] = "http://localhost:8000/api/v1"
+    os.environ["LANGSMITH_ENDPOINT"] = os.getenv("LANGSMITH_ENDPOINT", "http://localhost:8000/api/v1")
     os.environ["LANGSMITH_API_KEY"] = "test-api-key-123"
     os.environ["LANGSMITH_PROJECT"] = "agent-spy-demo"
 
@@ -61,7 +61,8 @@ def check_ollama_availability() -> str | None:
         import requests
 
         # Check if Ollama is running
-        response = requests.get("http://aurora.local:11434/api/tags", timeout=5)
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        response = requests.get(f"{ollama_host}/api/tags", timeout=5)
         if response.status_code != 200:
             print(f"  ❌ Ollama API not accessible: {response.status_code}")
             return None
@@ -100,9 +101,10 @@ def run_basic_llm_test(model_name: str):
         from langchain_ollama import OllamaLLM
 
         # Initialize Ollama LLM
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         llm = OllamaLLM(
             model=model_name,
-            base_url="http://aurora.local:11434",
+            base_url=ollama_host,
             temperature=0.1,
         )
 
@@ -136,9 +138,10 @@ def run_chain_test(model_name: str):
         from langchain_ollama import OllamaLLM
 
         # Initialize Ollama LLM
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         llm = OllamaLLM(
             model=model_name,
-            base_url="http://aurora.local:11434",
+            base_url=ollama_host,
             temperature=0.1,
         )
 

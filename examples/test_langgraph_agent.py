@@ -7,7 +7,7 @@ from typing import Annotated, Literal, TypedDict
 
 # Configure LangChain tracing for Agent Spy
 os.environ["LANGSMITH_TRACING"] = "true"
-os.environ["LANGSMITH_ENDPOINT"] = "http://localhost:8000/api/v1"
+os.environ["LANGSMITH_ENDPOINT"] = os.getenv("LANGSMITH_ENDPOINT", "http://localhost:8000/api/v1")
 os.environ["LANGSMITH_API_KEY"] = "test-key"
 os.environ["LANGSMITH_PROJECT"] = "langgraph-agent-test"
 
@@ -34,7 +34,8 @@ class AgentState(TypedDict):
 # Create the LLM with tool binding
 def create_llm():
     """Create and configure the LLM with tools."""
-    llm = ChatOllama(model="qwen3:8b", base_url="http://aurora.local:11434", temperature=0.1)
+    ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    llm = ChatOllama(model="qwen3:0.6b", base_url=ollama_host, temperature=0.1)
 
     # Bind the tool to the LLM
     tools = [get_current_time]

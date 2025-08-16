@@ -26,12 +26,13 @@ from langgraph.graph import END, StateGraph
 
 # Configure LangChain tracing to Agent Spy
 os.environ["LANGSMITH_TRACING"] = "true"
-os.environ["LANGSMITH_ENDPOINT"] = "http://localhost:8000/api/v1"
+os.environ["LANGSMITH_ENDPOINT"] = os.getenv("LANGSMITH_ENDPOINT", "http://localhost:8000/api/v1")
 os.environ["LANGSMITH_API_KEY"] = "test-key"
 os.environ["LANGSMITH_PROJECT"] = "ComplexWorkflow"
 
 # Initialize Ollama LLM
-llm = ChatOllama(model="qwen3:8b", base_url="http://aurora.local:11434", temperature=0.7)
+ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+llm = ChatOllama(model="qwen3:0.6b", base_url=ollama_host, temperature=0.7)
 
 
 # Define the structured output schema
@@ -97,7 +98,7 @@ def first_parser_node(state: WorkflowState) -> WorkflowState:
     extraction_prompt = f"""
     From the following text about a historical figure, extract the most important information:
 
-    {state['initial_response']}
+    {state["initial_response"]}
 
     Focus on extracting:
     - Key facts and dates
@@ -120,7 +121,7 @@ def second_llm_node(state: WorkflowState) -> WorkflowState:
     refinement_prompt = f"""
     Based on this extracted information about a historical figure:
 
-    {state['extracted_info']}
+    {state["extracted_info"]}
 
     Please refine and expand this into a more comprehensive analysis. Add:
     - Additional context about their historical period
@@ -142,7 +143,7 @@ def second_parser_node(state: WorkflowState) -> WorkflowState:
     structuring_prompt = f"""
     Convert the following analysis into a structured format with clear sections:
 
-    {state['refined_analysis']}
+    {state["refined_analysis"]}
 
     Organize into these sections:
     - Biography Summary
@@ -176,13 +177,13 @@ def structured_llm_node(state: WorkflowState) -> WorkflowState:
     final_prompt = f"""
     Based on all the previous analysis, create a comprehensive structured analysis:
 
-    Original Analysis: {state['initial_response']}
+    Original Analysis: {state["initial_response"]}
 
-    Extracted Information: {state['extracted_info']}
+    Extracted Information: {state["extracted_info"]}
 
-    Refined Analysis: {state['refined_analysis']}
+    Refined Analysis: {state["refined_analysis"]}
 
-    Structured Content: {state['structured_content']}
+    Structured Content: {state["structured_content"]}
 
     Create a final comprehensive analysis with all required fields filled out accurately.
     """
