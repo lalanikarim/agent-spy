@@ -36,12 +36,14 @@ services:
       LOG_LEVEL: DEBUG
       LOG_FORMAT: text
     ports:
-      - "${BACKEND_PORT:-8001}:8000"
+      - "8000:8000"
     volumes:
       # Mount source code for development
       - ../src:/app/src:ro
       - ../pyproject.toml:/app/pyproject.toml:ro
       - ../uv.lock:/app/uv.lock:ro
+      # Mount .cursor directory for diagnostics and artifacts
+      - ../.cursor:/app/.cursor:cached
       # SQLite database volume
       - sqlite_dev_data:/app/data
     healthcheck:
@@ -57,13 +59,12 @@ services:
   frontend:
     build:
       context: ../frontend
-      dockerfile: ../docker/frontend/Dockerfile
-      target: builder
+      dockerfile: ../docker/frontend-dev-standalone.Dockerfile
     container_name: agentspy-frontend-dev
     restart: unless-stopped
-    command: npm run dev -- --host 0.0.0.0
+    command: npm run dev -- --host 0.0.0.0 --port 3000
     ports:
-      - "${FRONTEND_PORT:-3000}:5173"
+      - "3000:3000"
     volumes:
       # Mount source code for hot reloading
       - ../frontend/src:/app/src:ro
@@ -71,10 +72,16 @@ services:
       - ../frontend/index.html:/app/index.html:ro
       - ../frontend/vite.config.ts:/app/vite.config.ts:ro
       - ../frontend/package.json:/app/package.json:ro
+      # Mount .cursor directory for diagnostics and artifacts
+      - ../.cursor:/app/.cursor:cached
     depends_on:
       - backend
     environment:
-      - VITE_API_BASE_URL=http://localhost:${BACKEND_PORT:-8001}
+      - VITE_API_BASE_URL=http://localhost:8000/api/v1
+      - VITE_BACKEND_HOST=localhost
+      - VITE_BACKEND_PORT=8000
+      - VITE_FRONTEND_PORT=3000
+      - NODE_ENV=development
     networks:
       - agentspy-dev-network
 

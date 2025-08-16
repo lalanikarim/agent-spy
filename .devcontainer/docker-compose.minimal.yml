@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -9,6 +9,15 @@ services:
     volumes:
       - ..:/workspace:cached
     working_dir: /workspace
+    environment:
+      # Backend development configuration
+      DATABASE_URL: sqlite+aiosqlite:///./agentspy.db
+      ENVIRONMENT: development
+      DEBUG: true
+      HOST: 0.0.0.0
+      PORT: 8000
+      LOG_LEVEL: DEBUG
+      PYTHONPATH: /workspace
     ports:
       - "8000:8000"
     networks:
@@ -21,23 +30,24 @@ services:
     container_name: agentspy-minimal-frontend
     volumes:
       - ../frontend:/workspace/frontend:cached
+      - ../.cursor:/workspace/.cursor:cached
     working_dir: /workspace/frontend
     # Use supervisor to manage dev server with auto-restart
     command: /usr/local/bin/frontend-supervisor.sh
+    environment:
+      # Frontend development configuration
+      VITE_API_BASE_URL: http://localhost:8000/api/v1
+      VITE_BACKEND_PORT: 8000
+      VITE_FRONTEND_PORT: 3000
+      VITE_BACKEND_HOST: localhost
+      NODE_ENV: development
     ports:
-      - "3001:3001"
-      - "5173:5173"
+      - "3000:3000"
+    depends_on:
+      - backend
     networks:
       - agentspy-minimal-network
 
 networks:
   agentspy-minimal-network:
     driver: bridge
-    # below is only needed for podman
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-    x-podman:
-      dns:
-        - "8.8.8.8"
-        - "8.8.4.4"

@@ -25,8 +25,8 @@ start_dev_server() {
     while true; do
         echo "🌟 Starting dev server (attempt $attempt)..."
         
-        # Start the dev server
-        if npm run dev; then
+        # Start the dev server on port 3000
+        if npm run dev -- --host 0.0.0.0 --port 3000; then
             echo "✅ Dev server started successfully"
             # If we get here, the server exited normally (unlikely for dev server)
             echo "⚠️  Dev server exited normally"
