@@ -8,8 +8,6 @@ services:
     container_name: agentspy-minimal-backend
     volumes:
       - ..:/workspace:cached
-      # Mount podman socket for container communication
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     working_dir: /workspace
     ports:
       - "8000:8000"
@@ -24,10 +22,10 @@ services:
     volumes:
       - ../frontend:/workspace/frontend:cached
     working_dir: /workspace/frontend
-    # Install dependencies on startup, then keep container running
-    command: bash -c "npm install && sleep infinity"
+    # Use supervisor to manage dev server with auto-restart
+    command: /usr/local/bin/frontend-supervisor.sh
     ports:
-      - "3000:3000"
+      - "3001:3001"
       - "5173:5173"
     networks:
       - agentspy-minimal-network
@@ -35,3 +33,11 @@ services:
 networks:
   agentspy-minimal-network:
     driver: bridge
+    # below is only needed for podman
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    x-podman:
+      dns:
+        - "8.8.8.8"
+        - "8.8.4.4"
