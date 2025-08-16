@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import JSON, Float, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import GUID, Base, TimestampMixin, datetime_to_local_iso
+from .base import GUID, Base, TimestampMixin, datetime_to_utc_iso
 
 
 class Feedback(Base, TimestampMixin):
@@ -41,8 +41,8 @@ class Feedback(Base, TimestampMixin):
             "correction": self.correction,
             "source_info": self.source_info,
             "feedback_source_type": self.feedback_source_type,
-            "created_at": datetime_to_local_iso(self.created_at),
-            "updated_at": datetime_to_local_iso(self.updated_at),
+            "created_at": datetime_to_utc_iso(self.created_at),
+            "updated_at": datetime_to_utc_iso(self.updated_at),
         }
 
     def __repr__(self) -> str:

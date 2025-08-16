@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import JSON, DateTime, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import GUID, Base, ProjectMixin, TimestampMixin, datetime_to_local_iso
+from .base import GUID, Base, ProjectMixin, TimestampMixin, datetime_to_utc_iso
 
 
 class Run(Base, TimestampMixin, ProjectMixin):
@@ -71,8 +71,8 @@ class Run(Base, TimestampMixin, ProjectMixin):
             "id": str(self.id),
             "name": self.name,
             "run_type": self.run_type,
-            "start_time": datetime_to_local_iso(self.start_time),
-            "end_time": datetime_to_local_iso(self.end_time),
+            "start_time": datetime_to_utc_iso(self.start_time),
+            "end_time": datetime_to_utc_iso(self.end_time),
             "parent_run_id": str(self.parent_run_id) if self.parent_run_id else None,
             "inputs": self.inputs,
             "outputs": self.outputs,
@@ -84,8 +84,8 @@ class Run(Base, TimestampMixin, ProjectMixin):
             "reference_example_id": str(self.reference_example_id) if self.reference_example_id else None,
             "status": self.status,
             "project_name": self.project_name,
-            "created_at": datetime_to_local_iso(self.created_at),
-            "updated_at": datetime_to_local_iso(self.updated_at),
+            "created_at": datetime_to_utc_iso(self.created_at),
+            "updated_at": datetime_to_utc_iso(self.updated_at),
         }
 
     def __repr__(self) -> str:

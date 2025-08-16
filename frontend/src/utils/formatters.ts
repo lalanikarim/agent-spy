@@ -1,23 +1,83 @@
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 
 // Extend dayjs with plugins
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Get user's timezone (default to UTC if not available)
+const getUserTimezone = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "UTC";
+  }
+};
+
+// Convert UTC date string to user's local timezone
+const convertToLocalTime = (
+  dateString: string | null | undefined
+): dayjs.Dayjs | null => {
+  if (!dateString) return null;
+
+  try {
+    // Parse the date string (should be UTC from backend)
+    const utcDate = dayjs.utc(dateString);
+    if (!utcDate.isValid()) {
+      console.warn("Invalid date string:", dateString);
+      return null;
+    }
+
+    // Convert to user's local timezone
+    return utcDate.tz(getUserTimezone());
+  } catch (error) {
+    console.error("Error converting date to local timezone:", error);
+    return null;
+  }
+};
 
 // Format date/time utilities
 export const formatters = {
-  // Format absolute time
+  // Format absolute time with timezone
   formatDateTime: (dateString: string | null | undefined): string => {
     if (!dateString) return "N/A";
-    return dayjs(dateString).format("YYYY-MM-DD HH:mm:ss");
+    const localDate = convertToLocalTime(dateString);
+    if (!localDate) return "N/A";
+    return localDate.format("YYYY-MM-DD HH:mm:ss z");
   },
 
   // Format relative time (e.g., "2 minutes ago")
   formatRelativeTime: (dateString: string | null | undefined): string => {
     if (!dateString) return "N/A";
-    return dayjs(dateString).fromNow();
+    const localDate = convertToLocalTime(dateString);
+    if (!localDate) return "N/A";
+    return localDate.fromNow();
+  },
+
+  // Format date only (without time)
+  formatDate: (dateString: string | null | undefined): string => {
+    if (!dateString) return "N/A";
+    const localDate = convertToLocalTime(dateString);
+    if (!localDate) return "N/A";
+    return localDate.format("YYYY-MM-DD");
+  },
+
+  // Format time only (without date)
+  formatTime: (dateString: string | null | undefined): string => {
+    if (!dateString) return "N/A";
+    const localDate = convertToLocalTime(dateString);
+    if (!localDate) return "N/A";
+    return localDate.format("HH:mm:ss z");
+  },
+
+  // Get user's current timezone
+  getUserTimezone: (): string => {
+    return getUserTimezone();
   },
 
   // Format duration in milliseconds to human readable
@@ -54,13 +114,19 @@ export const formatters = {
     endTime: string | null
   ): number | null => {
     if (!startTime || !endTime) return null;
-    return dayjs(endTime).diff(dayjs(startTime));
+    // Ensure both times are in UTC for accurate calculation
+    const start = dayjs.utc(startTime);
+    const end = dayjs.utc(endTime);
+    return end.diff(start);
   },
 
   // Calculate elapsed time for running tasks (from start time to now)
   calculateElapsedTime: (startTime: string | null): number | null => {
     if (!startTime) return null;
-    return dayjs().diff(dayjs(startTime));
+    // Ensure both times are in UTC for accurate calculation
+    const start = dayjs.utc(startTime);
+    const now = dayjs.utc();
+    return now.diff(start);
   },
 
   // Format duration for tasks, showing elapsed time for running tasks
@@ -139,7 +205,7 @@ export const formatters = {
   },
 
   // Format JSON for display
-  formatJSON: (obj: any): string => {
+  formatJSON: (obj: unknown): string => {
     if (!obj) return "N/A";
     try {
       return JSON.stringify(obj, null, 2);

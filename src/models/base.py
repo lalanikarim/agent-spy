@@ -8,18 +8,19 @@ from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-def datetime_to_local_iso(dt: datetime | None) -> str | None:
-    """Convert UTC datetime to local time ISO string."""
+def datetime_to_utc_iso(dt: datetime | None) -> str | None:
+    """Convert datetime to UTC ISO string with timezone info."""
     if dt is None:
         return None
 
-    # If datetime is timezone-aware (UTC), convert to local
+    # If datetime is timezone-aware, ensure it's in UTC
     if dt.tzinfo is not None:
-        local_dt = dt.astimezone().replace(tzinfo=None)
-        return local_dt.isoformat()
+        utc_dt = dt.astimezone(UTC)
+        return utc_dt.isoformat()
 
-    # If datetime is naive, assume it's already local
-    return dt.isoformat()
+    # If datetime is naive, assume it's UTC and add timezone info
+    utc_dt = dt.replace(tzinfo=UTC)
+    return utc_dt.isoformat()
 
 
 class GUID(TypeDecorator):

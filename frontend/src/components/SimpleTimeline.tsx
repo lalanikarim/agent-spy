@@ -1,3 +1,5 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import React from "react";
 import {
   Bar,
@@ -10,6 +12,9 @@ import {
 } from "recharts";
 import type { RunHierarchyNode } from "../types/traces";
 import { formatters } from "../utils/formatters";
+
+// Extend dayjs with UTC plugin
+dayjs.extend(utc);
 
 interface SimpleTimelineProps {
   hierarchy: RunHierarchyNode;
@@ -39,12 +44,15 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
     const items = [];
 
     if (node.start_time) {
-      const start = new Date(node.start_time).getTime();
+      // Use dayjs for timezone-aware date parsing
+      const startDate = dayjs.utc(node.start_time);
+      const start = startDate.valueOf();
       let duration: number;
 
       if (node.end_time) {
         // Completed task - use actual duration
-        const end = new Date(node.end_time).getTime();
+        const endDate = dayjs.utc(node.end_time);
+        const end = endDate.valueOf();
         duration = end - start;
       } else {
         // Running task - use elapsed time
@@ -100,9 +108,21 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
     }
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: Array<{ payload: unknown }>;
+  }) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const data = payload[0].payload as {
+        fullName: string;
+        type: string;
+        status: string;
+        duration: number;
+        relativeStart: number;
+      };
       return (
         <div className="bg-white p-3 border border-gray-200 rounded shadow-lg">
           <p className="font-medium">{data.fullName}</p>
@@ -120,7 +140,7 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
     return null;
   };
 
-  const handleBarClick = (data: any) => {
+  const handleBarClick = (data: { id?: string }) => {
     if (onNodeSelect && data.id) {
       onNodeSelect(data.id);
     }

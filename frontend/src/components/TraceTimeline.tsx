@@ -1,9 +1,14 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import React, { useEffect, useRef } from "react";
 import { DataSet } from "vis-data";
 import { Timeline } from "vis-timeline/standalone";
 import "vis-timeline/styles/vis-timeline-graph2d.css";
 import type { RunHierarchyNode } from "../types/traces";
 import { formatters } from "../utils/formatters";
+
+// Extend dayjs with UTC plugin
+dayjs.extend(utc);
 
 interface TraceTimelineProps {
   hierarchy: RunHierarchyNode;
@@ -45,8 +50,8 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
         items.push({
           id: node.id,
           content: `${typeIcon} ${formatters.truncateString(node.name, 20)}`,
-          start: new Date(node.start_time),
-          end: node.end_time ? new Date(node.end_time) : undefined,
+          start: dayjs.utc(node.start_time).toDate(),
+          end: node.end_time ? dayjs.utc(node.end_time).toDate() : undefined,
           group: depth,
           className: `timeline-item-${node.status} ${
             selectedNodeId === node.id ? "selected" : ""
@@ -56,7 +61,7 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
           }\nDuration: ${formatters.formatTaskDuration(
             node.duration_ms,
             node.start_time,
-            node.end_time,
+            node.end_time || null,
             node.status
           )}`,
           type: node.end_time ? "range" : "point",
