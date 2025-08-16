@@ -1,116 +1,198 @@
-# Agent Spy Dev Container
+# Dev Container Setup
 
-This directory contains the development container configuration for Agent Spy, providing a complete, consistent development environment.
+This directory contains a minimal, working dev container configuration for the Agent Spy project. The setup has been tested and verified to work with Podman (aliased as `docker`) on macOS.
 
-## Quick Start
+## Overview
 
-1. **Prerequisites**: Install Docker Desktop and VS Code with Dev Containers extension
-2. **Open Project**: Open the agent-spy folder in VS Code
-3. **Start Dev Container**: Click "Reopen in Container" when prompted
-4. **Start Development**: Use the provided commands and tasks
+The dev container setup provides a complete development environment with:
+- **Backend**: Python 3.13 with FastAPI, SQLAlchemy, pytest, and other dependencies
+- **Frontend**: Node.js 20 with React, TypeScript, Vite, and development tools
+- **Security**: Non-root user (`vscode`) with bash shell
+- **VS Code Integration**: Extensions, settings, and port forwarding
 
-## What's Included
+## Files Structure
 
-### 🐍 Backend Development
-- Python 3.13 with uv package manager
-- FastAPI with hot reloading
-- All Python dependencies pre-installed
-- Ruff for linting/formatting
-- MyPy for type checking
-- Pytest for testing
-
-### 🌐 Frontend Development  
-- Node.js 20 with npm
-- React 19 with TypeScript
-- Vite dev server
-- All npm dependencies pre-installed
-- ESLint and Prettier configured
-
-### 🔧 Development Tools
-- VS Code extensions pre-installed
-- Debug configurations ready
-- Task runners for common operations
-- Git hooks and configuration
-- SQLite database tools
-
-## Quick Commands
-
-```bash
-# Start backend server
-agentspy-backend
-
-# Start frontend dev server
-agentspy-frontend
-
-# Run tests
-agentspy-test
-
-# Format and lint code
-agentspy-format
-agentspy-lint
-
-# Open database CLI
-agentspy-db
-
-# Show development info
-agentspy-info
+```
+.devcontainer/
+├── devcontainer.json              # Main dev container configuration
+├── docker-compose.minimal.yml     # Multi-service container setup
+├── backend.simple.Dockerfile      # Python backend container
+├── frontend.simple.Dockerfile     # Node.js frontend container
+└── README.md                      # This documentation
 ```
 
-## Service URLs
+## Key Features
 
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs  
-- **Frontend**: http://localhost:3000
-- **Health Check**: http://localhost:8000/health
-- **SQLite Web** (optional): http://localhost:8080
+### 🔒 Security
+- Containers run as non-root `vscode` user (UID/GID 1000)
+- Bash shell configured as default
+- Sudo privileges for development tasks
 
-## Files Overview
+### 🐍 Backend Environment
+- Python 3.13.5
+- `uv` package manager for fast dependency management
+- Pre-installed Python dependencies (FastAPI, SQLAlchemy, pytest, ruff, etc.)
+- Virtual environment automatically created and managed
 
-- `devcontainer.json` - Main configuration
-- `docker-compose.dev.yml` - Multi-container setup
-- `backend.Dockerfile` - Python development container
-- `frontend.Dockerfile` - Node.js development container
-- `post-create.sh` - Initial setup script
-- `post-start.sh` - Container startup script
-- `development.env` - Environment variables
-- `launch.json` - VS Code debug configs
-- `tasks.json` - VS Code task definitions
+### 🌐 Frontend Environment  
+- Node.js 20.x
+- npm dependency management
+- Dependencies installed on container startup
+- Full TypeScript and React development stack
+
+### 🛠 Development Tools
+- Git, curl, vim, nano, procps pre-installed
+- VS Code extensions for Python and TypeScript development
+- Automatic code formatting and linting
+- Port forwarding for backend (8000) and frontend (3000, 5173)
+
+## Usage
+
+### Starting the Dev Container
+
+1. Open the project in VS Code
+2. Press `Cmd+Shift+P` (macOS) and select "Dev Containers: Reopen in Container"
+3. VS Code will build and start the containers automatically
+4. Wait for the setup to complete
+
+### Working with Python (Backend)
+
+The Python environment uses `uv` for package management. To run Python commands:
+
+```bash
+# Use uv run to execute in the virtual environment
+uv run python -c "import fastapi; print('FastAPI available')"
+uv run python src/main.py
+
+# Or activate the virtual environment manually
+source .venv/bin/activate
+python src/main.py
+```
+
+### Working with Node.js (Frontend)
+
+Node.js dependencies are automatically installed on container startup:
+
+```bash
+# Navigate to frontend directory
+cd frontend/
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
+```
+
+### Port Access
+
+The following ports are forwarded and accessible from your host machine:
+
+- **8000**: Backend API server
+- **3000**: Frontend development server  
+- **5173**: Vite development server
+
+## Architecture Decisions
+
+### Why Minimal Setup?
+
+This configuration evolved from a complex setup that had compatibility issues with Podman. The minimal approach:
+
+1. **Uses official base images** (`python:3.13-slim`, `node:20-slim`)
+2. **Avoids dev container features** that caused conflicts with Podman
+3. **Installs dependencies at build time** for faster startup
+4. **Handles npm install at runtime** to access mounted package.json
+
+### Why Two Containers?
+
+- **Separation of concerns**: Backend and frontend have different runtime requirements
+- **Independent scaling**: Each service can be developed and tested independently  
+- **Cleaner dependencies**: No mixing of Python and Node.js in the same container
+
+### Why Non-Root User?
+
+- **Security best practice**: Containers should not run as root
+- **File permissions**: Matches host user permissions (UID 1000)
+- **VS Code compatibility**: Works seamlessly with VS Code dev containers
 
 ## Troubleshooting
 
-### Container won't start
-```bash
-# Rebuild containers
-docker compose -f .devcontainer/docker-compose.dev.yml build --no-cache
+### Container Build Issues
 
-# Check logs
-docker compose -f .devcontainer/docker-compose.dev.yml logs
+If containers fail to build:
+
+```bash
+# Clean rebuild
+cd .devcontainer
+docker compose -f docker-compose.minimal.yml down
+docker compose -f docker-compose.minimal.yml build --no-cache
 ```
 
-### Port conflicts
-```bash
-# Check what's using the port
-lsof -i :8000
+### Python Dependencies Not Found
 
-# Change ports in docker-compose.dev.yml if needed
+If Python modules are missing:
+
+```bash
+# Check virtual environment
+ls -la .venv/
+
+# Reinstall dependencies
+uv sync --dev
+
+# Use uv run for commands
+uv run python -c "import fastapi"
 ```
 
-### Permission issues
-```bash
-# Fix permissions
-sudo chown -R $USER:$USER .
+### Frontend Dependencies Issues
 
-# Or rebuild with correct user ID
-docker compose build --build-arg USER_UID=$(id -u)
+If npm modules are missing:
+
+```bash
+cd frontend/
+npm install
 ```
 
-## Documentation
+### Permission Issues
 
-See [DEVCONTAINER_SETUP.md](../docs/DEVCONTAINER_SETUP.md) for comprehensive documentation.
+If you encounter permission errors:
 
-## Need Help?
+```bash
+# Check current user
+whoami  # Should show: vscode
 
-1. Check the troubleshooting section above
-2. Review the full documentation
-3. Check container logs
-4. Open an issue in the repository
+# Fix ownership if needed
+sudo chown -R vscode:vscode /workspace
+```
+
+## Development Workflow
+
+1. **Start dev container** in VS Code
+2. **Backend development**: Use `uv run` for Python commands
+3. **Frontend development**: Work in `frontend/` directory with npm
+4. **Testing**: Run tests for both backend and frontend
+5. **Commit changes**: Use git normally from within the container
+
+## Compatibility
+
+✅ **Tested with:**
+- macOS (Apple Silicon)
+- Podman 5.x (aliased as `docker`)
+- podman-compose 1.5.0
+- VS Code Dev Containers extension
+
+❓ **Should work with:**
+- Docker Desktop
+- Linux systems
+- Windows with WSL2
+
+## Migration from Complex Setup
+
+This minimal setup replaces the previous complex configuration that used:
+- Custom dev container features (caused Podman conflicts)
+- Complex user management
+- Multiple Dockerfile variations
+
+The new setup is simpler, more reliable, and easier to maintain while providing the same development capabilities.
