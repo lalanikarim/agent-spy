@@ -35,10 +35,11 @@ The dev container setup provides a complete development environment with:
 - Virtual environment automatically created and managed
 
 ### 🌐 Frontend Environment  
-- Node.js 20.x
+- Node.js 20.x in dedicated frontend container
 - npm dependency management
 - Dependencies installed on container startup
 - Full TypeScript and React development stack
+- Frontend tasks execute in the frontend container via Docker CLI
 
 ### 🛠 Development Tools
 - Git, curl, vim, nano, procps pre-installed
@@ -54,6 +55,17 @@ The dev container setup provides a complete development environment with:
 2. Press `Cmd+Shift+P` (macOS) and select "Dev Containers: Reopen in Container"
 3. VS Code will build and start the containers automatically
 4. Wait for the setup to complete
+
+### Quick Start
+
+Once the dev container is running:
+
+1. **Start both servers**: Press `Cmd+Shift+P` → "Tasks: Run Task" → "Start Both Servers"
+2. **Access the application**:
+   - Backend API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
+   - Frontend: http://localhost:3000 (or http://localhost:5173 for Vite)
+3. **Debug backend**: Press `F5` → Select "Python: Debug Agent Spy Backend"
 
 ### Working with Python (Backend)
 
@@ -170,10 +182,36 @@ sudo chown -R vscode:vscode /workspace
 ## Development Workflow
 
 1. **Start dev container** in VS Code
-2. **Backend development**: Use `uv run` for Python commands
-3. **Frontend development**: Work in `frontend/` directory with npm
-4. **Testing**: Run tests for both backend and frontend
-5. **Commit changes**: Use git normally from within the container
+2. **Launch servers**: Use VS Code tasks to start backend and/or frontend servers
+3. **Backend development**: Use `uv run` for Python commands or launch configurations for debugging
+4. **Frontend development**: Work in `frontend/` directory with npm or use tasks
+5. **Testing**: Run tests using tasks or launch configurations
+6. **Commit changes**: Use git normally from within the container
+
+### VS Code Tasks
+
+Access tasks via `Cmd+Shift+P` → "Tasks: Run Task":
+
+**Note**: Backend tasks run in the current (Python) container. Frontend tasks use `docker exec` to run commands in the dedicated frontend container, keeping containers clean and focused.
+
+- **Start Both Servers**: Launches backend and frontend simultaneously (default build task)
+- **Start Backend Server**: Runs FastAPI server with uvicorn (backend container)
+- **Start Frontend Dev Server**: Runs Vite development server (frontend container)
+- **Install Backend Dependencies**: Runs `uv sync --dev` (backend container)
+- **Install Frontend Dependencies**: Runs `npm install` (frontend container)
+- **Run Backend Tests**: Executes pytest (backend container)
+- **Lint Backend Code**: Runs ruff linting (backend container)
+- **Format Backend Code**: Runs ruff formatting (backend container)
+- **Build Frontend**: Production build with Vite (frontend container)
+- **Lint Frontend Code**: Runs ESLint (frontend container)
+
+### Debug Configurations
+
+Access via `F5` or Debug panel:
+
+- **Python: Debug Agent Spy Backend**: Debug the FastAPI application
+- **Python: Run with uv**: Run backend with uvicorn and auto-reload
+- **Python: Run Tests**: Debug pytest execution
 
 ## Compatibility
 

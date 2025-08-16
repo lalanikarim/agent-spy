@@ -8,6 +8,8 @@ services:
     container_name: agentspy-minimal-backend
     volumes:
       - ..:/workspace:cached
+      # Mount podman socket for container communication
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     working_dir: /workspace
     ports:
       - "8000:8000"
