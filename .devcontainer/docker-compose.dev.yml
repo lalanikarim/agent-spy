@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: .devcontainer/backend.Dockerfile
+      args:
+        - USER_UID=1000
+        - USER_GID=1000
+    container_name: agentspy-dev-backend
+    volumes:
+      # Mount the workspace
+      - ..:/workspace:cached
+      # Mount uv cache for faster dependency installs
+      - agent-spy-uv-cache:/home/vscode/.cache/uv
+      # Mount Python cache
+      - agent-spy-python-cache:/home/vscode/.cache/pip
+    environment:
+      # Development environment settings
+      ENVIRONMENT: development
+      DEBUG: true
+      HOST: 0.0.0.0
+      PORT: 8000
+      DATABASE_URL: sqlite+aiosqlite:///workspace/dev-data/agentspy_dev.db
+      DATABASE_ECHO: true
+      CORS_ORIGINS: "*"
+      LOG_LEVEL: DEBUG
+      
+      # Python path for development
+      PYTHONPATH: /workspace
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+      
+      # UV configuration
+      UV_SYSTEM_PYTHON: 1
+      UV_CACHE_DIR: /home/vscode/.cache/uv
+    ports:
+      - "8000:8000"
+    working_dir: /workspace
+    command: sleep infinity
+    networks:
+      - agentspy-dev-network
+    depends_on:
+      - frontend
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../.devcontainer/frontend.Dockerfile
+      args:
+        - USER_UID=1000
+        - USER_GID=1000
+    container_name: agentspy-dev-frontend
+    volumes:
+      # Mount the frontend workspace
+      - ../frontend:/workspace/frontend:cached
+      # Mount node_modules as named volume for better performance
+      - agent-spy-node-modules:/workspace/frontend/node_modules
+      # Mount npm cache
+      - agent-spy-npm-cache:/home/vscode/.npm
+    environment:
+      # Frontend development settings
+      NODE_ENV: development
+      VITE_API_BASE_URL: http://localhost:8000
+      CHOKIDAR_USEPOLLING: true
+      WATCHPACK_POLLING: true
+    ports:
+      - "3000:3000"
+      - "5173:5173"  # Vite dev server alternative port
+    working_dir: /workspace/frontend
+    command: sleep infinity
+    networks:
+      - agentspy-dev-network
+
+  # Optional: Database management tool
+  sqlite-web:
+    image: coleifer/sqlite-web
+    container_name: agentspy-dev-sqlite-web
+    volumes:
+      - ..:/workspace:cached
+    environment:
+      SQLITE_DATABASE: /workspace/dev-data/agentspy_dev.db
+    ports:
+      - "8080:8080"
+    command: sqlite_web -H 0.0.0.0 -p 8080 /workspace/dev-data/agentspy_dev.db
+    networks:
+      - agentspy-dev-network
+    profiles:
+      - tools
+
+volumes:
+  agent-spy-node-modules:
+    driver: local
+  agent-spy-uv-cache:
+    driver: local
+  agent-spy-python-cache:
+    driver: local
+  agent-spy-npm-cache:
+    driver: local
+
+networks:
+  agentspy-dev-network:
+    driver: bridge

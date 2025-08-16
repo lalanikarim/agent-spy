@@ -46,3 +46,10 @@ backend/.cursor/artifacts/
 
 # Planning documents
 docs/plans/
+
+# Development container data
+dev-data/
+.devcontainer/.env*
+
+# Node modules volume
+frontend/node_modules

@@ -1,0 +1,118 @@
+{
+    // VS Code launch configuration for Agent Spy development
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Backend (FastAPI)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "ENVIRONMENT": "development",
+                "DEBUG": "true",
+                "DATABASE_URL": "sqlite+aiosqlite:///workspace/dev-data/agentspy_dev.db",
+                "DATABASE_ECHO": "true",
+                "LOG_LEVEL": "DEBUG"
+            },
+            "args": [],
+            "jinja": true,
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "showReturnValue": true,
+            "subProcess": true
+        },
+        {
+            "name": "Debug Backend Tests",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "ENVIRONMENT": "test",
+                "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+                "LOG_LEVEL": "DEBUG"
+            },
+            "args": [
+                "-v",
+                "--tb=short",
+                "${workspaceFolder}/tests/"
+            ],
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Debug Specific Test",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "ENVIRONMENT": "test",
+                "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+                "LOG_LEVEL": "DEBUG"
+            },
+            "args": [
+                "-v",
+                "--tb=short",
+                "${file}"
+            ],
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Debug Example Script",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "LANGSMITH_TRACING": "true",
+                "LANGSMITH_ENDPOINT": "http://localhost:8000/api/v1",
+                "LANGSMITH_API_KEY": "dev-key",
+                "LANGSMITH_PROJECT": "dev-examples"
+            },
+            "args": [],
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Attach to Backend Container",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "/workspace"
+                }
+            ],
+            "justMyCode": false
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Debug Full Stack",
+            "configurations": [
+                "Debug Backend (FastAPI)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Full Stack",
+                "order": 1
+            }
+        }
+    ]
+}
