@@ -6,9 +6,13 @@ import type {
   TraceFilters,
   PaginationParams
 } from '../types/traces';
+import { config, logConfiguration } from '../config/environment';
 
-// API client configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+// Log configuration in development
+logConfiguration();
+
+// API client configuration using centralized config
+const API_BASE_URL = config.apiBaseUrl;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -77,9 +81,18 @@ export const tracesApi = {
     return response.data;
   },
 
-  // Health check
+  // Health check - now uses relative path instead of hardcoded URL
   getHealth: async (): Promise<{ status: string; timestamp: string }> => {
-    const response = await apiClient.get('http://localhost:8000/health');
+    // Create a separate axios instance for health check since it's not under /api/v1
+    const healthClient = axios.create({
+      baseURL: config.apiBaseUrl.replace('/api/v1', ''),
+      timeout: 5000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    const response = await healthClient.get('/health');
     return response.data;
   },
 };

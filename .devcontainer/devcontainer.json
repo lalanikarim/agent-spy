@@ -6,13 +6,13 @@
   "shutdownAction": "stopCompose",
   
   // Port forwarding
-  "forwardPorts": [8000, 3000, 5173],
+  "forwardPorts": [8000, 3001, 5173],
   "portsAttributes": {
     "8000": {
       "label": "Backend API",
       "onAutoForward": "notify"
     },
-    "3000": {
+    "3001": {
       "label": "Frontend Dev Server", 
       "onAutoForward": "openBrowser"
     },

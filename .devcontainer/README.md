@@ -192,18 +192,34 @@ sudo chown -R vscode:vscode /workspace
 
 Access tasks via `Cmd+Shift+P` → "Tasks: Run Task":
 
-**Note**: Backend tasks run in the current (Python) container. Frontend tasks use `docker exec` to run commands in the dedicated frontend container, keeping containers clean and focused.
+**Backend Tasks** (run in current Python container):
+- **Start Backend Server**: Runs FastAPI server with uvicorn (default build task)
+- **Install Backend Dependencies**: Runs `uv sync --dev`
+- **Run Backend Tests**: Executes pytest
+- **Lint Backend Code**: Runs ruff linting
+- **Format Backend Code**: Runs ruff formatting
 
-- **Start Both Servers**: Launches backend and frontend simultaneously (default build task)
-- **Start Backend Server**: Runs FastAPI server with uvicorn (backend container)
-- **Start Frontend Dev Server**: Runs Vite development server (frontend container)
-- **Install Backend Dependencies**: Runs `uv sync --dev` (backend container)
-- **Install Frontend Dependencies**: Runs `npm install` (frontend container)
-- **Run Backend Tests**: Executes pytest (backend container)
-- **Lint Backend Code**: Runs ruff linting (backend container)
-- **Format Backend Code**: Runs ruff formatting (backend container)
-- **Build Frontend**: Production build with Vite (frontend container)
-- **Lint Frontend Code**: Runs ESLint (frontend container)
+**Frontend Workflow**:
+- **Frontend: Open Terminal Instructions**: Shows step-by-step instructions for frontend development
+
+### Frontend Development Workflow
+
+Since containers are kept clean and separate, frontend development requires manual terminal access:
+
+1. **Open a new terminal**: `Cmd+Shift+P` → "Terminal: Create New Terminal"
+2. **Connect to frontend container**: `docker exec -it agentspy-minimal-frontend bash`
+3. **Navigate to frontend directory**: `cd /workspace/frontend`
+4. **Install dependencies**: `npm install`
+5. **Start development server**: `npm run dev`
+6. **Access frontend**: http://localhost:3000 or http://localhost:5173
+
+**Frontend Commands**:
+```bash
+npm install          # Install dependencies
+npm run dev         # Start Vite dev server
+npm run build       # Build for production
+npm run lint        # Run ESLint
+```
 
 ### Debug Configurations
 

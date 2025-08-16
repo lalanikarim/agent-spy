@@ -28,6 +28,10 @@ RUN if id -u $USER_UID >/dev/null 2>&1; then \
 # Set working directory
 WORKDIR /workspace/frontend
 
+# Copy supervisor script
+COPY .devcontainer/frontend-supervisor.sh /usr/local/bin/frontend-supervisor.sh
+RUN chmod +x /usr/local/bin/frontend-supervisor.sh
+
 # Change ownership of workspace to vscode user
 RUN chown -R vscode:vscode /workspace
 

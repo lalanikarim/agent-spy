@@ -5,6 +5,7 @@ import TraceTable from './TraceTable';
 import TraceDetail from './TraceDetail';
 import DashboardStats from './DashboardStats';
 import { useHealth } from '../hooks/useTraces';
+import { getBaseUrl } from '../config/environment';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -72,7 +73,7 @@ const Dashboard: React.FC = () => {
         {healthError && (
           <Alert
             message="Backend Connection Error"
-            description="Cannot connect to Agent Spy backend. Please ensure the server is running at http://localhost:8000"
+            description={`Cannot connect to Agent Spy backend. Please ensure the server is running at ${getBaseUrl()}`}
             type="error"
             showIcon
             className="mb-6"
