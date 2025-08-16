@@ -1,10 +1,79 @@
 {
-  "name": "Agent Spy - Minimal Compose",
+  "name": "Agent Spy - With Extensions",
   "dockerComposeFile": "docker-compose.minimal.yml",
   "service": "backend",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   
-  // Add just port forwarding (safest addition)
-  "forwardPorts": [8000, 3000, 5173]
+  // Port forwarding
+  "forwardPorts": [8000, 3000, 5173],
+  "portsAttributes": {
+    "8000": {
+      "label": "Backend API",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Frontend Dev Server", 
+      "onAutoForward": "openBrowser"
+    },
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  
+  // VS Code extensions and settings
+  "customizations": {
+    "vscode": {
+      "settings": {
+        // Python settings
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
+          }
+        },
+        
+        // TypeScript/JavaScript settings  
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll.eslint": "explicit"
+          }
+        },
+        "[typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll.eslint": "explicit"
+          }
+        },
+        
+        // General settings
+        "editor.formatOnSave": true,
+        "files.eol": "\n",
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true
+      },
+      
+      "extensions": [
+        // Python development
+        "ms-python.python",
+        "charliermarsh.ruff",
+        
+        // Frontend development
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss",
+        
+        // General development
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
 }
