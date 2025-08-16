@@ -1,20 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
-import type { UseQueryResult } from '@tanstack/react-query';
-import { tracesApi } from '../api/client';
+import type { UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { tracesApi } from "../api/client";
 import type {
+  DashboardSummary,
+  PaginationParams,
   RootRunsResponse,
   RunHierarchyResponse,
-  DashboardSummary,
   TraceFilters,
-  PaginationParams
-} from '../types/traces';
+} from "../types/traces";
 
 // Query keys
 export const QUERY_KEYS = {
-  rootTraces: 'rootTraces',
-  traceHierarchy: 'traceHierarchy',
-  dashboardSummary: 'dashboardSummary',
-  health: 'health',
+  rootTraces: "rootTraces",
+  traceHierarchy: "traceHierarchy",
+  dashboardSummary: "dashboardSummary",
+  health: "health",
 } as const;
 
 // Custom hooks for data fetching
@@ -44,9 +44,10 @@ export const useTraceHierarchy = (
   });
 };
 
-export const useDashboardSummary = (
-  options?: { enabled?: boolean; refetchInterval?: number }
-): UseQueryResult<DashboardSummary, Error> => {
+export const useDashboardSummary = (options?: {
+  enabled?: boolean;
+  refetchInterval?: number;
+}): UseQueryResult<DashboardSummary, Error> => {
   return useQuery({
     queryKey: [QUERY_KEYS.dashboardSummary],
     queryFn: () => tracesApi.getDashboardSummary(),
@@ -56,14 +57,25 @@ export const useDashboardSummary = (
   });
 };
 
-export const useHealth = (
-  options?: { enabled?: boolean; refetchInterval?: number }
-): UseQueryResult<{ status: string; timestamp: string }, Error> => {
+export const useHealth = (options?: {
+  enabled?: boolean;
+  refetchInterval?: number;
+}): UseQueryResult<{ status: string; timestamp: string }, Error> => {
+  console.log("🏥 useHealth hook called with options:", options);
   return useQuery({
     queryKey: [QUERY_KEYS.health],
-    queryFn: () => tracesApi.getHealth(),
+    queryFn: () => {
+      console.log("🏥 useHealth queryFn executing...");
+      return tracesApi.getHealth();
+    },
     staleTime: 30000, // 30 seconds
     refetchInterval: options?.refetchInterval || 30000, // Refetch every 30 seconds
     enabled: options?.enabled !== false,
+    onSuccess: (data) => {
+      console.log("🏥 useHealth success:", data);
+    },
+    onError: (error) => {
+      console.error("🏥 useHealth error:", error);
+    },
   });
 };

@@ -1,22 +1,30 @@
-import React, { useState, useCallback } from 'react';
-import { Layout, Typography, Alert, Spin } from 'antd';
-import { DashboardOutlined, ApiOutlined } from '@ant-design/icons';
-import TraceTable from './TraceTable';
-import TraceDetail from './TraceDetail';
-import DashboardStats from './DashboardStats';
-import { useHealth } from '../hooks/useTraces';
-import { getBaseUrl } from '../config/environment';
+import { ApiOutlined, DashboardOutlined } from "@ant-design/icons";
+import { Alert, Layout, Spin, Typography } from "antd";
+import React, { useCallback, useState } from "react";
+import { getBaseUrl } from "../config/environment";
+import { useHealth } from "../hooks/useTraces";
+import DashboardStats from "./DashboardStats";
+import TraceDetail from "./TraceDetail";
+import TraceTable from "./TraceTable";
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
 
 const Dashboard: React.FC = () => {
+  console.log("🎯 Dashboard component rendering...");
+
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
   const [isDetailExpanded, setIsDetailExpanded] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
-  
+
   // Health check to ensure backend is available
   const { isLoading: healthLoading, error: healthError } = useHealth();
+
+  console.log("🏥 Dashboard health check state:", {
+    isLoading: healthLoading,
+    error: healthError,
+    errorMessage: healthError?.message,
+  });
 
   const handleTraceSelect = (traceId: string) => {
     setSelectedTraceId(traceId);
@@ -33,7 +41,7 @@ const Dashboard: React.FC = () => {
 
   // Coordinated refresh for both root traces and trace detail
   const handleRefresh = useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   }, []);
 
   return (
@@ -47,7 +55,7 @@ const Dashboard: React.FC = () => {
               Agent Spy Dashboard
             </Title>
           </div>
-          
+
           {/* Health Status Indicator */}
           <div className="flex items-center space-x-2">
             {healthLoading ? (
@@ -89,7 +97,11 @@ const Dashboard: React.FC = () => {
         <div className="flex gap-6 overflow-hidden">
           {/* Master Table - Root Traces */}
           {!isDetailExpanded && (
-            <div className={selectedTraceId ? 'flex-1 min-w-0 overflow-hidden' : 'w-full'}>
+            <div
+              className={
+                selectedTraceId ? "flex-1 min-w-0 overflow-hidden" : "w-full"
+              }
+            >
               <TraceTable
                 selectedTraceId={selectedTraceId}
                 onTraceSelect={handleTraceSelect}
@@ -102,9 +114,17 @@ const Dashboard: React.FC = () => {
 
           {/* Detail View - Trace Hierarchy (only show when trace selected) */}
           {selectedTraceId && (
-            <div 
-              className={isDetailExpanded ? 'w-full overflow-hidden' : 'w-120 flex-shrink-0 overflow-hidden'}
-              style={!isDetailExpanded ? { width: '480px', minWidth: '480px', maxWidth: '480px' } : {}}
+            <div
+              className={
+                isDetailExpanded
+                  ? "w-full overflow-hidden"
+                  : "w-120 flex-shrink-0 overflow-hidden"
+              }
+              style={
+                !isDetailExpanded
+                  ? { width: "480px", minWidth: "480px", maxWidth: "480px" }
+                  : {}
+              }
             >
               <TraceDetail
                 traceId={selectedTraceId}

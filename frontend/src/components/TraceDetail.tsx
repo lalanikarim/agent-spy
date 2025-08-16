@@ -1,41 +1,41 @@
-import React from 'react';
 import {
-  Card,
-  Tree,
-  Typography,
-  Tag,
-  Space,
-  Button,
-  Alert,
-  Descriptions,
-  Collapse,
-  Empty,
-  Tooltip,
-  Spin,
-  Tabs,
-} from 'antd';
-import {
-  CloseOutlined,
+  BarChartOutlined,
   BranchesOutlined,
   ClockCircleOutlined,
-  InfoCircleOutlined,
+  CloseOutlined,
   CodeOutlined,
-  ExpandOutlined,
   CompressOutlined,
-  BarChartOutlined,
   CopyOutlined,
-} from '@ant-design/icons';
-import type { DataNode } from 'antd/es/tree';
+  ExpandOutlined,
+  InfoCircleOutlined,
+} from "@ant-design/icons";
+import {
+  Alert,
+  Button,
+  Card,
+  Collapse,
+  Descriptions,
+  Empty,
+  Space,
+  Spin,
+  Tabs,
+  Tag,
+  Tooltip,
+  Tree,
+  Typography,
+} from "antd";
+import type { DataNode } from "antd/es/tree";
+import React from "react";
+import { useTraceHierarchy } from "../hooks/useTraces";
+import type { RunHierarchyNode } from "../types/traces";
+import { formatters } from "../utils/formatters";
+import { SimpleTimeline } from "./SimpleTimeline";
+import { TraceTimeline } from "./TraceTimeline";
 
 // Extend DataNode to include our custom data
 interface TraceDataNode extends DataNode {
   data?: RunHierarchyNode;
 }
-import { useTraceHierarchy } from '../hooks/useTraces';
-import type { RunHierarchyNode } from '../types/traces';
-import { formatters } from '../utils/formatters';
-import { TraceTimeline } from './TraceTimeline';
-import { SimpleTimeline } from './SimpleTimeline';
 
 const { Text, Title } = Typography;
 const { Panel } = Collapse;
@@ -58,7 +58,9 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
   disabled = false,
 }) => {
   // Fetch trace hierarchy
-  const { data, isLoading, error, refetch } = useTraceHierarchy(traceId, { enabled: !disabled });
+  const { data, isLoading, error, refetch } = useTraceHierarchy(traceId, {
+    enabled: !disabled,
+  });
 
   // Trigger refetch when refreshTrigger changes
   React.useEffect(() => {
@@ -74,17 +76,22 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
       // Using a simple notification approach without message component
       console.log(`${label} copied to clipboard`);
     } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
+      console.error("Failed to copy to clipboard:", err);
     }
   };
 
   // Convert hierarchy to tree data
   const convertToTreeData = (node: RunHierarchyNode): TraceDataNode => {
-    const { text: statusText, color: statusColor } = formatters.formatStatus(node.status);
+    const { text: statusText, color: statusColor } = formatters.formatStatus(
+      node.status
+    );
     const { icon: typeIcon } = formatters.formatRunType(node.run_type);
-    const duration = formatters.formatDuration(node.duration_ms);
-
-
+    const duration = formatters.formatTaskDuration(
+      node.duration_ms,
+      node.start_time,
+      node.end_time,
+      node.status
+    );
 
     return {
       key: node.id,
@@ -95,9 +102,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
             <Text strong className="truncate max-w-full overflow-hidden">
               {formatters.truncateString(node.name, 35)}
             </Text>
-            <Tag color={statusColor}>
-              {statusText}
-            </Tag>
+            <Tag color={statusColor}>{statusText}</Tag>
           </div>
           <Text type="secondary" className="text-xs ml-2 flex-shrink-0">
             {duration}
@@ -110,8 +115,11 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
   };
 
   // Handle tree node selection
-  const [selectedNodeKey, setSelectedNodeKey] = React.useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = React.useState<RunHierarchyNode | null>(null);
+  const [selectedNodeKey, setSelectedNodeKey] = React.useState<string | null>(
+    null
+  );
+  const [selectedNode, setSelectedNode] =
+    React.useState<RunHierarchyNode | null>(null);
 
   // Clear selected node when trace changes
   React.useEffect(() => {
@@ -133,20 +141,35 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
 
   // Render node details
   const renderNodeDetails = (node: RunHierarchyNode) => {
-    const { text: statusText, color: statusColor } = formatters.formatStatus(node.status);
-    const { text: typeText, icon: typeIcon } = formatters.formatRunType(node.run_type);
+    const { text: statusText, color: statusColor } = formatters.formatStatus(
+      node.status
+    );
+    const { text: typeText, icon: typeIcon } = formatters.formatRunType(
+      node.run_type
+    );
 
     return (
       <div className="space-y-4">
         <div className="max-w-full">
-          <Descriptions title="Run Details" size="small" column={1} bordered layout="horizontal" labelStyle={{ width: '100px', minWidth: '100px' }}>
+          <Descriptions
+            title="Run Details"
+            size="small"
+            column={1}
+            bordered
+            layout="horizontal"
+            labelStyle={{ width: "100px", minWidth: "100px" }}
+          >
             <Descriptions.Item label="ID">
               <Text copyable className="font-mono text-xs break-all">
                 {node.id}
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Name">
-              <Text strong className="break-words" copyable={{ text: node.name }}>
+              <Text
+                strong
+                className="break-words"
+                copyable={{ text: node.name }}
+              >
                 {node.name}
               </Text>
             </Descriptions.Item>
@@ -161,7 +184,12 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
             </Descriptions.Item>
             <Descriptions.Item label="Duration">
               <Text className="font-mono">
-                {formatters.formatDuration(node.duration_ms)}
+                {formatters.formatTaskDuration(
+                  node.duration_ms,
+                  node.start_time,
+                  node.end_time,
+                  node.status
+                )}
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Started">
@@ -180,36 +208,39 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
         </div>
 
         {/* Inputs/Outputs/Error */}
-        <div 
-          className="w-full max-w-full overflow-hidden" 
-          style={{ 
-            width: '100%', 
-            maxWidth: isExpanded ? '100%' : '440px',
-            boxSizing: 'border-box'
+        <div
+          className="w-full max-w-full overflow-hidden"
+          style={{
+            width: "100%",
+            maxWidth: isExpanded ? "100%" : "440px",
+            boxSizing: "border-box",
           }}
         >
-          <Collapse 
-            size="small" 
+          <Collapse
+            size="small"
             className="w-full max-w-full"
-            style={{ 
-              width: '100%', 
-              maxWidth: '100%',
-              boxSizing: 'border-box'
+            style={{
+              width: "100%",
+              maxWidth: "100%",
+              boxSizing: "border-box",
             }}
           >
             {node.inputs && (
-              <Panel 
-                header="Inputs" 
-                key="inputs" 
+              <Panel
+                header="Inputs"
+                key="inputs"
                 extra={
                   <Space>
                     <Button
                       type="text"
                       size="small"
-                      icon={<CopyOutlined style={{ color: '#1890ff' }} />}
+                      icon={<CopyOutlined style={{ color: "#1890ff" }} />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        copyToClipboard(formatters.formatJSON(node.inputs), 'Inputs');
+                        copyToClipboard(
+                          formatters.formatJSON(node.inputs),
+                          "Inputs"
+                        );
                       }}
                       title="Copy inputs"
                     />
@@ -217,19 +248,23 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                   </Space>
                 }
               >
-                <div 
+                <div
                   className="max-h-32 overflow-auto w-full max-w-full"
-                  style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                  style={{
+                    width: "100%",
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
+                  }}
                 >
-                  <pre 
+                  <pre
                     className="text-xs bg-gray-50 p-2 rounded whitespace-pre overflow-x-auto overflow-y-auto block max-w-full"
-                    style={{ 
-                      width: '100%', 
-                      maxWidth: '100%', 
-                      minWidth: '0',
-                      wordWrap: 'break-word',
-                      wordBreak: 'break-all',
-                      boxSizing: 'border-box'
+                    style={{
+                      width: "100%",
+                      maxWidth: "100%",
+                      minWidth: "0",
+                      wordWrap: "break-word",
+                      wordBreak: "break-all",
+                      boxSizing: "border-box",
                     }}
                   >
                     {formatters.formatJSON(node.inputs)}
@@ -238,18 +273,21 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </Panel>
             )}
             {node.outputs && (
-              <Panel 
-                header="Outputs" 
-                key="outputs" 
+              <Panel
+                header="Outputs"
+                key="outputs"
                 extra={
                   <Space>
                     <Button
                       type="text"
                       size="small"
-                      icon={<CopyOutlined style={{ color: '#1890ff' }} />}
+                      icon={<CopyOutlined style={{ color: "#1890ff" }} />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        copyToClipboard(formatters.formatJSON(node.outputs), 'Outputs');
+                        copyToClipboard(
+                          formatters.formatJSON(node.outputs),
+                          "Outputs"
+                        );
                       }}
                       title="Copy outputs"
                     />
@@ -257,19 +295,23 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                   </Space>
                 }
               >
-                <div 
+                <div
                   className="max-h-32 overflow-auto w-full max-w-full"
-                  style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                  style={{
+                    width: "100%",
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
+                  }}
                 >
-                  <pre 
+                  <pre
                     className="text-xs bg-gray-50 p-2 rounded whitespace-pre overflow-x-auto overflow-y-auto block max-w-full"
-                    style={{ 
-                      width: '100%', 
-                      maxWidth: '100%', 
-                      minWidth: '0',
-                      wordWrap: 'break-word',
-                      wordBreak: 'break-all',
-                      boxSizing: 'border-box'
+                    style={{
+                      width: "100%",
+                      maxWidth: "100%",
+                      minWidth: "0",
+                      wordWrap: "break-word",
+                      wordBreak: "break-all",
+                      boxSizing: "border-box",
                     }}
                   >
                     {formatters.formatJSON(node.outputs)}
@@ -278,18 +320,18 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </Panel>
             )}
             {node.error && (
-              <Panel 
-                header="Error" 
-                key="error" 
+              <Panel
+                header="Error"
+                key="error"
                 extra={
                   <Space>
                     <Button
                       type="text"
                       size="small"
-                      icon={<CopyOutlined style={{ color: '#1890ff' }} />}
+                      icon={<CopyOutlined style={{ color: "#1890ff" }} />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        copyToClipboard(node.error!, 'Error');
+                        copyToClipboard(node.error!, "Error");
                       }}
                       title="Copy error"
                     />
@@ -297,19 +339,23 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                   </Space>
                 }
               >
-                <div 
+                <div
                   className="max-h-32 overflow-auto w-full max-w-full"
-                  style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                  style={{
+                    width: "100%",
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
+                  }}
                 >
-                  <div 
+                  <div
                     className="text-xs text-red-600 whitespace-pre overflow-x-auto overflow-y-auto p-2 bg-red-50 rounded max-w-full"
-                    style={{ 
-                      width: '100%', 
-                      maxWidth: '100%', 
-                      minWidth: '0',
-                      wordWrap: 'break-word',
-                      wordBreak: 'break-all',
-                      boxSizing: 'border-box'
+                    style={{
+                      width: "100%",
+                      maxWidth: "100%",
+                      minWidth: "0",
+                      wordWrap: "break-word",
+                      wordBreak: "break-all",
+                      boxSizing: "border-box",
                     }}
                   >
                     {node.error}
@@ -318,18 +364,21 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </Panel>
             )}
             {node.extra && (
-              <Panel 
-                header="Extra Data" 
-                key="extra" 
+              <Panel
+                header="Extra Data"
+                key="extra"
                 extra={
                   <Space>
                     <Button
                       type="text"
                       size="small"
-                      icon={<CopyOutlined style={{ color: '#1890ff' }} />}
+                      icon={<CopyOutlined style={{ color: "#1890ff" }} />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        copyToClipboard(formatters.formatJSON(node.extra), 'Extra data');
+                        copyToClipboard(
+                          formatters.formatJSON(node.extra),
+                          "Extra data"
+                        );
                       }}
                       title="Copy extra data"
                     />
@@ -337,19 +386,23 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                   </Space>
                 }
               >
-                <div 
+                <div
                   className="max-h-32 overflow-auto w-full max-w-full"
-                  style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                  style={{
+                    width: "100%",
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
+                  }}
                 >
-                  <pre 
+                  <pre
                     className="text-xs bg-gray-50 p-2 rounded whitespace-pre overflow-x-auto overflow-y-auto block max-w-full"
-                    style={{ 
-                      width: '100%', 
-                      maxWidth: '100%', 
-                      minWidth: '0',
-                      wordWrap: 'break-word',
-                      wordBreak: 'break-all',
-                      boxSizing: 'border-box'
+                    style={{
+                      width: "100%",
+                      maxWidth: "100%",
+                      minWidth: "0",
+                      wordWrap: "break-word",
+                      wordBreak: "break-all",
+                      boxSizing: "border-box",
                     }}
                   >
                     {formatters.formatJSON(node.extra)}
@@ -393,7 +446,9 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               icon={isExpanded ? <CompressOutlined /> : <ExpandOutlined />}
               onClick={onToggleExpansion}
               disabled={disabled}
-              title={isExpanded ? "Collapse to sidebar" : "Expand to full screen"}
+              title={
+                isExpanded ? "Collapse to sidebar" : "Expand to full screen"
+              }
             />
             <Button
               type="text"
@@ -405,15 +460,21 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
           </Space>
         </div>
       }
-      className={`h-full flex flex-col ${isExpanded ? '' : 'max-w-full w-full'}`}
-      style={!isExpanded ? { width: '100%', maxWidth: '480px', minWidth: '480px' } : {}}
-      bodyStyle={{ 
-        flex: 1, 
-        overflow: 'hidden', 
-        padding: isExpanded ? '24px' : '16px', 
-        maxWidth: isExpanded ? '100%' : '480px',
-        width: '100%',
-        boxSizing: 'border-box'
+      className={`h-full flex flex-col ${
+        isExpanded ? "" : "max-w-full w-full"
+      }`}
+      style={
+        !isExpanded
+          ? { width: "100%", maxWidth: "480px", minWidth: "480px" }
+          : {}
+      }
+      bodyStyle={{
+        flex: 1,
+        overflow: "hidden",
+        padding: isExpanded ? "24px" : "16px",
+        maxWidth: isExpanded ? "100%" : "480px",
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
       {isLoading && (
@@ -432,8 +493,8 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
         />
       )}
 
-      {data && (
-        isExpanded ? (
+      {data &&
+        (isExpanded ? (
           // Expanded Mode: Side-by-side layout (hierarchy left, details right)
           <div className="flex h-full space-x-6 overflow-hidden">
             {/* Left Panel: Hierarchy Overview + Tree View */}
@@ -443,13 +504,25 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                 <Space split={<span className="text-gray-300">|</span>} wrap>
                   <span className="text-sm">
                     <ClockCircleOutlined className="mr-1" />
-                    Started: {formatters.formatRelativeTime(data.hierarchy.start_time)}
+                    Started:{" "}
+                    {formatters.formatRelativeTime(data.hierarchy.start_time)}
                   </span>
                   <span className="text-sm">
-                    Duration: {formatters.formatDuration(data.hierarchy.duration_ms)}
+                    Duration:{" "}
+                    {formatters.formatTaskDuration(
+                      data.hierarchy.duration_ms,
+                      data.hierarchy.start_time,
+                      data.hierarchy.end_time,
+                      data.hierarchy.status
+                    )}
                   </span>
                   <span className="text-sm">
-                    Status: <Tag color={formatters.formatStatus(data.hierarchy.status).color}>
+                    Status:{" "}
+                    <Tag
+                      color={
+                        formatters.formatStatus(data.hierarchy.status).color
+                      }
+                    >
                       {formatters.formatStatus(data.hierarchy.status).text}
                     </Tag>
                   </span>
@@ -464,7 +537,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                   className="h-full"
                   items={[
                     {
-                      key: 'tree',
+                      key: "tree",
                       label: (
                         <span>
                           <BranchesOutlined />
@@ -475,18 +548,20 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                         <div className="h-full overflow-auto">
                           <Tree
                             className="trace-hierarchy-tree p-2"
-                            style={{ width: '100%', overflow: 'hidden' }}
+                            style={{ width: "100%", overflow: "hidden" }}
                             treeData={[convertToTreeData(data.hierarchy)]}
                             defaultExpandAll
                             showLine={{ showLeafIcon: false }}
                             onSelect={handleNodeSelect}
-                            selectedKeys={selectedNodeKey ? [selectedNodeKey] : []}
+                            selectedKeys={
+                              selectedNodeKey ? [selectedNodeKey] : []
+                            }
                           />
                         </div>
                       ),
                     },
                     {
-                      key: 'timeline',
+                      key: "timeline",
                       label: (
                         <span>
                           <BarChartOutlined />
@@ -500,7 +575,9 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                             selectedNodeId={selectedNodeKey || undefined}
                             onNodeSelect={(nodeId) => {
                               setSelectedNodeKey(nodeId);
-                              const findNode = (node: RunHierarchyNode): RunHierarchyNode | null => {
+                              const findNode = (
+                                node: RunHierarchyNode
+                              ): RunHierarchyNode | null => {
                                 if (node.id === nodeId) return node;
                                 for (const child of node.children) {
                                   const found = findNode(child);
@@ -516,7 +593,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                       ),
                     },
                     {
-                      key: 'gantt',
+                      key: "gantt",
                       label: (
                         <span>
                           <ClockCircleOutlined />
@@ -530,7 +607,9 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                             selectedNodeId={selectedNodeKey || undefined}
                             onNodeSelect={(nodeId) => {
                               setSelectedNodeKey(nodeId);
-                              const findNode = (node: RunHierarchyNode): RunHierarchyNode | null => {
+                              const findNode = (
+                                node: RunHierarchyNode
+                              ): RunHierarchyNode | null => {
                                 if (node.id === nodeId) return node;
                                 for (const child of node.children) {
                                   const found = findNode(child);
@@ -554,7 +633,9 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
             <div className="flex flex-col w-1/2 overflow-hidden">
               {selectedNode ? (
                 <div className="flex flex-col h-full overflow-hidden">
-                  <Title level={5} className="mb-3 flex-shrink-0">Node Details</Title>
+                  <Title level={5} className="mb-3 flex-shrink-0">
+                    Node Details
+                  </Title>
                   <div className="flex-1 overflow-auto">
                     {renderNodeDetails(selectedNode)}
                   </div>
@@ -571,13 +652,13 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
           </div>
         ) : (
           // Compact Mode: Stacked layout (current behavior)
-          <div 
-            className="flex flex-col h-full space-y-4 overflow-hidden max-w-full" 
-            style={{ 
-              width: '100%', 
-              maxWidth: '480px', 
-              minWidth: '480px',
-              boxSizing: 'border-box'
+          <div
+            className="flex flex-col h-full space-y-4 overflow-hidden max-w-full"
+            style={{
+              width: "100%",
+              maxWidth: "480px",
+              minWidth: "480px",
+              boxSizing: "border-box",
             }}
           >
             {/* Hierarchy Overview */}
@@ -585,13 +666,23 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               <Space split={<span className="text-gray-300">|</span>} wrap>
                 <span className="text-sm">
                   <ClockCircleOutlined className="mr-1" />
-                  Started: {formatters.formatRelativeTime(data.hierarchy.start_time)}
+                  Started:{" "}
+                  {formatters.formatRelativeTime(data.hierarchy.start_time)}
                 </span>
                 <span className="text-sm">
-                  Duration: {formatters.formatDuration(data.hierarchy.duration_ms)}
+                  Duration:{" "}
+                  {formatters.formatTaskDuration(
+                    data.hierarchy.duration_ms,
+                    data.hierarchy.start_time,
+                    data.hierarchy.end_time,
+                    data.hierarchy.status
+                  )}
                 </span>
                 <span className="text-sm">
-                  Status: <Tag color={formatters.formatStatus(data.hierarchy.status).color}>
+                  Status:{" "}
+                  <Tag
+                    color={formatters.formatStatus(data.hierarchy.status).color}
+                  >
                     {formatters.formatStatus(data.hierarchy.status).text}
                   </Tag>
                 </span>
@@ -602,7 +693,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
             <div className="flex-shrink-0 max-h-48 overflow-auto border rounded w-full max-w-full">
               <Tree
                 className="trace-hierarchy-tree p-2 w-full max-w-full"
-                style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}
+                style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}
                 treeData={[convertToTreeData(data.hierarchy)]}
                 defaultExpandAll
                 showLine={{ showLeafIcon: false }}
@@ -623,8 +714,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </div>
             )}
           </div>
-        )
-      )}
+        ))}
     </Card>
   );
 };

@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { Timeline } from 'vis-timeline/standalone';
-import { DataSet } from 'vis-data';
-import 'vis-timeline/styles/vis-timeline-graph2d.css';
-import type { RunHierarchyNode } from '../types/traces';
-import { formatters } from '../utils/formatters';
+import React, { useEffect, useRef } from "react";
+import { DataSet } from "vis-data";
+import { Timeline } from "vis-timeline/standalone";
+import "vis-timeline/styles/vis-timeline-graph2d.css";
+import type { RunHierarchyNode } from "../types/traces";
+import { formatters } from "../utils/formatters";
 
 interface TraceTimelineProps {
   hierarchy: RunHierarchyNode;
@@ -23,7 +23,10 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
     if (!timelineRef.current) return;
 
     // Collect all nodes from the hierarchy
-    const collectNodes = (node: RunHierarchyNode, depth: number = 0): Array<{
+    const collectNodes = (
+      node: RunHierarchyNode,
+      depth: number = 0
+    ): Array<{
       id: string;
       content: string;
       start: Date;
@@ -35,19 +38,28 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
       status: string;
     }> => {
       const items = [];
-      
+
       if (node.start_time) {
         const { icon: typeIcon } = formatters.formatRunType(node.run_type);
-        
+
         items.push({
           id: node.id,
           content: `${typeIcon} ${formatters.truncateString(node.name, 20)}`,
           start: new Date(node.start_time),
           end: node.end_time ? new Date(node.end_time) : undefined,
           group: depth,
-          className: `timeline-item-${node.status} ${selectedNodeId === node.id ? 'selected' : ''}`,
-          title: `${node.name}\nType: ${node.run_type}\nStatus: ${node.status}\nDuration: ${formatters.formatDuration(node.duration_ms)}`,
-          type: node.end_time ? 'range' : 'point',
+          className: `timeline-item-${node.status} ${
+            selectedNodeId === node.id ? "selected" : ""
+          }`,
+          title: `${node.name}\nType: ${node.run_type}\nStatus: ${
+            node.status
+          }\nDuration: ${formatters.formatTaskDuration(
+            node.duration_ms,
+            node.start_time,
+            node.end_time,
+            node.status
+          )}`,
+          type: node.end_time ? "range" : "point",
           status: node.status,
         });
       }
@@ -62,7 +74,7 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
 
     const items = collectNodes(hierarchy);
     const groups = new DataSet(
-      Array.from(new Set(items.map(item => item.group))).map(groupId => ({
+      Array.from(new Set(items.map((item) => item.group))).map((groupId) => ({
         id: groupId,
         content: `Level ${groupId}`,
         order: groupId,
@@ -72,51 +84,56 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
     const dataset = new DataSet(items);
 
     const options = {
-      height: '300px',
+      height: "300px",
       stack: false,
       showCurrentTime: false,
       zoomable: true,
       moveable: true,
-      orientation: 'top',
+      orientation: "top",
       margin: {
         item: 10,
         axis: 20,
       },
       format: {
         minorLabels: {
-          millisecond: 'SSS',
-          second: 'HH:mm:ss',
-          minute: 'HH:mm',
-          hour: 'HH:mm',
-          weekday: 'ddd D',
-          day: 'D',
-          week: 'w',
-          month: 'MMM',
-          year: 'YYYY'
+          millisecond: "SSS",
+          second: "HH:mm:ss",
+          minute: "HH:mm",
+          hour: "HH:mm",
+          weekday: "ddd D",
+          day: "D",
+          week: "w",
+          month: "MMM",
+          year: "YYYY",
         },
         majorLabels: {
-          millisecond: 'HH:mm:ss',
-          second: 'D MMMM HH:mm',
-          minute: 'ddd D MMMM',
-          hour: 'ddd D MMMM',
-          weekday: 'MMMM YYYY',
-          day: 'MMMM YYYY',
-          week: 'MMMM YYYY',
-          month: 'YYYY',
-          year: ''
-        }
+          millisecond: "HH:mm:ss",
+          second: "D MMMM HH:mm",
+          minute: "ddd D MMMM",
+          hour: "ddd D MMMM",
+          weekday: "MMMM YYYY",
+          day: "MMMM YYYY",
+          week: "MMMM YYYY",
+          month: "YYYY",
+          year: "",
+        },
       },
       tooltip: {
         followMouse: true,
-        overflowMethod: 'cap' as const
+        overflowMethod: "cap" as const,
       },
     };
 
     // Create timeline
-    timelineInstance.current = new Timeline(timelineRef.current, dataset, groups, options);
+    timelineInstance.current = new Timeline(
+      timelineRef.current,
+      dataset,
+      groups,
+      options
+    );
 
     // Add click handler
-    timelineInstance.current.on('select', (properties) => {
+    timelineInstance.current.on("select", (properties) => {
       if (properties.items.length > 0 && onNodeSelect) {
         onNodeSelect(properties.items[0]);
       }
@@ -140,11 +157,13 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
 
   return (
     <div className="w-full">
-      <div className="mb-2 text-sm font-medium text-gray-700">Execution Timeline</div>
-      <div 
-        ref={timelineRef} 
+      <div className="mb-2 text-sm font-medium text-gray-700">
+        Execution Timeline
+      </div>
+      <div
+        ref={timelineRef}
         className="border rounded bg-white timeline-container"
-        style={{ minHeight: '300px' }}
+        style={{ minHeight: "300px" }}
       />
       <style>{`
         .timeline-container .vis-item.timeline-item-completed {

@@ -1,7 +1,15 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import type { RunHierarchyNode } from '../types/traces';
-import { formatters } from '../utils/formatters';
+import React from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import type { RunHierarchyNode } from "../types/traces";
+import { formatters } from "../utils/formatters";
 
 interface SimpleTimelineProps {
   hierarchy: RunHierarchyNode;
@@ -15,7 +23,10 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
   onNodeSelect,
 }) => {
   // Flatten hierarchy and calculate timeline data
-  const collectTimelineData = (node: RunHierarchyNode, depth: number = 0): Array<{
+  const collectTimelineData = (
+    node: RunHierarchyNode,
+    depth: number = 0
+  ): Array<{
     id: string;
     name: string;
     start: number;
@@ -26,12 +37,20 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
     fullName: string;
   }> => {
     const items = [];
-    
-    if (node.start_time && node.end_time) {
+
+    if (node.start_time) {
       const start = new Date(node.start_time).getTime();
-      const end = new Date(node.end_time).getTime();
-      const duration = end - start;
-      
+      let duration: number;
+
+      if (node.end_time) {
+        // Completed task - use actual duration
+        const end = new Date(node.end_time).getTime();
+        duration = end - start;
+      } else {
+        // Running task - use elapsed time
+        duration = Date.now() - start;
+      }
+
       items.push({
         id: node.id,
         name: formatters.truncateString(node.name, 15),
@@ -53,10 +72,10 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
   };
 
   const timelineData = collectTimelineData(hierarchy);
-  
+
   // Sort by start time
   timelineData.sort((a, b) => a.start - b.start);
-  
+
   // Calculate relative start times from the first event
   const firstStart = timelineData.length > 0 ? timelineData[0].start : 0;
   const chartData = timelineData.map((item, index) => ({
@@ -70,10 +89,14 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
 
   function getStatusColor(status: string): string {
     switch (status) {
-      case 'completed': return '#52c41a';
-      case 'running': return '#1890ff';
-      case 'failed': return '#ff4d4f';
-      default: return '#d9d9d9';
+      case "completed":
+        return "#52c41a";
+      case "running":
+        return "#1890ff";
+      case "failed":
+        return "#ff4d4f";
+      default:
+        return "#d9d9d9";
     }
   }
 
@@ -85,8 +108,12 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
           <p className="font-medium">{data.fullName}</p>
           <p className="text-sm text-gray-600">Type: {data.type}</p>
           <p className="text-sm text-gray-600">Status: {data.status}</p>
-          <p className="text-sm text-gray-600">Duration: {formatters.formatDuration(data.duration)}</p>
-          <p className="text-sm text-gray-600">Start: +{data.relativeStart.toFixed(2)}s</p>
+          <p className="text-sm text-gray-600">
+            Duration: {formatters.formatDuration(data.duration)}
+          </p>
+          <p className="text-sm text-gray-600">
+            Start: +{data.relativeStart.toFixed(2)}s
+          </p>
         </div>
       );
     }
@@ -101,7 +128,9 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
 
   return (
     <div className="w-full">
-      <div className="mb-2 text-sm font-medium text-gray-700">Execution Timeline (Gantt Chart)</div>
+      <div className="mb-2 text-sm font-medium text-gray-700">
+        Execution Timeline (Gantt Chart)
+      </div>
       <ResponsiveContainer width="100%" height={400}>
         <BarChart
           data={chartData}
@@ -109,14 +138,18 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
           layout="horizontal"
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            type="number" 
-            domain={[0, 'dataMax']}
+          <XAxis
+            type="number"
+            domain={[0, "dataMax"]}
             tickFormatter={(value) => `${value.toFixed(1)}s`}
-            label={{ value: 'Time (seconds)', position: 'insideBottom', offset: -5 }}
+            label={{
+              value: "Time (seconds)",
+              position: "insideBottom",
+              offset: -5,
+            }}
           />
-          <YAxis 
-            type="category" 
+          <YAxis
+            type="category"
             dataKey="name"
             width={120}
             tick={{ fontSize: 12 }}
@@ -130,7 +163,7 @@ export const SimpleTimeline: React.FC<SimpleTimelineProps> = ({
           />
         </BarChart>
       </ResponsiveContainer>
-      
+
       {/* Legend */}
       <div className="mt-4 flex flex-wrap gap-4 text-sm">
         <div className="flex items-center gap-2">

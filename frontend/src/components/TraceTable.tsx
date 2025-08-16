@@ -1,28 +1,28 @@
-import React, { useState, useMemo } from 'react';
 import {
-  Table,
-  Card,
-  Input,
-  Select,
+  ClearOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+import {
+  Alert,
   Button,
-  Tag,
+  Card,
+  Col,
+  Input,
+  Row,
+  Select,
   Space,
+  Table,
+  Tag,
   Tooltip,
   Typography,
-  Alert,
-  Row,
-  Col,
-} from 'antd';
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  FilterOutlined,
-  ClearOutlined,
-} from '@ant-design/icons';
-import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useRootTraces } from '../hooks/useTraces';
-import type { TraceRun, TraceFilters, PaginationParams } from '../types/traces';
-import { formatters } from '../utils/formatters';
+} from "antd";
+import type { ColumnsType, TableProps } from "antd/es/table";
+import React, { useMemo, useState } from "react";
+import { useRootTraces } from "../hooks/useTraces";
+import type { PaginationParams, TraceFilters, TraceRun } from "../types/traces";
+import { formatters } from "../utils/formatters";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -44,8 +44,11 @@ const TraceTable: React.FC<TraceTableProps> = ({
 }) => {
   // State for filters and pagination
   const [filters, setFilters] = useState<TraceFilters>({});
-  const [pagination, setPagination] = useState<PaginationParams>({ limit: 50, offset: 0 });
-  const [searchText, setSearchText] = useState('');
+  const [pagination, setPagination] = useState<PaginationParams>({
+    limit: 50,
+    offset: 0,
+  });
+  const [searchText, setSearchText] = useState("");
 
   // Fetch root traces
   const { data, isLoading, error, refetch } = useRootTraces(
@@ -62,7 +65,10 @@ const TraceTable: React.FC<TraceTableProps> = ({
   }, [refreshTrigger, refetch]);
 
   // Handle filter changes
-  const handleFilterChange = (key: keyof TraceFilters, value: string | undefined) => {
+  const handleFilterChange = (
+    key: keyof TraceFilters,
+    value: string | undefined
+  ) => {
     const newFilters = { ...filters };
     if (value) {
       newFilters[key] = value;
@@ -75,19 +81,22 @@ const TraceTable: React.FC<TraceTableProps> = ({
 
   // Handle search
   const handleSearch = () => {
-    handleFilterChange('search', searchText || undefined);
+    handleFilterChange("search", searchText || undefined);
   };
 
   // Handle clear filters
   const handleClearFilters = () => {
     setFilters({});
-    setSearchText('');
+    setSearchText("");
     setPagination({ limit: 50, offset: 0 });
   };
 
   // Handle table pagination
-  const handleTableChange: TableProps<TraceRun>['onChange'] = (paginationInfo) => {
-    const newOffset = ((paginationInfo.current || 1) - 1) * (paginationInfo.pageSize || 50);
+  const handleTableChange: TableProps<TraceRun>["onChange"] = (
+    paginationInfo
+  ) => {
+    const newOffset =
+      ((paginationInfo.current || 1) - 1) * (paginationInfo.pageSize || 50);
     setPagination({
       limit: paginationInfo.pageSize || 50,
       offset: newOffset,
@@ -97,9 +106,9 @@ const TraceTable: React.FC<TraceTableProps> = ({
   // Table columns
   const columns: ColumnsType<TraceRun> = [
     {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
+      title: "Name",
+      dataIndex: "name",
+      key: "name",
       width: 250,
       render: (name: string, record: TraceRun) => (
         <div>
@@ -113,9 +122,9 @@ const TraceTable: React.FC<TraceTableProps> = ({
       ),
     },
     {
-      title: 'Type',
-      dataIndex: 'run_type',
-      key: 'run_type',
+      title: "Type",
+      dataIndex: "run_type",
+      key: "run_type",
       width: 100,
       render: (runType: string) => {
         const { text, icon } = formatters.formatRunType(runType);
@@ -130,9 +139,9 @@ const TraceTable: React.FC<TraceTableProps> = ({
       },
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
       width: 100,
       render: (status: string) => {
         const { text, color } = formatters.formatStatus(status);
@@ -140,23 +149,27 @@ const TraceTable: React.FC<TraceTableProps> = ({
       },
     },
     {
-      title: 'Duration',
-      dataIndex: 'duration_ms',
-      key: 'duration_ms',
+      title: "Duration",
+      dataIndex: "duration_ms",
+      key: "duration_ms",
       width: 100,
       render: (duration: number | null, record: TraceRun) => {
-        const calculatedDuration = duration || formatters.calculateDuration(record.start_time, record.end_time || null);
         return (
           <Text className="font-mono text-sm">
-            {formatters.formatDuration(calculatedDuration)}
+            {formatters.formatTaskDuration(
+              duration,
+              record.start_time,
+              record.end_time || null,
+              record.status
+            )}
           </Text>
         );
       },
     },
     {
-      title: 'Started',
-      dataIndex: 'start_time',
-      key: 'start_time',
+      title: "Started",
+      dataIndex: "start_time",
+      key: "start_time",
       width: 150,
       render: (startTime: string) => (
         <Tooltip title={formatters.formatDateTime(startTime)}>
@@ -167,23 +180,22 @@ const TraceTable: React.FC<TraceTableProps> = ({
       ),
     },
     {
-      title: 'Project',
-      dataIndex: 'project_name',
-      key: 'project_name',
+      title: "Project",
+      dataIndex: "project_name",
+      key: "project_name",
       width: 120,
-      render: (project: string | null) => (
+      render: (project: string | null) =>
         project ? (
           <Tag color="blue">{formatters.truncateString(project, 15)}</Tag>
         ) : (
           <Text type="secondary">—</Text>
-        )
-      ),
+        ),
     },
   ];
 
   // Row selection
   const rowSelection = {
-    type: 'radio' as const,
+    type: "radio" as const,
     selectedRowKeys: selectedTraceId ? [selectedTraceId] : [],
     onSelect: (record: TraceRun) => {
       onTraceSelect(record.id);
@@ -194,14 +206,14 @@ const TraceTable: React.FC<TraceTableProps> = ({
   const uniqueProjects = useMemo(() => {
     if (!data?.runs) return [];
     const projects = data.runs
-      .map(run => run.project_name)
+      .map((run) => run.project_name)
       .filter((project): project is string => !!project);
     return [...new Set(projects)];
   }, [data?.runs]);
 
   const uniqueStatuses = useMemo(() => {
     if (!data?.runs) return [];
-    const statuses = data.runs.map(run => run.status);
+    const statuses = data.runs.map((run) => run.status);
     return [...new Set(statuses)];
   }, [data?.runs]);
 
@@ -240,13 +252,13 @@ const TraceTable: React.FC<TraceTableProps> = ({
           <Col xs={24} sm={6} lg={4}>
             <Select
               placeholder="Status"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               allowClear
               value={filters.status}
-              onChange={(value) => handleFilterChange('status', value)}
+              onChange={(value) => handleFilterChange("status", value)}
               disabled={disabled}
             >
-              {uniqueStatuses.map(status => (
+              {uniqueStatuses.map((status) => (
                 <Option key={status} value={status}>
                   {formatters.formatStatus(status).text}
                 </Option>
@@ -256,13 +268,13 @@ const TraceTable: React.FC<TraceTableProps> = ({
           <Col xs={24} sm={6} lg={4}>
             <Select
               placeholder="Project"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               allowClear
               value={filters.project_name}
-              onChange={(value) => handleFilterChange('project_name', value)}
+              onChange={(value) => handleFilterChange("project_name", value)}
               disabled={disabled}
             >
-              {uniqueProjects.map(project => (
+              {uniqueProjects.map((project) => (
                 <Option key={project} value={project}>
                   {project}
                 </Option>
@@ -316,14 +328,14 @@ const TraceTable: React.FC<TraceTableProps> = ({
           showQuickJumper: true,
           showTotal: (total, range) =>
             `${range[0]}-${range[1]} of ${total} traces`,
-          pageSizeOptions: ['25', '50', '100'],
+          pageSizeOptions: ["25", "50", "100"],
         }}
         onChange={handleTableChange}
         scroll={{ y: 400 }}
         size="small"
         onRow={(record) => ({
           onClick: () => !disabled && onTraceSelect(record.id),
-          className: selectedTraceId === record.id ? 'bg-blue-50' : '',
+          className: selectedTraceId === record.id ? "bg-blue-50" : "",
         })}
       />
     </Card>
