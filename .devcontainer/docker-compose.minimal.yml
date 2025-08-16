@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: .devcontainer/backend.simple.Dockerfile
+    container_name: agentspy-minimal-backend
+    volumes:
+      - ..:/workspace:cached
+    working_dir: /workspace
+    ports:
+      - "8000:8000"
+    networks:
+      - agentspy-minimal-network
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: .devcontainer/frontend.simple.Dockerfile
+    container_name: agentspy-minimal-frontend
+    volumes:
+      - ../frontend:/workspace/frontend:cached
+    working_dir: /workspace/frontend
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    networks:
+      - agentspy-minimal-network
+
+networks:
+  agentspy-minimal-network:
+    driver: bridge
