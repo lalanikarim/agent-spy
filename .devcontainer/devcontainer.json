@@ -4,8 +4,6 @@
   "service": "backend",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
-  
-  // Port forwarding
   "forwardPorts": [8000, 3001, 5173],
   "portsAttributes": {
     "8000": {
@@ -13,7 +11,7 @@
       "onAutoForward": "notify"
     },
     "3001": {
-      "label": "Frontend Dev Server", 
+      "label": "Frontend Dev Server",
       "onAutoForward": "openBrowser"
     },
     "5173": {
@@ -21,12 +19,9 @@
       "onAutoForward": "openBrowser"
     }
   },
-  
-  // VS Code extensions and settings
   "customizations": {
     "vscode": {
       "settings": {
-        // Python settings
         "python.defaultInterpreterPath": "/usr/local/bin/python",
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff",
@@ -35,8 +30,6 @@
             "source.fixAll": "explicit"
           }
         },
-        
-        // TypeScript/JavaScript settings  
         "[typescript]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode",
           "editor.codeActionsOnSave": {
@@ -51,25 +44,17 @@
             "source.fixAll.eslint": "explicit"
           }
         },
-        
-        // General settings
         "editor.formatOnSave": true,
         "files.eol": "\n",
         "files.insertFinalNewline": true,
         "files.trimTrailingWhitespace": true
       },
-      
       "extensions": [
-        // Python development
         "ms-python.python",
         "charliermarsh.ruff",
-        
-        // Frontend development
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
         "bradlc.vscode-tailwindcss",
-        
-        // General development
         "ms-vscode.vscode-json",
         "redhat.vscode-yaml",
         "ms-azuretools.vscode-docker"

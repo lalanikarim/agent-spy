@@ -76,18 +76,18 @@ graph TB
             B3[uv Package Manager]
             B4[Development Tools]
         end
-        
+
         subgraph "Frontend Container"
             F1[Node.js 20]
             F2[React Dev Server]
             F3[Vite Build Tool]
             F4[TypeScript]
         end
-        
+
         subgraph "Optional Services"
             D1[SQLite Web UI]
         end
-        
+
         subgraph "Shared Volumes"
             V1[Source Code]
             V2[Node Modules]
@@ -95,7 +95,7 @@ graph TB
             V4[Database]
         end
     end
-    
+
     B1 --> V1
     B1 --> V3
     B1 --> V4
@@ -475,4 +475,3 @@ To improve the dev container configuration:
 The Agent Spy dev container provides a comprehensive, consistent development environment that enables developers to be productive immediately. With pre-configured tools, debugging support, and optimized performance, it eliminates the "works on my machine" problem and ensures all team members have the same development experience.
 
 For additional help or questions about the dev container setup, please refer to the main project documentation or open an issue in the repository.
-

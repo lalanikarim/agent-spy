@@ -83,7 +83,7 @@ const Dashboard: React.FC = () => {
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
   const [isDetailExpanded, setIsDetailExpanded] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
-  
+
   // Health check to ensure backend is available
   const { isLoading: healthLoading, error: healthError } = useHealth();
 
@@ -91,7 +91,7 @@ const Dashboard: React.FC = () => {
   const handleRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
-  
+
   // ... component JSX
 };
 ```
@@ -156,12 +156,12 @@ Real-time statistics and metrics overview:
 ```typescript
 const DashboardStats: React.FC = () => {
   const { data: summary, isLoading, error } = useDashboardSummary();
-  
+
   // Calculate derived metrics
-  const successRate = totalWithStatus > 0 
-    ? ((completedCount / totalWithStatus) * 100).toFixed(1) 
+  const successRate = totalWithStatus > 0
+    ? ((completedCount / totalWithStatus) * 100).toFixed(1)
     : '0';
-    
+
   // ... render statistics cards
 };
 ```
@@ -286,7 +286,7 @@ The dashboard uses a flexible layout system based on CSS Grid and Flexbox:
       <div className={selectedTraceId ? 'flex-1' : 'w-full'}>
         <TraceTable />
       </div>
-      
+
       {/* Detail panel (conditional) */}
       {selectedTraceId && (
         <div className={isExpanded ? 'w-full' : 'w-120'}>
@@ -378,8 +378,8 @@ Interactive tree view for trace hierarchies:
 const transformToTreeData = (node: RunHierarchyNode): DataNode => ({
   key: node.id,
   title: (
-    <TraceNodeTitle 
-      node={node} 
+    <TraceNodeTitle
+      node={node}
       onSelect={onNodeSelect}
     />
   ),
@@ -443,7 +443,7 @@ const pagination = {
   total: totalRuns,
   showSizeChanger: true,
   showQuickJumper: true,
-  showTotal: (total, range) => 
+  showTotal: (total, range) =>
     `${range[0]}-${range[1]} of ${total} traces`,
 };
 

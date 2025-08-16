@@ -13,36 +13,36 @@ graph TB
         A2[LangGraph Agent]
         A3[Custom Agent]
     end
-    
+
     subgraph "Agent Spy Platform"
         subgraph "Frontend Layer"
             F1[React Dashboard]
             F2[Trace Visualization]
             F3[Statistics View]
         end
-        
+
         subgraph "API Layer"
             B1[FastAPI Server]
             B2[LangSmith Endpoints]
             B3[Dashboard API]
             B4[Health Monitoring]
         end
-        
+
         subgraph "Data Layer"
             D1[(SQLite Database)]
             D2[Run Repository]
             D3[Data Models]
         end
     end
-    
+
     A1 --> B2
     A2 --> B2
     A3 --> B2
-    
+
     F1 --> B3
     F2 --> B3
     F3 --> B3
-    
+
     B1 --> D2
     B2 --> D2
     B3 --> D2
@@ -205,7 +205,7 @@ sequenceDiagram
     participant API as FastAPI Server
     participant Repo as RunRepository
     participant DB as SQLite Database
-    
+
     Agent->>API: POST /api/v1/runs/batch
     API->>API: Validate request data
     API->>Repo: create_batch(runs)
@@ -223,14 +223,14 @@ sequenceDiagram
     participant API as FastAPI Server
     participant Repo as RunRepository
     participant DB as SQLite Database
-    
+
     UI->>API: GET /api/v1/dashboard/runs/roots
     API->>Repo: get_root_runs(filters)
     Repo->>DB: SELECT with filters and pagination
     DB->>Repo: Return run data
     Repo->>API: Formatted results
     API->>UI: RootRunsResponse
-    
+
     UI->>API: GET /api/v1/dashboard/runs/{id}/hierarchy
     API->>Repo: get_run_hierarchy(id)
     Repo->>DB: Recursive query for children
@@ -250,19 +250,19 @@ class Settings(BaseSettings):
     app_name: str = "Agent Spy"
     environment: str = "development"
     debug: bool = False
-    
-    # Server Settings  
+
+    # Server Settings
     host: str = "0.0.0.0"
     port: int = 8000
-    
+
     # Database Settings
     database_url: str = "sqlite+aiosqlite:///./agentspy.db"
     database_echo: bool = False
-    
+
     # API Settings
     api_prefix: str = "/api/v1"
     require_auth: bool = False
-    
+
     # CORS Settings
     cors_origins: list[str] = ["*"]
     cors_credentials: bool = True

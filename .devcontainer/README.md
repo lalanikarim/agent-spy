@@ -34,7 +34,7 @@ The dev container setup provides a complete development environment with:
 - Pre-installed Python dependencies (FastAPI, SQLAlchemy, pytest, ruff, etc.)
 - Virtual environment automatically created and managed
 
-### 🌐 Frontend Environment  
+### 🌐 Frontend Environment
 - Node.js 20.x in dedicated frontend container
 - npm dependency management
 - Dependencies installed on container startup
@@ -104,7 +104,7 @@ npm test
 The following ports are forwarded and accessible from your host machine:
 
 - **8000**: Backend API server
-- **3000**: Frontend development server  
+- **3000**: Frontend development server
 - **5173**: Vite development server
 
 ## Architecture Decisions
@@ -121,7 +121,7 @@ This configuration evolved from a complex setup that had compatibility issues wi
 ### Why Two Containers?
 
 - **Separation of concerns**: Backend and frontend have different runtime requirements
-- **Independent scaling**: Each service can be developed and tested independently  
+- **Independent scaling**: Each service can be developed and tested independently
 - **Cleaner dependencies**: No mixing of Python and Node.js in the same container
 
 ### Why Non-Root User?

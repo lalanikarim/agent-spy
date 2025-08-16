@@ -24,7 +24,7 @@ start_dev_server() {
 
     while true; do
         echo "🌟 Starting dev server (attempt $attempt)..."
-        
+
         # Start the dev server on port 3000
         if npm run dev -- --host 0.0.0.0 --port 3000; then
             echo "✅ Dev server started successfully"
@@ -34,12 +34,12 @@ start_dev_server() {
             local exit_code=$?
             echo "❌ Dev server failed with exit code: $exit_code"
         fi
-        
+
         # Always restart after 5 seconds
         echo "🔄 Restarting in $restart_delay seconds... (attempt $((attempt + 1)))"
         echo "💡 You can connect anytime with: docker exec -it agentspy-minimal-frontend bash"
         sleep $restart_delay
-        
+
         attempt=$((attempt + 1))
     done
 }

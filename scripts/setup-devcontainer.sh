@@ -36,7 +36,7 @@ echo "✅ Docker Compose is available"
 # Check if VS Code is installed
 if command -v code &> /dev/null; then
     echo "✅ VS Code is installed"
-    
+
     # Check if Dev Containers extension is installed
     if code --list-extensions | grep -q "ms-vscode-remote.remote-containers"; then
         echo "✅ Dev Containers extension is installed"
@@ -106,4 +106,3 @@ echo ""
 echo "Once in the container, run 'agentspy-info' to see available commands."
 echo ""
 echo "Happy coding! 🚀"
-

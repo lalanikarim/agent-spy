@@ -76,7 +76,7 @@ Agent Spy stores all trace data in a hierarchical structure:
 
 ### Supported Run Types
 - `chain`: Multi-step agent workflows
-- `llm`: Language model interactions  
+- `llm`: Language model interactions
 - `tool`: External tool usage
 - `retrieval`: Knowledge base queries
 - `prompt`: Template processing
@@ -154,7 +154,7 @@ docker compose -f docker/docker-compose.dev.yml up -d
 - **Pydantic** for data validation and serialization
 - **uv** for fast dependency management
 
-### Frontend  
+### Frontend
 - **React 19** with TypeScript for type safety
 - **Vite** for fast development and optimized builds
 - **Ant Design** for professional UI components

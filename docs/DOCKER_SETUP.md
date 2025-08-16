@@ -57,22 +57,22 @@ graph TB
             F1[Nginx Server]
             F2[React App]
         end
-        
+
         subgraph "Backend Container"
             B1[FastAPI Server]
             B2[Python Runtime]
         end
-        
+
         subgraph "Storage"
             V1[SQLite Volume]
         end
     end
-    
+
     subgraph "External"
         U[Users/Browsers]
         A[AI Agents]
     end
-    
+
     U --> F1
     F1 --> F2
     F2 --> B1
@@ -351,7 +351,7 @@ backend → sqlite_data    # Database access
 # Production volume
 sqlite_data:/app/data  # Persistent SQLite database
 
-# Development volume  
+# Development volume
 sqlite_dev_data:/app/data  # Separate development database
 ```
 
@@ -439,7 +439,7 @@ docker exec -it agentspy-backend sqlite3 /app/data/agentspy.db
 # Access backend container shell
 docker exec -it agentspy-backend bash
 
-# Access frontend container shell  
+# Access frontend container shell
 docker exec -it agentspy-frontend sh
 
 # View container logs with timestamps

@@ -45,13 +45,13 @@ graph LR
     A[LangChain App] --> B[Ollama LLM]
     A --> C[Agent Spy]
     B --> C
-    
+
     subgraph "Trace Data"
         D[LLM Invocation]
         E[Input/Output]
         F[Timing Data]
     end
-    
+
     C --> D
     C --> E
     C --> F
@@ -73,10 +73,10 @@ def run_basic_llm_test(model_name: str):
         base_url="http://aurora.local:11434",
         temperature=0.1,
     )
-    
+
     prompt = "What is artificial intelligence? Answer in one sentence."
     response = llm.invoke(prompt)  # This generates traces
-    
+
 # Chain test
 def run_chain_test(model_name: str):
     llm = OllamaLLM(model=model_name, base_url="http://aurora.local:11434")
@@ -84,7 +84,7 @@ def run_chain_test(model_name: str):
         input_variables=["topic", "style"],
         template="Write a {style} explanation of {topic} in one sentence."
     )
-    
+
     chain = LLMChain(llm=llm, prompt=prompt_template)
     result = chain.invoke({"topic": "machine learning", "style": "simple"})
 ```
@@ -122,14 +122,14 @@ graph TD
     C -->|Yes| D[Tool Node]
     C -->|No| E[End]
     D --> B
-    
+
     subgraph "Agent Spy Traces"
         F[Root: Agent Execution]
         G[LLM Decision]
         H[Tool Invocation]
         I[Follow-up LLM]
     end
-    
+
     B --> G
     D --> H
     B --> I
@@ -158,7 +158,7 @@ def llm_node(state: AgentState):
 def should_continue(state: AgentState) -> Literal["tools", "end"]:
     messages = state["messages"]
     last_message = messages[-1]
-    
+
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         return "tools"
     return "end"
@@ -166,17 +166,17 @@ def should_continue(state: AgentState) -> Literal["tools", "end"]:
 # Graph construction
 def create_agent_graph():
     workflow = StateGraph(AgentState)
-    
+
     workflow.add_node("llm", llm_node)
     workflow.add_node("tools", ToolNode([get_current_time]))
-    
+
     workflow.add_edge(START, "llm")
     workflow.add_conditional_edges("llm", should_continue, {
         "tools": "tools",
         "end": END,
     })
     workflow.add_edge("tools", "llm")
-    
+
     return workflow.compile()
 ```
 
@@ -224,7 +224,7 @@ graph LR
     F --> G[Structured LLM]
     G --> H[Pydantic Parser]
     H --> I[Output]
-    
+
     subgraph "Processing Stages"
         J[Initial Analysis]
         K[Content Enhancement]
@@ -246,28 +246,28 @@ class HistoricalAnalysis(BaseModel):
 # Workflow definition
 def create_complex_workflow():
     workflow = StateGraph(WorkflowState)
-    
+
     # Step 1: Initial prompt processing
     workflow.add_node("prompt_template", prompt_template_node)
-    
+
     # Step 2: Initial LLM analysis
     workflow.add_node("llm_analysis", llm_analysis_node)
-    
+
     # Step 3: String parsing and cleaning
     workflow.add_node("string_parser", string_parser_node)
-    
+
     # Step 4: Content enhancement LLM
     workflow.add_node("llm_enhancement", llm_enhancement_node)
-    
+
     # Step 5: JSON parsing and validation
     workflow.add_node("json_parser", json_parser_node)
-    
+
     # Step 6: Structured output generation
     workflow.add_node("structured_llm", structured_llm_node)
-    
+
     # Step 7: Final Pydantic parsing
     workflow.add_node("pydantic_parser", pydantic_parser_node)
-    
+
     # Linear workflow edges
     workflow.add_edge(START, "prompt_template")
     workflow.add_edge("prompt_template", "llm_analysis")
@@ -277,7 +277,7 @@ def create_complex_workflow():
     workflow.add_edge("json_parser", "structured_llm")
     workflow.add_edge("structured_llm", "pydantic_parser")
     workflow.add_edge("pydantic_parser", END)
-    
+
     return workflow.compile()
 ```
 
@@ -336,19 +336,19 @@ graph TD
     B --> C[Style Critic Node]
     C --> D[Summarizer Node]
     D --> E[Final Output]
-    
+
     subgraph "Content Analyzer"
         F[Prompt Template 1] --> G[LLM 1] --> H[Output Parser 1]
     end
-    
+
     subgraph "Style Critic"
         I[Prompt Template 2] --> J[LLM 2] --> K[Output Parser 2]
     end
-    
+
     subgraph "Summarizer"
         L[Prompt Template 3] --> M[LLM 3] --> N[Output Parser 3]
     end
-    
+
     B --> F
     C --> I
     D --> L
@@ -362,17 +362,17 @@ def create_content_analyzer_chain():
         input_variables=["text"],
         template="""Analyze the following text for content quality:
         Text: {text}
-        
+
         Provide analysis on:
         - Main themes and topics
         - Factual accuracy
         - Completeness of information
         - Clarity of communication"""
     )
-    
+
     llm = ChatOllama(model="qwen3:8b", base_url="http://aurora.local:11434")
     parser = StrOutputParser()
-    
+
     return prompt | llm | parser
 
 def create_style_critic_chain():
@@ -380,19 +380,19 @@ def create_style_critic_chain():
         input_variables=["text", "content_analysis"],
         template="""Review the writing style of this text:
         Text: {text}
-        
+
         Previous content analysis: {content_analysis}
-        
+
         Evaluate:
         - Writing style and tone
         - Grammar and syntax
         - Readability and flow
         - Audience appropriateness"""
     )
-    
+
     llm = ChatOllama(model="qwen3:8b", base_url="http://aurora.local:11434")
     parser = StrOutputParser()
-    
+
     return prompt | llm | parser
 
 # Agent nodes
@@ -579,7 +579,7 @@ def error_handling_node(state: WorkflowState):
 def smart_router(state: AgentState) -> str:
     """Route based on content analysis."""
     content = state["messages"][-1].content
-    
+
     if "technical" in content.lower():
         return "technical_expert"
     elif "creative" in content.lower():
@@ -613,7 +613,7 @@ def smart_router(state: AgentState) -> str:
 class CustomAgent:
     def __init__(self):
         self.tracer = LangSmithTracer()
-    
+
     def execute(self, task):
         with self.tracer.trace("custom_agent", inputs={"task": task}):
             result = self.process_task(task)

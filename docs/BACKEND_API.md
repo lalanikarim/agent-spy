@@ -44,30 +44,30 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
     environment: str = "development"
-    
+
     # Server Settings
     host: str = "0.0.0.0"
     port: int = 8000
     reload: bool = False
-    
+
     # Database Settings
     database_url: str = "sqlite+aiosqlite:///./agentspy.db"
     database_pool_size: int = 20
     database_echo: bool = False
-    
+
     # API Settings
     api_prefix: str = "/api/v1"
     require_auth: bool = False
     api_keys: list[str] | None = None
-    
+
     # CORS Settings
     cors_origins: list[str] = ["*"]
     cors_credentials: bool = True
-    
+
     # Performance Settings
     max_trace_size_mb: int = 10
     request_timeout: int = 30
-    
+
     # Logging Settings
     log_level: str = "INFO"
     log_format: str = "json"
@@ -112,7 +112,7 @@ LOG_FORMAT=json
 ```python
 class Base(DeclarativeBase):
     """Base class for all database models."""
-    
+
 class TimestampMixin:
     """Mixin for automatic timestamp management."""
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
@@ -127,32 +127,32 @@ class ProjectMixin:
 ```python
 class Run(Base, TimestampMixin, ProjectMixin):
     __tablename__ = "runs"
-    
+
     # Primary key
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, index=True)
-    
+
     # Basic run information
     name: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
     run_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    
+
     # Timing information
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
-    
+
     # Hierarchy
     parent_run_id: Mapped[UUID | None] = mapped_column(GUID(), nullable=True, index=True)
-    
+
     # Data fields (JSON)
     inputs: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     outputs: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     extra: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     serialized: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     events: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
-    
+
     # Error and status
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="running", index=True)
-    
+
     # Tags and references
     tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     reference_example_id: Mapped[UUID | None] = mapped_column(GUID(), nullable=True, index=True)
@@ -177,22 +177,22 @@ The repository pattern provides a clean abstraction over database operations:
 class RunRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
-    
+
     async def create(self, run_data: RunCreate) -> Run:
         """Create a new run."""
-        
+
     async def update(self, run_id: UUID, run_data: RunUpdate) -> Run | None:
         """Update an existing run."""
-        
+
     async def get_by_id(self, run_id: UUID) -> Run | None:
         """Get a run by ID."""
-        
+
     async def get_root_runs(self, filters: TraceFilters, pagination: PaginationParams) -> RootRunsResponse:
         """Get root runs with filtering and pagination."""
-        
+
     async def get_run_hierarchy(self, run_id: UUID) -> RunHierarchyResponse:
         """Get complete run hierarchy starting from a root run."""
-        
+
     async def get_dashboard_stats(self) -> DashboardStats:
         """Get statistics for dashboard."""
 ```
@@ -522,10 +522,10 @@ Agent Spy includes intelligent completion detection that automatically determine
 def update_run_status(run: Run) -> str:
     """
     Automatically determine run status based on available data.
-    
+
     Rules:
     - If end_time and outputs exist: completed
-    - If end_time and error exist: failed  
+    - If end_time and error exist: failed
     - Otherwise: running
     """
     if run.end_time:
