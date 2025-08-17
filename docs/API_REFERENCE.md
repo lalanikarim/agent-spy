@@ -101,6 +101,227 @@ Liveness probe for container orchestration.
 }
 ```
 
+## WebSocket Endpoints
+
+Agent Spy provides WebSocket endpoints for real-time updates and notifications.
+
+### WebSocket Connection
+
+**Endpoint:** `ws://localhost:8000/ws`
+
+Connect to the WebSocket endpoint to receive real-time updates:
+
+```javascript
+const ws = new WebSocket("ws://localhost:8000/ws");
+
+ws.onopen = () => {
+  console.log("Connected to WebSocket");
+};
+
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  console.log("Received:", message);
+};
+```
+
+### WebSocket Message Format
+
+All WebSocket messages follow this format:
+
+```json
+{
+  "type": "event_type",
+  "data": {
+    // Event-specific data
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+### Available Events
+
+#### trace.created
+
+Emitted when a new trace is created.
+
+```json
+{
+  "type": "trace.created",
+  "data": {
+    "id": "trace-uuid",
+    "name": "Trace Name",
+    "run_type": "chain",
+    "project_name": "my-project",
+    "status": "running",
+    "start_time": "2024-01-01T12:00:00Z",
+    "parent_run_id": "parent-uuid"
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+#### trace.updated
+
+Emitted when a trace is updated.
+
+```json
+{
+  "type": "trace.updated",
+  "data": {
+    "id": "trace-uuid",
+    "name": "Trace Name",
+    "run_type": "chain",
+    "project_name": "my-project",
+    "status": "completed",
+    "changes": {
+      "end_time": "2024-01-01T12:01:00Z",
+      "outputs": { "result": "success" }
+    },
+    "start_time": "2024-01-01T12:00:00Z",
+    "end_time": "2024-01-01T12:01:00Z",
+    "parent_run_id": "parent-uuid"
+  },
+  "timestamp": "2024-01-01T12:01:00Z"
+}
+```
+
+#### trace.completed
+
+Emitted when a trace is completed.
+
+```json
+{
+  "type": "trace.completed",
+  "data": {
+    "id": "trace-uuid",
+    "name": "Trace Name",
+    "run_type": "chain",
+    "project_name": "my-project",
+    "status": "completed",
+    "start_time": "2024-01-01T12:00:00Z",
+    "end_time": "2024-01-01T12:01:00Z",
+    "duration_ms": 60000,
+    "parent_run_id": "parent-uuid"
+  },
+  "timestamp": "2024-01-01T12:01:00Z"
+}
+```
+
+#### trace.failed
+
+Emitted when a trace fails.
+
+```json
+{
+  "type": "trace.failed",
+  "data": {
+    "id": "trace-uuid",
+    "name": "Trace Name",
+    "run_type": "chain",
+    "project_name": "my-project",
+    "status": "failed",
+    "error": "Error message",
+    "start_time": "2024-01-01T12:00:00Z",
+    "end_time": "2024-01-01T12:01:00Z",
+    "parent_run_id": "parent-uuid"
+  },
+  "timestamp": "2024-01-01T12:01:00Z"
+}
+```
+
+#### stats.updated
+
+Emitted when dashboard statistics are updated.
+
+```json
+{
+  "type": "stats.updated",
+  "data": {
+    "stats": {
+      "total_runs": 100,
+      "completed_runs": 95,
+      "failed_runs": 5
+    },
+    "timestamp": "2024-01-01T12:00:00Z"
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+### WebSocket Commands
+
+#### Subscribe to Events
+
+```json
+{
+  "action": "subscribe",
+  "events": ["trace.created", "trace.completed", "trace.failed"]
+}
+```
+
+#### Unsubscribe from Events
+
+```json
+{
+  "action": "unsubscribe",
+  "events": ["trace.created"]
+}
+```
+
+#### Ping/Pong
+
+```json
+{
+  "action": "ping"
+}
+```
+
+Response:
+
+```json
+{
+  "type": "pong",
+  "data": {
+    "timestamp": "2024-01-01T12:00:00Z"
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+### GET /ws/health
+
+WebSocket connection health check.
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "active_connections": 5,
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+### GET /ws/stats
+
+WebSocket connection statistics.
+
+**Response:**
+
+```json
+{
+  "active_connections": 5,
+  "total_subscriptions": 15,
+  "clients": [
+    {
+      "client_id": "client-uuid",
+      "subscriptions": ["trace.created", "trace.completed"],
+      "metadata": {}
+    }
+  ]
+}
+```
+
 ## Service Information
 
 ### GET /api/v1/info

@@ -6,7 +6,8 @@ A powerful, self-hosted observability platform for AI agents and multi-step work
 
 ### 🔍 **Comprehensive Agent Tracing**
 
-- **Real-time Monitoring**: Track agent executions as they happen
+- **Real-time Monitoring**: Track agent executions as they happen with live WebSocket updates
+- **Live Dashboard Updates**: See traces appear instantly without manual refresh
 - **Hierarchical Traces**: Visualize complex agent workflows with parent-child relationships
 - **Multi-step Analysis**: Follow agent reasoning through tools, LLMs, and decision points
 - **Smart Completion Detection**: Universal pattern-based detection for accurate run status across all trace types
@@ -15,6 +16,8 @@ A powerful, self-hosted observability platform for AI agents and multi-step work
 ### 📊 **Advanced Analytics & Dashboard**
 
 - **Interactive Dashboard**: Clean, intuitive web interface for trace exploration
+- **Real-time Updates**: Live WebSocket updates with instant trace notifications
+- **Live Connection Status**: Visual indicators for WebSocket connection health
 - **Coordinated Refresh**: Synchronized updates across trace table and detail views
 - **Filtering & Search**: Find specific traces by project, status, time range, or content
 - **Statistics & Insights**: Understand agent behavior patterns and performance trends
@@ -215,6 +218,15 @@ response = requests.post(
 Agent Spy uses intelligent pattern-based detection to automatically mark runs as completed when they have both `end_time` and `outputs`, ensuring accurate status tracking across all trace types without manual configuration.
 
 ## 🆕 Recent Improvements
+
+### WebSocket Real-Time Updates
+
+- **Live Dashboard Updates**: See traces appear instantly without manual refresh
+- **Real-time Notifications**: Toast notifications for trace creation, completion, and failures
+- **WebSocket Connection Management**: Automatic reconnection and connection status indicators
+- **Event-driven Updates**: React Query integration for efficient cache invalidation
+- **User Control**: Toggle to enable/disable real-time updates
+- **Performance Optimized**: Efficient event filtering and subscription management
 
 ### Smart Completion Detection
 

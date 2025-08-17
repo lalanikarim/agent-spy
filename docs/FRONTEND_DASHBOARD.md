@@ -7,16 +7,19 @@ The Agent Spy frontend is a modern React application that provides a comprehensi
 ## Architecture
 
 ### Technology Stack
+
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite for fast development and optimized builds
 - **UI Library**: Ant Design (antd) for professional components
 - **State Management**: TanStack React Query for server state
+- **Real-time Updates**: WebSocket integration for live updates
 - **Styling**: Tailwind CSS for utility-first styling
 - **Icons**: Ant Design Icons
 - **Charts**: Recharts for statistics visualization
 - **Timeline**: vis-timeline for advanced timeline visualization
 
 ### Project Structure
+
 ```
 frontend/
 ├── src/
@@ -28,9 +31,12 @@ frontend/
 │   │   ├── TraceDetail.tsx  # Detailed trace view
 │   │   ├── DashboardStats.tsx # Statistics cards
 │   │   ├── SimpleTimeline.tsx # Basic timeline component
-│   │   └── TraceTimeline.tsx  # Advanced timeline visualization
+│   │   ├── TraceTimeline.tsx  # Advanced timeline visualization
+│   │   ├── ConnectionStatus.tsx # WebSocket connection status
+│   │   └── RealTimeNotifications.tsx # Real-time notification system
 │   ├── hooks/               # Custom React hooks
-│   │   └── useTraces.ts     # Data fetching hooks
+│   │   ├── useTraces.ts     # Data fetching hooks
+│   │   └── useWebSocket.ts  # WebSocket connection management
 │   ├── api/                 # API client
 │   │   └── client.ts        # Axios configuration
 │   ├── types/               # TypeScript definitions
@@ -70,6 +76,7 @@ function App() {
 ```
 
 **Key Features:**
+
 - **React Query Setup**: Configured with optimized defaults
 - **Ant Design Theming**: Custom theme configuration
 - **Global Error Boundary**: Comprehensive error handling
@@ -89,7 +96,7 @@ const Dashboard: React.FC = () => {
 
   // Coordinated refresh for both root traces and trace detail
   const handleRefresh = useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   }, []);
 
   // ... component JSX
@@ -97,6 +104,7 @@ const Dashboard: React.FC = () => {
 ```
 
 **Key Features:**
+
 - **Master-Detail Layout**: Split view with trace table and detail panel
 - **State Management**: Centralized state for selected traces and UI state
 - **Health Monitoring**: Real-time backend connectivity status
@@ -118,7 +126,8 @@ interface TraceTableProps {
 ```
 
 **Features:**
-- **Real-time Data**: Auto-refreshing trace list
+
+- **Real-time Data**: Auto-refreshing trace list with WebSocket updates
 - **Advanced Filtering**: Filter by project, status, time range
 - **Text Search**: Search across trace names and content
 - **Pagination**: Efficient handling of large datasets
@@ -142,6 +151,7 @@ interface TraceDetailProps {
 ```
 
 **Features:**
+
 - **Hierarchical Tree**: Expandable tree view of trace hierarchy
 - **Rich Data Display**: Inputs, outputs, timing, and metadata
 - **JSON Viewer**: Formatted JSON display for complex data
@@ -149,7 +159,90 @@ interface TraceDetailProps {
 - **Expandable Layout**: Full-screen mode for detailed analysis
 - **Error Highlighting**: Clear error message display
 
-### 5. Dashboard Statistics (`DashboardStats.tsx`)
+### 5. WebSocket Integration (`useWebSocket.ts`)
+
+Real-time WebSocket connection management:
+
+```typescript
+const useWebSocket = () => {
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Auto-connect and handle reconnection
+  const connect = useCallback(() => {
+    const ws = new WebSocket('ws://localhost:8000/ws');
+    // ... connection management
+  }, []);
+
+  // Handle real-time events
+  const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
+    switch (message.type) {
+      case 'trace.created':
+        queryClient.invalidateQueries(['rootTraces']);
+        break;
+      case 'trace.completed':
+        queryClient.invalidateQueries(['rootTraces', 'dashboardSummary']);
+        break;
+    }
+  }, [queryClient]);
+
+  return { isConnected, connectionError, subscribe, unsubscribe };
+};
+```
+
+**Features:**
+- **Automatic Connection**: Establishes WebSocket connection on component mount
+- **Reconnection Logic**: Handles connection drops with exponential backoff
+- **Event Handling**: Processes real-time trace events
+- **React Query Integration**: Automatically invalidates cache on events
+- **Connection Status**: Provides connection state and error information
+- **Event Subscription**: Allows subscribing to specific event types
+
+### 6. Connection Status (`ConnectionStatus.tsx`)
+
+Visual WebSocket connection status indicator:
+
+```typescript
+const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
+  isConnected,
+  connectionError,
+  subscribedEvents,
+  onToggleRealtime,
+  realtimeEnabled = true,
+}) => {
+  // ... connection status display
+};
+```
+
+**Features:**
+- **Visual Indicators**: Green/red status indicators for connection state
+- **Real-time Toggle**: Switch to enable/disable real-time updates
+- **Error Display**: Shows connection errors when they occur
+- **Subscription Info**: Displays number of subscribed events
+- **Tooltips**: Detailed information on hover
+
+### 7. Real-time Notifications (`RealTimeNotifications.tsx`)
+
+Toast notification system for real-time events:
+
+```typescript
+const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
+  isConnected,
+  subscribedEvents,
+}) => {
+  // ... notification handling
+};
+```
+
+**Features:**
+- **Event Notifications**: Toast notifications for trace events
+- **Status-based Alerts**: Different notifications for created, completed, failed traces
+- **Rich Information**: Shows trace name, project, and relevant details
+- **Click Actions**: Notifications can trigger navigation to trace details
+- **Duration Control**: Configurable notification display duration
+
+### 8. Dashboard Statistics (`DashboardStats.tsx`)
 
 Real-time statistics and metrics overview:
 
@@ -158,15 +251,17 @@ const DashboardStats: React.FC = () => {
   const { data: summary, isLoading, error } = useDashboardSummary();
 
   // Calculate derived metrics
-  const successRate = totalWithStatus > 0
-    ? ((completedCount / totalWithStatus) * 100).toFixed(1)
-    : '0';
+  const successRate =
+    totalWithStatus > 0
+      ? ((completedCount / totalWithStatus) * 100).toFixed(1)
+      : "0";
 
   // ... render statistics cards
 };
 ```
 
 **Features:**
+
 - **Key Metrics**: Total runs, traces, success rates
 - **Status Distribution**: Breakdown by run status
 - **Run Type Analysis**: Distribution by operation type
@@ -208,6 +303,7 @@ const queryClient = new QueryClient({
 ```
 
 **Benefits:**
+
 - **Automatic Caching**: Intelligent data caching and invalidation
 - **Background Updates**: Automatic data refresh
 - **Loading States**: Built-in loading and error states
@@ -221,9 +317,9 @@ Centralized data fetching logic with React Query:
 // Health check hook
 export const useHealth = () => {
   return useQuery({
-    queryKey: ['health'],
+    queryKey: ["health"],
     queryFn: async () => {
-      const response = await apiClient.get('/health');
+      const response = await apiClient.get("/health");
       return response.data;
     },
     refetchInterval: 30000, // 30 seconds
@@ -232,12 +328,18 @@ export const useHealth = () => {
 };
 
 // Root traces hook with filtering
-export const useRootTraces = (filters: TraceFilters, pagination: PaginationParams, refreshTrigger: number) => {
+export const useRootTraces = (
+  filters: TraceFilters,
+  pagination: PaginationParams,
+  refreshTrigger: number
+) => {
   return useQuery({
-    queryKey: ['rootTraces', filters, pagination, refreshTrigger],
+    queryKey: ["rootTraces", filters, pagination, refreshTrigger],
     queryFn: async () => {
       const params = { ...filters, ...pagination };
-      const response = await apiClient.get('/api/v1/dashboard/runs/roots', { params });
+      const response = await apiClient.get("/api/v1/dashboard/runs/roots", {
+        params,
+      });
       return response.data;
     },
     keepPreviousData: true,
@@ -247,9 +349,11 @@ export const useRootTraces = (filters: TraceFilters, pagination: PaginationParam
 // Trace hierarchy hook
 export const useTraceHierarchy = (traceId: string, refreshTrigger: number) => {
   return useQuery({
-    queryKey: ['traceHierarchy', traceId, refreshTrigger],
+    queryKey: ["traceHierarchy", traceId, refreshTrigger],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/dashboard/runs/${traceId}/hierarchy`);
+      const response = await apiClient.get(
+        `/api/v1/dashboard/runs/${traceId}/hierarchy`
+      );
       return response.data;
     },
     enabled: !!traceId,
@@ -259,9 +363,9 @@ export const useTraceHierarchy = (traceId: string, refreshTrigger: number) => {
 // Dashboard statistics hook
 export const useDashboardSummary = () => {
   return useQuery({
-    queryKey: ['dashboardSummary'],
+    queryKey: ["dashboardSummary"],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/dashboard/stats/summary');
+      const response = await apiClient.get("/api/v1/dashboard/stats/summary");
       return response.data;
     },
     refetchInterval: 30000, // 30 seconds
@@ -283,13 +387,13 @@ The dashboard uses a flexible layout system based on CSS Grid and Flexbox:
     <DashboardStats /> {/* Statistics cards */}
     <div className="flex gap-6 overflow-hidden">
       {/* Master table */}
-      <div className={selectedTraceId ? 'flex-1' : 'w-full'}>
+      <div className={selectedTraceId ? "flex-1" : "w-full"}>
         <TraceTable />
       </div>
 
       {/* Detail panel (conditional) */}
       {selectedTraceId && (
-        <div className={isExpanded ? 'w-full' : 'w-120'}>
+        <div className={isExpanded ? "w-full" : "w-120"}>
           <TraceDetail />
         </div>
       )}
@@ -301,6 +405,7 @@ The dashboard uses a flexible layout system based on CSS Grid and Flexbox:
 ### Responsive Design
 
 The interface adapts to different screen sizes:
+
 - **Desktop**: Full master-detail layout
 - **Tablet**: Collapsible detail panel
 - **Mobile**: Stack layout with navigation
@@ -312,17 +417,17 @@ Custom Ant Design theme for consistent branding:
 ```typescript
 const theme = {
   token: {
-    colorPrimary: '#1890ff',
+    colorPrimary: "#1890ff",
     borderRadius: 6,
     fontSize: 14,
   },
   components: {
     Layout: {
-      headerBg: '#ffffff',
-      headerPadding: '0 24px',
+      headerBg: "#ffffff",
+      headerPadding: "0 24px",
     },
     Table: {
-      headerBg: '#fafafa',
+      headerBg: "#fafafa",
     },
   },
 };
@@ -338,33 +443,34 @@ Advanced table with rich functionality:
 // Column configuration
 const columns = [
   {
-    title: 'Status',
-    dataIndex: 'status',
+    title: "Status",
+    dataIndex: "status",
     render: (status: string) => <StatusBadge status={status} />,
     filters: statusFilters,
   },
   {
-    title: 'Name',
-    dataIndex: 'name',
+    title: "Name",
+    dataIndex: "name",
     ellipsis: true,
     sorter: (a, b) => a.name.localeCompare(b.name),
   },
   {
-    title: 'Type',
-    dataIndex: 'run_type',
+    title: "Type",
+    dataIndex: "run_type",
     filters: runTypeFilters,
   },
   {
-    title: 'Duration',
-    dataIndex: 'duration_ms',
+    title: "Duration",
+    dataIndex: "duration_ms",
     render: (duration: number) => formatDuration(duration),
     sorter: (a, b) => (a.duration_ms || 0) - (b.duration_ms || 0),
   },
   {
-    title: 'Start Time',
-    dataIndex: 'start_time',
+    title: "Start Time",
+    dataIndex: "start_time",
     render: (time: string) => formatTimestamp(time),
-    sorter: (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+    sorter: (a, b) =>
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
   },
 ];
 ```
@@ -377,12 +483,7 @@ Interactive tree view for trace hierarchies:
 // Tree data transformation
 const transformToTreeData = (node: RunHierarchyNode): DataNode => ({
   key: node.id,
-  title: (
-    <TraceNodeTitle
-      node={node}
-      onSelect={onNodeSelect}
-    />
-  ),
+  title: <TraceNodeTitle node={node} onSelect={onNodeSelect} />,
   children: node.children?.map(transformToTreeData),
   data: node,
 });
@@ -395,17 +496,17 @@ Advanced timeline component using vis-timeline:
 ```typescript
 // Timeline configuration
 const options = {
-  height: '400px',
+  height: "400px",
   stack: true,
   showCurrentTime: false,
   zoomMin: 1000,
   zoomMax: 1000 * 60 * 60 * 24,
   format: {
     minorLabels: {
-      millisecond: 'SSS',
-      second: 's.SSS',
-      minute: 'HH:mm:ss',
-      hour: 'HH:mm',
+      millisecond: "SSS",
+      second: "s.SSS",
+      minute: "HH:mm:ss",
+      hour: "HH:mm",
     },
   },
 };
@@ -417,9 +518,11 @@ const options = {
 
 ```typescript
 // Memoized components for expensive renders
-const TraceTable = React.memo(({ selectedTraceId, onTraceSelect, ...props }) => {
-  // Component implementation
-});
+const TraceTable = React.memo(
+  ({ selectedTraceId, onTraceSelect, ...props }) => {
+    // Component implementation
+  }
+);
 
 // Optimized callbacks to prevent unnecessary re-renders
 const handleTraceSelect = useCallback((traceId: string) => {
@@ -443,14 +546,13 @@ const pagination = {
   total: totalRuns,
   showSizeChanger: true,
   showQuickJumper: true,
-  showTotal: (total, range) =>
-    `${range[0]}-${range[1]} of ${total} traces`,
+  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} traces`,
 };
 
 // Optimistic updates for better UX
 const handleRefresh = useCallback(() => {
-  queryClient.invalidateQueries(['rootTraces']);
-  queryClient.invalidateQueries(['traceHierarchy']);
+  queryClient.invalidateQueries(["rootTraces"]);
+  queryClient.invalidateQueries(["traceHierarchy"]);
 }, [queryClient]);
 ```
 
@@ -466,9 +568,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          antd: ['antd'],
-          charts: ['recharts'],
+          vendor: ["react", "react-dom"],
+          antd: ["antd"],
+          charts: ["recharts"],
         },
       },
     },
@@ -492,7 +594,7 @@ const queryClient = new QueryClient({
         return failureCount < 2;
       },
       onError: (error) => {
-        console.error('Query error:', error);
+        console.error("Query error:", error);
         // Show user-friendly error message
       },
     },
@@ -531,18 +633,21 @@ if (error) {
 ## Accessibility Features
 
 ### Keyboard Navigation
+
 - **Tab Navigation**: Full keyboard accessibility
 - **Arrow Keys**: Tree navigation support
 - **Enter/Space**: Action triggers
 - **Escape**: Modal/panel closing
 
 ### Screen Reader Support
+
 - **ARIA Labels**: Comprehensive labeling
 - **Role Attributes**: Proper semantic roles
 - **Live Regions**: Dynamic content announcements
 - **Focus Management**: Logical focus flow
 
 ### Visual Accessibility
+
 - **Color Contrast**: WCAG AA compliance
 - **Focus Indicators**: Clear focus states
 - **Text Scaling**: Responsive text sizing
@@ -551,6 +656,7 @@ if (error) {
 ## Development Workflow
 
 ### Local Development
+
 ```bash
 # Install dependencies
 npm install
@@ -566,6 +672,7 @@ npm run preview
 ```
 
 ### Code Quality Tools
+
 ```bash
 # Linting
 npm run lint
@@ -578,6 +685,7 @@ npm run test
 ```
 
 ### Docker Development
+
 ```bash
 # Development with hot reloading
 docker compose -f docker/docker-compose.dev.yml up -d
@@ -589,6 +697,7 @@ docker compose -f docker/docker-compose.dev.yml logs -f frontend
 ## Configuration
 
 ### Environment Variables
+
 ```bash
 # API endpoint configuration
 VITE_API_BASE_URL=http://localhost:8000
@@ -599,6 +708,7 @@ VITE_ENABLE_CHARTS=true
 ```
 
 ### Build Configuration
+
 - **TypeScript**: Strict type checking enabled
 - **ESLint**: Code quality and consistency
 - **Tailwind**: Utility-first CSS framework
@@ -607,6 +717,7 @@ VITE_ENABLE_CHARTS=true
 ## Future Enhancements
 
 ### Planned Features
+
 - **Advanced Filtering**: More sophisticated filter options
 - **Export Functionality**: CSV/JSON export of trace data
 - **Real-time Updates**: WebSocket integration for live updates
@@ -615,6 +726,7 @@ VITE_ENABLE_CHARTS=true
 - **Performance Analytics**: Advanced performance insights
 
 ### Technical Improvements
+
 - **Testing Suite**: Comprehensive unit and integration tests
 - **Storybook**: Component documentation and testing
 - **PWA Support**: Offline functionality and app-like experience
