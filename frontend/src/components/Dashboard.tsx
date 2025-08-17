@@ -9,6 +9,7 @@ import TraceDetail from "./TraceDetail";
 import TraceTable from "./TraceTable";
 import ConnectionStatus from "./ConnectionStatus";
 import RealTimeNotifications from "./RealTimeNotifications";
+import ThemeToggle from "./ThemeToggle";
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -102,27 +103,27 @@ const Dashboard: React.FC = () => {
       />
 
       {/* Header */}
-      <Header className="bg-white shadow-sm border-b border-gray-200">
+      <Header className="bg-surface border-b border-border shadow-theme-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <DashboardOutlined className="text-xl text-blue-600" />
-            <Title level={3} className="m-0 text-gray-800">
+            <DashboardOutlined className="text-xl text-primary" />
+            <Title level={3} className="m-0 text-text">
               Agent Spy Dashboard
             </Title>
           </div>
 
-          {/* Health Status and WebSocket Connection */}
+          {/* Health Status, WebSocket Connection, and Theme Toggle */}
           <div className="flex items-center space-x-4">
             {/* Backend Health Status */}
             {healthLoading ? (
               <Spin size="small" />
             ) : healthError ? (
-              <div className="flex items-center space-x-2 text-red-500">
+              <div className="flex items-center space-x-2 text-error">
                 <ApiOutlined />
                 <span className="text-sm">Backend Offline</span>
               </div>
             ) : (
-              <div className="flex items-center space-x-2 text-green-500">
+              <div className="flex items-center space-x-2 text-success">
                 <ApiOutlined />
                 <span className="text-sm">Backend Online</span>
               </div>
@@ -136,12 +137,15 @@ const Dashboard: React.FC = () => {
               onToggleRealtime={handleToggleRealtime}
               realtimeEnabled={realtimeEnabled}
             />
+
+            {/* Theme Toggle */}
+            <ThemeToggle size="middle" />
           </div>
         </div>
       </Header>
 
       {/* Main Content */}
-      <Content className="p-6">
+      <Content className="p-6 bg-theme">
         {/* Backend Connection Error */}
         {healthError && (
           <Alert
