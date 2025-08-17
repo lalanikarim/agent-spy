@@ -85,6 +85,21 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
     }
   };
 
+  // Copy entire tree hierarchy as JSON
+  const copyTreeJson = async () => {
+    if (!data?.hierarchy) return;
+
+    try {
+      setCopyLoading(true);
+      const jsonString = JSON.stringify(data.hierarchy, null, 2);
+      await copyToClipboard(jsonString, "Tree JSON");
+    } catch (error) {
+      console.error("Failed to copy tree JSON:", error);
+    } finally {
+      setCopyLoading(false);
+    }
+  };
+
   // Convert hierarchy to tree data
   const convertToTreeData = (node: RunHierarchyNode): TraceDataNode => {
     const { text: statusText, color: statusColor } = formatters.formatStatus(
@@ -125,6 +140,9 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
   );
   const [selectedNode, setSelectedNode] =
     React.useState<RunHierarchyNode | null>(null);
+
+  // Copy tree JSON loading state
+  const [copyLoading, setCopyLoading] = React.useState<boolean>(false);
 
   // Clear selected node when trace changes
   React.useEffect(() => {
@@ -440,9 +458,19 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
             <BranchesOutlined />
             <span>Trace Hierarchy</span>
             {data && (
-              <Tag color="blue">
-                {data.total_runs} runs, depth {data.max_depth}
-              </Tag>
+              <>
+                <Tag color="blue">
+                  {data.total_runs} runs, depth {data.max_depth}
+                </Tag>
+                <Button
+                  type="text"
+                  icon={<CopyOutlined style={{ color: "#1890ff" }} />}
+                  onClick={copyTreeJson}
+                  loading={copyLoading}
+                  disabled={disabled || !data}
+                  title="Copy tree JSON"
+                />
+              </>
             )}
           </Space>
           <Space>
