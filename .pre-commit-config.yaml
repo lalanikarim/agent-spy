@@ -11,6 +11,7 @@ repos:
         name: ruff check (with --fix)
         args: [--fix]
         types: [python]
+        exclude: ^\.venv/
 
   # Type checking with basedpyright (local hook)
   - repo: local
@@ -39,8 +40,10 @@ repos:
       # Python-specific checks
       - id: check-ast
         types: [python]
+        exclude: ^\.venv/
       - id: debug-statements
         types: [python]
+        exclude: ^\.venv/
       # YAML/JSON checks
       - id: check-yaml
         exclude: ^frontend/
