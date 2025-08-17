@@ -8,6 +8,7 @@ import {
   CopyOutlined,
   ExpandOutlined,
   InfoCircleOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
@@ -46,6 +47,8 @@ interface TraceDetailProps {
   onToggleExpansion: () => void;
   isExpanded: boolean;
   refreshTrigger: number;
+  onRefresh?: () => void;
+  refreshLoading?: boolean;
   disabled?: boolean;
 }
 
@@ -55,6 +58,8 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
   onToggleExpansion,
   isExpanded,
   refreshTrigger,
+  onRefresh,
+  refreshLoading = false,
   disabled = false,
 }) => {
   // Fetch trace hierarchy
@@ -450,6 +455,16 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                 isExpanded ? "Collapse to sidebar" : "Expand to full screen"
               }
             />
+            {isExpanded && onRefresh && (
+              <Button
+                type="text"
+                icon={<ReloadOutlined />}
+                onClick={onRefresh}
+                loading={refreshLoading}
+                disabled={disabled}
+                title="Refresh trace hierarchy"
+              />
+            )}
             <Button
               type="text"
               icon={<CloseOutlined />}

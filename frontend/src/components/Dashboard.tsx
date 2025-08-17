@@ -2,7 +2,7 @@ import { ApiOutlined, DashboardOutlined } from "@ant-design/icons";
 import { Alert, Layout, Spin, Typography } from "antd";
 import React, { useCallback, useState } from "react";
 import { getBaseUrl } from "../config/environment";
-import { useHealth } from "../hooks/useTraces";
+import { useHealth, useTraceHierarchy } from "../hooks/useTraces";
 import DashboardStats from "./DashboardStats";
 import TraceDetail from "./TraceDetail";
 import TraceTable from "./TraceTable";
@@ -19,6 +19,11 @@ const Dashboard: React.FC = () => {
 
   // Health check to ensure backend is available
   const { isLoading: healthLoading, error: healthError } = useHealth();
+
+  // Get hierarchy loading state for refresh button
+  const { isLoading: hierarchyLoading } = useTraceHierarchy(selectedTraceId, {
+    enabled: !healthError && !!selectedTraceId,
+  });
 
   console.log("🏥 Dashboard health check state:", {
     isLoading: healthLoading,
@@ -41,6 +46,11 @@ const Dashboard: React.FC = () => {
 
   // Coordinated refresh for both root traces and trace detail
   const handleRefresh = useCallback(() => {
+    setRefreshTrigger((prev) => prev + 1);
+  }, []);
+
+  // Separate refresh for trace hierarchy only
+  const handleHierarchyRefresh = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
   }, []);
 
@@ -132,6 +142,8 @@ const Dashboard: React.FC = () => {
                 onToggleExpansion={handleToggleExpansion}
                 isExpanded={isDetailExpanded}
                 refreshTrigger={refreshTrigger}
+                onRefresh={handleHierarchyRefresh}
+                refreshLoading={hierarchyLoading}
                 disabled={!!healthError}
               />
             </div>
