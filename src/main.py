@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.api import health, runs
+from src.api import health, runs, websocket
 from src.core.config import get_settings
 from src.core.database import close_database, init_database
 from src.core.logging import setup_logging
@@ -102,6 +102,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(health.router, tags=["health"])
     app.include_router(runs.router, prefix=settings.langsmith_endpoint_base, tags=["runs"])
+    app.include_router(websocket.router, tags=["websocket"])
 
     return app
 

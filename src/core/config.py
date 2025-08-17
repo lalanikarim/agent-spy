@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     max_trace_size_mb: int = Field(default=10, description="Maximum trace size in MB")
     request_timeout: int = Field(default=30, description="Request timeout in seconds")
 
+    # WebSocket Settings
+    websocket_enabled: bool = Field(default=True, description="Enable WebSocket support")
+    websocket_max_connections: int = Field(default=100, description="Maximum WebSocket connections")
+    websocket_heartbeat_interval: int = Field(default=30, description="WebSocket heartbeat interval in seconds")
+
     # Logging Settings
     log_level: str = Field(default="INFO", description="Logging level")
     log_format: str = Field(default="json", description="Log format (json or text)")

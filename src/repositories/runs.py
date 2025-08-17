@@ -1,5 +1,6 @@
 """Repository for run data access."""
 
+import asyncio
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -10,6 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.logging import get_logger
 from src.models.runs import Run
 from src.schemas.runs import RunCreate, RunUpdate
+from src.services.event_service import (
+    emit_trace_completed_async,
+    emit_trace_created_async,
+    emit_trace_failed_async,
+    emit_trace_updated_async,
+)
 
 logger = get_logger(__name__)
 
@@ -63,6 +70,9 @@ class RunRepository:
         self.session.add(run)
         await self.session.flush()  # Get the ID without committing
 
+        # Emit WebSocket event for new trace
+        asyncio.create_task(emit_trace_created_async(run))
+
         logger.info(f"Created run: {run.id}")
         return run
 
@@ -79,16 +89,28 @@ class RunRepository:
             return None
 
         # Update fields that are provided
+        # Track status changes for event emission
+        status_changed = False
+        changes = {}
+
         if run_data.end_time is not None:
             run.end_time = run_data.end_time
-            run.status = "completed" if not run_data.error else "failed"
+            new_status = "completed" if not run_data.error else "failed"
+            if run.status != new_status:
+                run.status = new_status
+                status_changed = True
+            changes["end_time"] = run_data.end_time
 
         if run_data.outputs is not None:
             run.outputs = run_data.outputs
+            changes["outputs"] = run_data.outputs
 
         if run_data.error is not None:
             run.error = run_data.error
-            run.status = "failed"
+            if run.status != "failed":
+                run.status = "failed"
+                status_changed = True
+            changes["error"] = run_data.error
 
         if run_data.extra is not None:
             # Merge with existing extra data
@@ -113,6 +135,16 @@ class RunRepository:
             run.reference_example_id = run_data.reference_example_id
 
         await self.session.flush()
+
+        # Emit WebSocket events based on changes
+        if changes:
+            asyncio.create_task(emit_trace_updated_async(run, changes))
+
+        if status_changed:
+            if run.status == "completed":
+                asyncio.create_task(emit_trace_completed_async(run))
+            elif run.status == "failed":
+                asyncio.create_task(emit_trace_failed_async(run, run.error))
 
         logger.info(f"Updated run: {run_id}")
         return run

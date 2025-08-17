@@ -1,11 +1,14 @@
 import { ApiOutlined, DashboardOutlined } from "@ant-design/icons";
 import { Alert, Layout, Spin, Typography } from "antd";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { getBaseUrl } from "../config/environment";
 import { useHealth, useTraceHierarchy } from "../hooks/useTraces";
+import { useWebSocket } from "../hooks/useWebSocket";
 import DashboardStats from "./DashboardStats";
 import TraceDetail from "./TraceDetail";
 import TraceTable from "./TraceTable";
+import ConnectionStatus from "./ConnectionStatus";
+import RealTimeNotifications from "./RealTimeNotifications";
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -16,9 +19,19 @@ const Dashboard: React.FC = () => {
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
   const [isDetailExpanded, setIsDetailExpanded] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [realtimeEnabled, setRealtimeEnabled] = useState<boolean>(true);
 
   // Health check to ensure backend is available
   const { isLoading: healthLoading, error: healthError } = useHealth();
+
+  // WebSocket connection for real-time updates
+  const {
+    isConnected: wsConnected,
+    connectionError: wsError,
+    subscribedEvents,
+    subscribe,
+    unsubscribe,
+  } = useWebSocket();
 
   // Get hierarchy loading state for refresh button
   const { isLoading: hierarchyLoading } = useTraceHierarchy(selectedTraceId, {
@@ -44,6 +57,32 @@ const Dashboard: React.FC = () => {
     setIsDetailExpanded(!isDetailExpanded);
   };
 
+  // Subscribe to WebSocket events when connected
+  useEffect(() => {
+    if (wsConnected && realtimeEnabled) {
+      subscribe([
+        "trace.created",
+        "trace.updated",
+        "trace.completed",
+        "trace.failed",
+        "stats.updated",
+      ]);
+    } else if (wsConnected && !realtimeEnabled) {
+      unsubscribe([
+        "trace.created",
+        "trace.updated",
+        "trace.completed",
+        "trace.failed",
+        "stats.updated",
+      ]);
+    }
+  }, [wsConnected, realtimeEnabled, subscribe, unsubscribe]);
+
+  // Handle real-time toggle
+  const handleToggleRealtime = useCallback((enabled: boolean) => {
+    setRealtimeEnabled(enabled);
+  }, []);
+
   // Coordinated refresh for both root traces and trace detail
   const handleRefresh = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
@@ -56,6 +95,12 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout className="min-h-screen">
+      {/* Real-time Notifications */}
+      <RealTimeNotifications
+        isConnected={wsConnected}
+        subscribedEvents={subscribedEvents}
+      />
+
       {/* Header */}
       <Header className="bg-white shadow-sm border-b border-gray-200">
         <div className="flex items-center justify-between">
@@ -66,8 +111,9 @@ const Dashboard: React.FC = () => {
             </Title>
           </div>
 
-          {/* Health Status Indicator */}
-          <div className="flex items-center space-x-2">
+          {/* Health Status and WebSocket Connection */}
+          <div className="flex items-center space-x-4">
+            {/* Backend Health Status */}
             {healthLoading ? (
               <Spin size="small" />
             ) : healthError ? (
@@ -81,6 +127,15 @@ const Dashboard: React.FC = () => {
                 <span className="text-sm">Backend Online</span>
               </div>
             )}
+
+            {/* WebSocket Connection Status */}
+            <ConnectionStatus
+              isConnected={wsConnected}
+              connectionError={wsError}
+              subscribedEvents={subscribedEvents}
+              onToggleRealtime={handleToggleRealtime}
+              realtimeEnabled={realtimeEnabled}
+            />
           </div>
         </div>
       </Header>
