@@ -29,6 +29,37 @@ services:
     networks:
       - agentspy-network
 
+  # Redis Cache (Optional Service)
+  redis:
+    image: redis:7-alpine
+    container_name: agentspy-redis
+    restart: unless-stopped
+    profiles: ["redis", "full"] # Optional service via profiles
+    command: >
+      redis-server
+      --maxmemory ${REDIS_MAX_MEMORY:-512mb}
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --requirepass ${REDIS_PASSWORD:-agentspy_redis_password}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-agentspy_redis_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - agentspy-network
+
   # Agent Spy Backend API
   backend:
     build:
@@ -56,6 +87,17 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
       DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
       DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-20}
+
+      # Redis Settings (Optional)
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-agentspy_redis_password}
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      REDIS_MAX_CONNECTIONS: ${REDIS_MAX_CONNECTIONS:-20}
+      REDIS_RETRY_ON_TIMEOUT: ${REDIS_RETRY_ON_TIMEOUT:-true}
+      REDIS_SOCKET_TIMEOUT: ${REDIS_SOCKET_TIMEOUT:-5}
+      REDIS_SOCKET_CONNECT_TIMEOUT: ${REDIS_SOCKET_CONNECT_TIMEOUT:-5}
 
       # API Settings
       API_PREFIX: /api/v1
@@ -122,6 +164,8 @@ volumes:
   sqlite_data:
     driver: local
   postgresql_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

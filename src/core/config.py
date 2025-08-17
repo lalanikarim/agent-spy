@@ -90,6 +90,32 @@ class Settings(BaseSettings):
     log_format: str = Field(default="json", description="Log format (json or text)")
     log_file: str | None = Field(default=None, description="Log file path")
 
+    # Redis Settings (Optional - disabled by default)
+    redis_enabled: bool = Field(default=False, description="Enable Redis integration")
+    redis_host: str = Field(default="localhost", description="Redis host")
+    redis_port: int = Field(default=6379, description="Redis port")
+    redis_password: str = Field(default="", description="Redis password")
+    redis_database: int = Field(default=0, description="Redis database number")
+
+    # Redis Connection Pool Settings
+    redis_max_connections: int = Field(default=20, description="Redis max connections")
+    redis_retry_on_timeout: bool = Field(default=True, description="Redis retry on timeout")
+    redis_socket_timeout: int = Field(default=5, description="Redis socket timeout")
+    redis_socket_connect_timeout: int = Field(default=5, description="Redis connect timeout")
+
+    # Redis Memory Management
+    redis_max_memory: str = Field(default="512mb", description="Redis max memory")
+    redis_max_memory_policy: str = Field(default="allkeys-lru", description="Redis memory policy")
+
+    # Redis SSL Settings
+    redis_ssl: bool = Field(default=False, description="Enable Redis SSL")
+    redis_ssl_cert_reqs: str = Field(default="required", description="Redis SSL cert requirements")
+    redis_ssl_ca_certs: str | None = Field(default=None, description="Redis SSL CA certs path")
+
+    # Cache Settings
+    cache_memory_size: int = Field(default=1000, description="In-memory cache size for fallback")
+    cache_default_ttl: int = Field(default=3600, description="Default cache TTL in seconds")
+
     @field_validator("api_keys", mode="before")
     @classmethod
     def parse_api_keys(cls, v: str | None) -> list[str] | None:
@@ -137,6 +163,18 @@ class Settings(BaseSettings):
             raise ValueError(f"SSL mode must be one of {allowed}")
         return v.lower()
 
+    @field_validator("redis_max_memory_policy")
+    @classmethod
+    def validate_redis_memory_policy(cls, v: str) -> str:
+        """Validate Redis memory eviction policy."""
+        allowed = [
+            "noeviction", "allkeys-lru", "volatile-lru",
+            "allkeys-random", "volatile-random", "volatile-ttl"
+        ]
+        if v not in allowed:
+            raise ValueError(f"Redis memory policy must be one of {allowed}")
+        return v
+
     @property
     def is_development(self) -> bool:
         """Check if running in development mode."""
@@ -166,6 +204,11 @@ class Settings(BaseSettings):
         else:
             # Default SQLite URL
             return self.database_url
+
+    def get_redis_url(self) -> str:
+        """Get Redis connection URL."""
+        password_part = f":{self.redis_password}@" if self.redis_password else ""
+        return f"redis://{password_part}{self.redis_host}:{self.redis_port}/{self.redis_database}"
 
     @classmethod
     def load_env_file_priority(cls) -> dict[str, str]:

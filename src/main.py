@@ -7,10 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.api import health, runs, websocket
+from src.api import cache, health, runs, websocket
 from src.core.config import get_settings
 from src.core.database import close_database, init_database
 from src.core.logging import setup_logging
+from src.core.redis import close_redis, init_redis
 
 # Get settings
 settings = get_settings()
@@ -30,10 +31,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Initialize database connection
     await init_database()
 
+    # Initialize Redis connection
+    await init_redis()
+
     yield
 
     # Shutdown
     logger.info("Shutting down application")
+    # Close Redis connections
+    await close_redis()
     # Close database connections
     await close_database()
 
@@ -103,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, tags=["health"])
     app.include_router(runs.router, prefix=settings.langsmith_endpoint_base, tags=["runs"])
     app.include_router(websocket.router, tags=["websocket"])
+    app.include_router(cache.router, prefix="/api/v1", tags=["cache"])
 
     return app
 

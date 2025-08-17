@@ -50,11 +50,40 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
       DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
       DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-20}
+
+      # Redis Settings (Optional - for enhanced development experience)
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      REDIS_MAX_CONNECTIONS: ${REDIS_MAX_CONNECTIONS:-10}
+      REDIS_RETRY_ON_TIMEOUT: ${REDIS_RETRY_ON_TIMEOUT:-true}
+      REDIS_SOCKET_TIMEOUT: ${REDIS_SOCKET_TIMEOUT:-5}
+      REDIS_SOCKET_CONNECT_TIMEOUT: ${REDIS_SOCKET_CONNECT_TIMEOUT:-5}
     ports:
       - "8000:8000"
     depends_on:
       postgresql:
         condition: service_healthy
+    networks:
+      - agentspy-minimal-network
+
+  # Redis Cache (Optional - for enhanced development experience)
+  redis:
+    image: redis:7-alpine
+    container_name: agentspy-minimal-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379" # Use different port to avoid conflicts
+    volumes:
+      - redis_minimal_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - agentspy-minimal-network
 
@@ -85,6 +114,8 @@ services:
 
 volumes:
   postgresql_minimal_data:
+    driver: local
+  redis_minimal_data:
     driver: local
 
 networks:

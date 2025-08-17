@@ -11,6 +11,7 @@ from sqlalchemy import select
 from src.core.config import get_settings
 from src.core.database import get_db_session
 from src.core.logging import get_logger
+from src.core.redis import manager as redis_manager
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -69,13 +70,22 @@ async def health_check() -> HealthResponse:
         logger.warning(f"Database connectivity check failed: {e}")
         database_status = "disconnected"
 
-    # TODO: Add dependency checks (Redis, external APIs, etc.) in later phases
+    # Check Redis connectivity (optional)
+    redis_health = await redis_manager.health_check()
+    redis_status = redis_health["status"]
+
     dependencies = {
         "database": database_status,
+        "redis": redis_status,
     }
 
+    # Determine overall status - Redis is optional, so don't fail if Redis is disabled
+    overall_status = "healthy"
+    if database_status != "connected" or redis_status == "error":
+        overall_status = "degraded"
+
     response = HealthResponse(
-        status="healthy" if database_status == "connected" else "degraded",
+        status=overall_status,
         timestamp=datetime.now(UTC).isoformat(),
         version=settings.app_version,
         environment=settings.environment,
@@ -85,7 +95,7 @@ async def health_check() -> HealthResponse:
         dependencies=dependencies,
     )
 
-    logger.info(f"Health check completed: {response.status} (database: {database_status})")
+    logger.info(f"Health check completed: {response.status} (database: {database_status}, redis: {redis_status})")
     return response
 
 
@@ -111,18 +121,26 @@ async def readiness_check() -> ReadinessResponse:
     except Exception as e:
         logger.warning(f"Database readiness check failed: {e}")
 
+    # Check Redis readiness (optional)
+    redis_health = await redis_manager.health_check()
+    redis_ready = redis_health["status"] in ["connected", "disabled"]  # Ready if connected or disabled
+
     checks = {
         "application": True,  # Application is running if we reach this point
         "database": database_ready,  # Database connectivity check
         "configuration": True,  # Configuration loaded successfully
+        "redis": redis_ready,  # Redis readiness (optional)
     }
 
-    # Application is ready if all critical checks pass
+    # Application is ready if all critical checks pass (Redis is optional)
     ready = checks["application"] and checks["configuration"] and checks["database"]
+    # Don't fail readiness if Redis is just disabled, only if it's enabled but failing
+    if redis_health["status"] == "error":
+        ready = False
 
     response = ReadinessResponse(ready=ready, checks=checks, timestamp=datetime.now(UTC).isoformat())
 
-    logger.info(f"Readiness check completed: ready={ready} (database: {database_ready})")
+    logger.info(f"Readiness check completed: ready={ready} (database: {database_ready}, redis: {redis_health['status']})")
     return response
 
 

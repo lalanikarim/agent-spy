@@ -29,6 +29,24 @@ services:
     networks:
       - agentspy-dev-network
 
+  # Redis Cache (Development)
+  redis:
+    image: redis:7-alpine
+    container_name: agentspy-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agentspy-dev-network
+
   # Agent Spy Backend API (Development)
   backend:
     build:
@@ -57,6 +75,17 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
       DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
       DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-20}
+
+      # Redis Settings (Development)
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      REDIS_MAX_CONNECTIONS: ${REDIS_MAX_CONNECTIONS:-20}
+      REDIS_RETRY_ON_TIMEOUT: ${REDIS_RETRY_ON_TIMEOUT:-true}
+      REDIS_SOCKET_TIMEOUT: ${REDIS_SOCKET_TIMEOUT:-5}
+      REDIS_SOCKET_CONNECT_TIMEOUT: ${REDIS_SOCKET_CONNECT_TIMEOUT:-5}
 
       # API Settings
       API_PREFIX: /api/v1
@@ -130,6 +159,8 @@ volumes:
   sqlite_dev_data:
     driver: local
   postgresql_dev_data:
+    driver: local
+  redis_dev_data:
     driver: local
 
 networks:
