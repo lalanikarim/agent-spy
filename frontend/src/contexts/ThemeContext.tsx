@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = 'light' | 'dark';
+type Theme = "light" | "dark";
 
 interface ThemeContextType {
   theme: Theme;
@@ -17,59 +17,75 @@ interface ThemeProviderProps {
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     // Check localStorage first, then system preference, default to light
-    const savedTheme = localStorage.getItem('agent-spy-theme') as Theme;
-    if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+    const savedTheme = localStorage.getItem("agent-spy-theme") as Theme;
+    if (savedTheme && (savedTheme === "light" || savedTheme === "dark")) {
       return savedTheme;
     }
-    
+
     // Check system preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+      return "dark";
     }
-    
-    return 'light';
+
+    return "light";
   });
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem('agent-spy-theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem("agent-spy-theme", newTheme);
+    document.documentElement.setAttribute("data-theme", newTheme);
+    // Apply Tailwind dark mode class
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   };
 
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
+    const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
   };
 
   // Apply theme to document on mount and theme change
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    
+    document.documentElement.setAttribute("data-theme", theme);
+
+    // Apply Tailwind dark mode class
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+
     // Add theme transition class to body for smooth transitions
-    document.body.classList.add('theme-transition');
-    
+    document.body.classList.add("theme-transition");
+
     // Remove transition class after transition completes to avoid affecting initial load
     const timer = setTimeout(() => {
-      document.body.classList.remove('theme-transition');
+      document.body.classList.remove("theme-transition");
     }, 250);
-    
+
     return () => clearTimeout(timer);
   }, [theme]);
 
   // Listen for system theme changes
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
     const handleChange = (e: MediaQueryListEvent) => {
       // Only auto-switch if user hasn't manually set a preference
-      const savedTheme = localStorage.getItem('agent-spy-theme');
+      const savedTheme = localStorage.getItem("agent-spy-theme");
       if (!savedTheme) {
-        setTheme(e.matches ? 'dark' : 'light');
+        setTheme(e.matches ? "dark" : "light");
       }
     };
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   const value: ThemeContextType = {
@@ -79,16 +95,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 };
 
 export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
 };
@@ -96,17 +110,20 @@ export const useTheme = (): ThemeContextType => {
 // Hook for getting theme-aware styles
 export const useThemeStyles = () => {
   const { theme } = useTheme();
-  
+
   return {
-    isDark: theme === 'dark',
-    isLight: theme === 'light',
+    isDark: theme === "dark",
+    isLight: theme === "light",
     theme,
     // Common style combinations
-    cardStyle: 'bg-surface border border-border rounded-theme-lg shadow-theme-md',
-    buttonStyle: 'bg-primary hover:bg-primary-hover text-text-inverse px-4 py-2 rounded-theme-md transition-colors duration-theme-normal',
-    inputStyle: 'bg-surface border border-border focus:border-border-focus rounded-theme-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-opacity-50',
-    textStyle: 'text-text',
-    textSecondaryStyle: 'text-text-secondary',
-    textMutedStyle: 'text-text-muted',
+    cardStyle:
+      "bg-surface border border-border rounded-theme-lg shadow-theme-md",
+    buttonStyle:
+      "bg-primary hover:bg-primary-hover text-text-inverse px-4 py-2 rounded-theme-md transition-colors duration-theme-normal",
+    inputStyle:
+      "bg-surface border border-border focus:border-border-focus rounded-theme-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-opacity-50",
+    textStyle: "text-text",
+    textSecondaryStyle: "text-text-secondary",
+    textMutedStyle: "text-text-muted",
   };
 };
