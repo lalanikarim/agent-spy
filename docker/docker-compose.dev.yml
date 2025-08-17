@@ -1,6 +1,34 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  # PostgreSQL Database (Development)
+  postgresql:
+    image: postgres:16-alpine
+    container_name: agentspy-postgresql-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentspy_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-agentspy_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentspy_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgresql_dev_data:/var/lib/postgresql/data
+      - ./init-postgresql.sql:/docker-entrypoint-initdb.d/init-postgresql.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-agentspy_user} -d ${POSTGRES_DB:-agentspy_dev}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - agentspy-dev-network
+
   # Agent Spy Backend API (Development)
   backend:
     build:
@@ -17,8 +45,18 @@ services:
       RELOAD: true
 
       # Database Settings
-      DATABASE_URL: sqlite+aiosqlite:////app/data/agentspy_dev.db
+      DATABASE_TYPE: ${DATABASE_TYPE:-sqlite}
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/data/agentspy_dev.db}
       DATABASE_ECHO: ${DATABASE_ECHO:-true}
+
+      # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
+      DATABASE_HOST: ${DATABASE_HOST:-postgresql}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-agentspy_dev}
+      DATABASE_USER: ${DATABASE_USER:-agentspy_user}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
+      DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
+      DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-20}
 
       # API Settings
       API_PREFIX: /api/v1
@@ -46,6 +84,9 @@ services:
       - ../.cursor:/app/.cursor:cached
       # SQLite database volume
       - sqlite_dev_data:/app/data
+    depends_on:
+      postgresql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -87,6 +128,8 @@ services:
 
 volumes:
   sqlite_dev_data:
+    driver: local
+  postgresql_dev_data:
     driver: local
 
 networks:

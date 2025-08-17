@@ -1,6 +1,28 @@
 version: "3.8"
 
 services:
+  postgresql:
+    image: postgres:16-alpine
+    container_name: agentspy-minimal-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agentspy_minimal
+      POSTGRES_USER: agentspy_user
+      POSTGRES_PASSWORD: agentspy_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_minimal_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentspy_user -d agentspy_minimal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - agentspy-minimal-network
+
   backend:
     build:
       context: ..
@@ -11,15 +33,28 @@ services:
     working_dir: /workspace
     environment:
       # Backend development configuration
-      DATABASE_URL: sqlite+aiosqlite:///./agentspy.db
+      DATABASE_TYPE: ${DATABASE_TYPE:-sqlite}
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./agentspy.db}
       ENVIRONMENT: development
       DEBUG: true
       HOST: 0.0.0.0
       PORT: 8000
       LOG_LEVEL: DEBUG
       PYTHONPATH: /workspace
+
+      # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
+      DATABASE_HOST: ${DATABASE_HOST:-postgresql}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-agentspy_minimal}
+      DATABASE_USER: ${DATABASE_USER:-agentspy_user}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
+      DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
+      DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-20}
     ports:
       - "8000:8000"
+    depends_on:
+      postgresql:
+        condition: service_healthy
     networks:
       - agentspy-minimal-network
 
@@ -47,6 +82,10 @@ services:
       - backend
     networks:
       - agentspy-minimal-network
+
+volumes:
+  postgresql_minimal_data:
+    driver: local
 
 networks:
   agentspy-minimal-network:
