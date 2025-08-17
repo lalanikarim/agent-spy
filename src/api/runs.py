@@ -97,14 +97,6 @@ async def batch_ingest_runs(
     if request.patch:
         logger.info(f"📝 First PATCH item: {request.patch[0].model_dump()}")
 
-    # Temporarily log debug info to a file we can read
-    import os
-
-    debug_file = os.path.join(os.getcwd(), "debug_request.json")
-    logger.info(f"🔍 Writing debug info to: {debug_file}")
-    with open(debug_file, "w") as f:
-        json.dump(debug_info, f, indent=2, default=str)
-
     run_repo = RunRepository(db)
     created_count = 0
     updated_count = 0
@@ -633,16 +625,3 @@ async def cleanup_stale_runs(
         logger.error(f"Failed to cleanup stale runs: {e}")
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to cleanup stale runs: {e}")
-
-
-@router.get("/debug/last-request", summary="Debug: Get Last Request Structure")
-async def get_last_request_debug():
-    """Temporary debug endpoint to see the last request structure."""
-    import os
-
-    debug_file = os.path.join(os.getcwd(), "debug_request.json")
-    if os.path.exists(debug_file):
-        with open(debug_file) as f:
-            return json.load(f)
-    else:
-        return {"error": "No debug file found", "expected_path": debug_file}
