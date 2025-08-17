@@ -22,16 +22,17 @@ const Card: React.FC<CardProps> = ({
     xl: "20px",
   };
 
-  const baseClasses = "bg-white";
+  const baseClasses = "border";
   const hoverClasses = hover
-    ? "hover:shadow-2xl hover:border-gray-200 transition-all duration-200"
+    ? "hover:shadow-2xl hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200"
     : "";
 
   return (
     <div
       className={`${baseClasses} ${hoverClasses} ${className}`}
       style={{
-        backgroundColor: "white",
+        backgroundColor: "var(--color-surface)",
+        borderColor: "var(--color-border)",
         borderRadius: "16px",
         padding: paddingValues[padding],
         boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)",

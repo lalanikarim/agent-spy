@@ -43,13 +43,13 @@ const StatusCard: React.FC<StatusCardProps> = ({
           <div style={{ padding: "4px 0" }}>
             <Title
               level={4}
-              className="m-0 p-0 text-gray-900"
+              className="m-0 p-0 text-gray-900 dark:text-gray-100"
               style={{ margin: 0, padding: 0, lineHeight: 1.2 }}
             >
               {title}
             </Title>
             <Text
-              className="text-gray-600 m-0 p-0"
+              className="text-gray-600 dark:text-gray-400 m-0 p-0"
               style={{ margin: 0, padding: 0, lineHeight: 1.2 }}
             >
               {description}
@@ -62,24 +62,48 @@ const StatusCard: React.FC<StatusCardProps> = ({
         {items.map((item, index) => (
           <div
             key={index}
-            className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
+            className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+            style={{
+              backgroundColor: "var(--color-surface-hover)",
+              borderColor: "var(--color-border)",
+            }}
           >
             <span
-              className="flex items-center text-gray-800"
-              style={{ gap: "12px" }}
+              className="flex items-center text-gray-800 dark:text-gray-200"
+              style={{
+                gap: "12px",
+                color: "var(--color-text)",
+              }}
             >
               <div
                 className={`flex items-center justify-center w-8 h-8 ${
-                  item.iconBgColor || "bg-gray-100"
+                  item.iconBgColor || "bg-gray-100 dark:bg-gray-600"
                 } rounded-lg`}
               >
-                <div className={item.iconColor || "text-gray-600"}>
+                <div
+                  className={
+                    item.iconColor || "text-gray-600 dark:text-gray-300"
+                  }
+                  style={{
+                    color: item.iconColor
+                      ? undefined
+                      : "var(--color-text-secondary)",
+                  }}
+                >
                   {item.icon}
                 </div>
               </div>
-              <span className="font-medium">{item.title}</span>
+              <span
+                className="font-medium"
+                style={{ color: "var(--color-text)" }}
+              >
+                {item.title}
+              </span>
             </span>
-            <span className="font-bold text-lg text-gray-900">
+            <span
+              className="font-bold text-lg text-gray-900 dark:text-gray-100"
+              style={{ color: "var(--color-text)" }}
+            >
               {item.count}
             </span>
           </div>
