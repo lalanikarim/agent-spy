@@ -103,31 +103,43 @@ const Dashboard: React.FC = () => {
       />
 
       {/* Header */}
-      <Header className="bg-surface border-b border-border shadow-theme-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <DashboardOutlined className="text-xl text-primary" />
-            <Title level={3} className="m-0 text-text">
-              Agent Spy Dashboard
-            </Title>
+      <Header className="bg-surface border-b border-border shadow-theme-sm backdrop-blur-theme">
+        <div className="flex items-center justify-between px-6">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-theme-lg shadow-theme-sm">
+              <DashboardOutlined className="text-xl text-text-inverse" />
+            </div>
+            <div>
+              <Title level={3} className="m-0 text-text font-theme-bold">
+                Agent Spy Dashboard
+              </Title>
+              <div className="text-text-secondary text-theme-sm font-theme-medium">
+                Real-time monitoring & analytics
+              </div>
+            </div>
           </div>
 
           {/* Health Status, WebSocket Connection, and Theme Toggle */}
           <div className="flex items-center space-x-4">
             {/* Backend Health Status */}
-            {healthLoading ? (
-              <Spin size="small" />
-            ) : healthError ? (
-              <div className="flex items-center space-x-2 text-error">
-                <ApiOutlined />
-                <span className="text-sm">Backend Offline</span>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2 text-success">
-                <ApiOutlined />
-                <span className="text-sm">Backend Online</span>
-              </div>
-            )}
+            <div className="flex items-center space-x-3 px-4 py-2 bg-surface-hover rounded-theme-lg border border-border">
+              {healthLoading ? (
+                <div className="flex items-center space-x-2">
+                  <Spin size="small" />
+                  <span className="text-sm text-text-secondary">Checking...</span>
+                </div>
+              ) : healthError ? (
+                <div className="flex items-center space-x-2 text-error">
+                  <ApiOutlined className="text-lg" />
+                  <span className="text-sm font-theme-medium">Backend Offline</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-success">
+                  <ApiOutlined className="text-lg" />
+                  <span className="text-sm font-theme-medium">Backend Online</span>
+                </div>
+              )}
+            </div>
 
             {/* WebSocket Connection Status */}
             <ConnectionStatus
@@ -145,25 +157,27 @@ const Dashboard: React.FC = () => {
       </Header>
 
       {/* Main Content */}
-      <Content className="p-6 bg-theme">
+      <Content className="p-8 bg-theme">
         {/* Backend Connection Error */}
         {healthError && (
-          <Alert
-            message="Backend Connection Error"
-            description={`Cannot connect to Agent Spy backend. Please ensure the server is running at ${getBaseUrl()}`}
-            type="error"
-            showIcon
-            className="mb-6"
-          />
+          <div className="mb-8">
+            <Alert
+              message="Backend Connection Error"
+              description={`Cannot connect to Agent Spy backend. Please ensure the server is running at ${getBaseUrl()}`}
+              type="error"
+              showIcon
+              className="rounded-theme-lg border border-error"
+            />
+          </div>
         )}
 
         {/* Dashboard Statistics */}
-        <div className="mb-6">
+        <div className="mb-8">
           <DashboardStats />
         </div>
 
         {/* Main Dashboard Content */}
-        <div className="flex gap-6 overflow-hidden">
+        <div className="flex gap-8 overflow-hidden">
           {/* Master Table - Root Traces */}
           {!isDetailExpanded && (
             <div
@@ -171,13 +185,15 @@ const Dashboard: React.FC = () => {
                 selectedTraceId ? "flex-1 min-w-0 overflow-hidden" : "w-full"
               }
             >
-              <TraceTable
-                selectedTraceId={selectedTraceId}
-                onTraceSelect={handleTraceSelect}
-                onRefresh={handleRefresh}
-                refreshTrigger={refreshTrigger}
-                disabled={!!healthError}
-              />
+              <div className="bg-surface rounded-theme-xl shadow-theme-lg border border-border overflow-hidden">
+                <TraceTable
+                  selectedTraceId={selectedTraceId}
+                  onTraceSelect={handleTraceSelect}
+                  onRefresh={handleRefresh}
+                  refreshTrigger={refreshTrigger}
+                  disabled={!!healthError}
+                />
+              </div>
             </div>
           )}
 
@@ -195,16 +211,18 @@ const Dashboard: React.FC = () => {
                   : {}
               }
             >
-              <TraceDetail
-                traceId={selectedTraceId}
-                onClose={handleTraceDeselect}
-                onToggleExpansion={handleToggleExpansion}
-                isExpanded={isDetailExpanded}
-                refreshTrigger={refreshTrigger}
-                onRefresh={handleHierarchyRefresh}
-                refreshLoading={hierarchyLoading}
-                disabled={!!healthError}
-              />
+              <div className="bg-surface rounded-theme-xl shadow-theme-lg border border-border overflow-hidden">
+                <TraceDetail
+                  traceId={selectedTraceId}
+                  onClose={handleTraceDeselect}
+                  onToggleExpansion={handleToggleExpansion}
+                  isExpanded={isDetailExpanded}
+                  refreshTrigger={refreshTrigger}
+                  onRefresh={handleHierarchyRefresh}
+                  refreshLoading={hierarchyLoading}
+                  disabled={!!healthError}
+                />
+              </div>
             </div>
           )}
         </div>
