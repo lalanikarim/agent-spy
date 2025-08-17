@@ -24,7 +24,7 @@ const Card: React.FC<CardProps> = ({
 
   const baseClasses = "bg-white";
   const hoverClasses = hover
-    ? "hover:shadow-xl hover:border-gray-200 transition-all duration-200"
+    ? "hover:shadow-2xl hover:border-gray-200 transition-all duration-200"
     : "";
 
   return (
@@ -34,8 +34,7 @@ const Card: React.FC<CardProps> = ({
         backgroundColor: "white",
         borderRadius: "16px",
         padding: paddingValues[padding],
-        boxShadow:
-          "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)",
         ...style,
       }}
     >

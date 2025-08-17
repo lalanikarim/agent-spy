@@ -10,6 +10,7 @@ import RealTimeNotifications from "./RealTimeNotifications";
 import ThemeToggle from "./ThemeToggle";
 import TraceDetail from "./TraceDetail";
 import TraceTable from "./TraceTable";
+import Card from "./ui/Card";
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -179,15 +180,11 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Main Dashboard Content */}
-          <div className="flex gap-8 overflow-hidden">
+          <div className="flex gap-8">
             {/* Master Table - Root Traces */}
             {!isDetailExpanded && (
-              <div
-                className={
-                  selectedTraceId ? "flex-1 min-w-0 overflow-hidden" : "w-full"
-                }
-              >
-                <div className="bg-surface rounded-theme-xl shadow-theme-lg border-gray-100 overflow-hidden">
+              <div className={selectedTraceId ? "flex-1 min-w-0" : "w-full"}>
+                <Card className="h-full shadow-2xl">
                   <TraceTable
                     selectedTraceId={selectedTraceId}
                     onTraceSelect={handleTraceSelect}
@@ -195,36 +192,30 @@ const Dashboard: React.FC = () => {
                     refreshTrigger={refreshTrigger}
                     disabled={!!healthError}
                   />
-                </div>
+                </Card>
               </div>
             )}
 
             {/* Detail View - Trace Hierarchy (only show when trace selected) */}
             {selectedTraceId && (
               <div
-                className={
-                  isDetailExpanded
-                    ? "w-full overflow-hidden"
-                    : "w-120 flex-shrink-0 overflow-hidden"
-                }
+                className={isDetailExpanded ? "w-full" : "w-120 flex-shrink-0"}
                 style={
                   !isDetailExpanded
                     ? { width: "480px", minWidth: "480px", maxWidth: "480px" }
                     : {}
                 }
               >
-                <div className="bg-surface rounded-theme-xl shadow-theme-lg border-gray-100 overflow-hidden">
-                  <TraceDetail
-                    traceId={selectedTraceId}
-                    onClose={handleTraceDeselect}
-                    onToggleExpansion={handleToggleExpansion}
-                    isExpanded={isDetailExpanded}
-                    refreshTrigger={refreshTrigger}
-                    onRefresh={handleHierarchyRefresh}
-                    refreshLoading={hierarchyLoading}
-                    disabled={!!healthError}
-                  />
-                </div>
+                <TraceDetail
+                  traceId={selectedTraceId}
+                  onClose={handleTraceDeselect}
+                  onToggleExpansion={handleToggleExpansion}
+                  isExpanded={isDetailExpanded}
+                  refreshTrigger={refreshTrigger}
+                  onRefresh={handleHierarchyRefresh}
+                  refreshLoading={hierarchyLoading}
+                  disabled={!!healthError}
+                />
               </div>
             )}
           </div>

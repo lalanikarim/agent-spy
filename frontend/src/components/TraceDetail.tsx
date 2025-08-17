@@ -13,7 +13,6 @@ import {
 import {
   Alert,
   Button,
-  Card,
   Collapse,
   Descriptions,
   Empty,
@@ -32,6 +31,7 @@ import type { RunHierarchyNode } from "../types/traces";
 import { formatters } from "../utils/formatters";
 import { SimpleTimeline } from "./SimpleTimeline";
 import { TraceTimeline } from "./TraceTimeline";
+import Card from "./ui/Card";
 
 // Extend DataNode to include our custom data
 interface TraceDataNode extends DataNode {
@@ -441,7 +441,10 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
 
   if (!traceId) {
     return (
-      <Card title="Trace Details" className="h-full">
+      <Card className="h-full">
+        <div className="text-lg font-semibold text-gray-900 mb-4">
+          Trace Details
+        </div>
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description="Select a trace to view details"
@@ -452,57 +455,6 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
 
   return (
     <Card
-      title={
-        <div className="flex items-center justify-between">
-          <Space>
-            <BranchesOutlined />
-            <span>Trace Hierarchy</span>
-            {data && (
-              <>
-                <Tag color="blue">
-                  {data.total_runs} runs, depth {data.max_depth}
-                </Tag>
-                <Button
-                  type="text"
-                  icon={<CopyOutlined style={{ color: "#1890ff" }} />}
-                  onClick={copyTreeJson}
-                  loading={copyLoading}
-                  disabled={disabled || !data}
-                  title="Copy tree JSON"
-                />
-              </>
-            )}
-          </Space>
-          <Space>
-            <Button
-              type="text"
-              icon={isExpanded ? <CompressOutlined /> : <ExpandOutlined />}
-              onClick={onToggleExpansion}
-              disabled={disabled}
-              title={
-                isExpanded ? "Collapse to sidebar" : "Expand to full screen"
-              }
-            />
-            {isExpanded && onRefresh && (
-              <Button
-                type="text"
-                icon={<ReloadOutlined />}
-                onClick={onRefresh}
-                loading={refreshLoading}
-                disabled={disabled}
-                title="Refresh trace hierarchy"
-              />
-            )}
-            <Button
-              type="text"
-              icon={<CloseOutlined />}
-              onClick={onClose}
-              disabled={disabled}
-              title="Close trace details"
-            />
-          </Space>
-        </div>
-      }
       className={`h-full flex flex-col ${
         isExpanded ? "" : "max-w-full w-full"
       }`}
@@ -511,37 +463,252 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
           ? { width: "100%", maxWidth: "480px", minWidth: "480px" }
           : {}
       }
-      bodyStyle={{
-        flex: 1,
-        overflow: "hidden",
-        padding: isExpanded ? "24px" : "16px",
-        maxWidth: isExpanded ? "100%" : "480px",
-        width: "100%",
-        boxSizing: "border-box",
-      }}
     >
-      {isLoading && (
-        <div className="flex items-center justify-center py-8">
-          <Spin size="large" />
-        </div>
-      )}
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <Space>
+          <BranchesOutlined />
+          <span className="text-lg font-semibold text-gray-900">
+            Trace Hierarchy
+          </span>
+          {data && (
+            <>
+              <Tag color="blue">
+                {data.total_runs} runs, depth {data.max_depth}
+              </Tag>
+              <Button
+                type="text"
+                icon={<CopyOutlined style={{ color: "#1890ff" }} />}
+                onClick={copyTreeJson}
+                loading={copyLoading}
+                disabled={disabled || !data}
+                title="Copy tree JSON"
+              />
+            </>
+          )}
+        </Space>
+        <Space>
+          <Button
+            type="text"
+            icon={isExpanded ? <CompressOutlined /> : <ExpandOutlined />}
+            onClick={onToggleExpansion}
+            disabled={disabled}
+            title={isExpanded ? "Collapse to sidebar" : "Expand to full screen"}
+          />
+          {isExpanded && onRefresh && (
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              onClick={onRefresh}
+              loading={refreshLoading}
+              disabled={disabled}
+              title="Refresh trace hierarchy"
+            />
+          )}
+          <Button
+            type="text"
+            icon={<CloseOutlined />}
+            onClick={onClose}
+            disabled={disabled}
+            title="Close trace details"
+          />
+        </Space>
+      </div>
 
-      {error && (
-        <Alert
-          message="Failed to load trace hierarchy"
-          description={error.message}
-          type="error"
-          showIcon
-          className="mb-4"
-        />
-      )}
+      {/* Content */}
+      <div
+        className="flex-1 overflow-hidden"
+        style={{
+          padding: isExpanded ? "0" : "0",
+          maxWidth: isExpanded ? "100%" : "480px",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        {isLoading && (
+          <div className="flex items-center justify-center py-8">
+            <Spin size="large" />
+          </div>
+        )}
 
-      {data &&
-        (isExpanded ? (
-          // Expanded Mode: Side-by-side layout (hierarchy left, details right)
-          <div className="flex h-full space-x-6 overflow-hidden">
-            {/* Left Panel: Hierarchy Overview + Tree View */}
-            <div className="flex flex-col w-1/2 space-y-4 overflow-hidden">
+        {error && (
+          <Alert
+            message="Failed to load trace hierarchy"
+            description={error.message}
+            type="error"
+            showIcon
+            className="mb-4"
+          />
+        )}
+
+        {data &&
+          (isExpanded ? (
+            // Expanded Mode: Side-by-side layout (hierarchy left, details right)
+            <div className="flex h-full space-x-6 overflow-hidden">
+              {/* Left Panel: Hierarchy Overview + Tree View */}
+              <div className="flex flex-col w-1/2 space-y-4 overflow-hidden">
+                {/* Hierarchy Overview */}
+                <div className="bg-gray-50 p-3 rounded flex-shrink-0">
+                  <Space split={<span className="text-gray-300">|</span>} wrap>
+                    <span className="text-sm">
+                      <ClockCircleOutlined className="mr-1" />
+                      Started:{" "}
+                      {formatters.formatRelativeTime(data.hierarchy.start_time)}
+                    </span>
+                    <span className="text-sm">
+                      Duration:{" "}
+                      {formatters.formatTaskDuration(
+                        data.hierarchy.duration_ms,
+                        data.hierarchy.start_time,
+                        data.hierarchy.end_time,
+                        data.hierarchy.status
+                      )}
+                    </span>
+                    <span className="text-sm">
+                      Status:{" "}
+                      <Tag
+                        color={
+                          formatters.formatStatus(data.hierarchy.status).color
+                        }
+                      >
+                        {formatters.formatStatus(data.hierarchy.status).text}
+                      </Tag>
+                    </span>
+                  </Space>
+                </div>
+
+                {/* Tree View and Timeline - Full height in expanded mode */}
+                <div className="flex-1 overflow-hidden border rounded">
+                  <Tabs
+                    defaultActiveKey="tree"
+                    size="small"
+                    className="h-full"
+                    items={[
+                      {
+                        key: "tree",
+                        label: (
+                          <span>
+                            <BranchesOutlined />
+                            Tree View
+                          </span>
+                        ),
+                        children: (
+                          <div className="h-full overflow-auto">
+                            <Tree
+                              className="trace-hierarchy-tree p-2"
+                              style={{ width: "100%", overflow: "hidden" }}
+                              treeData={[convertToTreeData(data.hierarchy)]}
+                              defaultExpandAll
+                              showLine={{ showLeafIcon: false }}
+                              onSelect={handleNodeSelect}
+                              selectedKeys={
+                                selectedNodeKey ? [selectedNodeKey] : []
+                              }
+                            />
+                          </div>
+                        ),
+                      },
+                      {
+                        key: "timeline",
+                        label: (
+                          <span>
+                            <BarChartOutlined />
+                            Timeline
+                          </span>
+                        ),
+                        children: (
+                          <div className="h-full overflow-auto p-4">
+                            <TraceTimeline
+                              hierarchy={data.hierarchy}
+                              selectedNodeId={selectedNodeKey || undefined}
+                              onNodeSelect={(nodeId) => {
+                                setSelectedNodeKey(nodeId);
+                                const findNode = (
+                                  node: RunHierarchyNode
+                                ): RunHierarchyNode | null => {
+                                  if (node.id === nodeId) return node;
+                                  for (const child of node.children) {
+                                    const found = findNode(child);
+                                    if (found) return found;
+                                  }
+                                  return null;
+                                };
+                                const node = findNode(data.hierarchy);
+                                if (node) setSelectedNode(node);
+                              }}
+                            />
+                          </div>
+                        ),
+                      },
+                      {
+                        key: "gantt",
+                        label: (
+                          <span>
+                            <ClockCircleOutlined />
+                            Gantt Chart
+                          </span>
+                        ),
+                        children: (
+                          <div className="h-full overflow-auto p-4">
+                            <SimpleTimeline
+                              hierarchy={data.hierarchy}
+                              selectedNodeId={selectedNodeKey || undefined}
+                              onNodeSelect={(nodeId) => {
+                                setSelectedNodeKey(nodeId);
+                                const findNode = (
+                                  node: RunHierarchyNode
+                                ): RunHierarchyNode | null => {
+                                  if (node.id === nodeId) return node;
+                                  for (const child of node.children) {
+                                    const found = findNode(child);
+                                    if (found) return found;
+                                  }
+                                  return null;
+                                };
+                                const node = findNode(data.hierarchy);
+                                if (node) setSelectedNode(node);
+                              }}
+                            />
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              {/* Right Panel: Node Details */}
+              <div className="flex flex-col w-1/2 overflow-hidden">
+                {selectedNode ? (
+                  <div className="flex flex-col h-full overflow-hidden">
+                    <Title level={5} className="mb-3 flex-shrink-0">
+                      Node Details
+                    </Title>
+                    <div className="flex-1 overflow-auto">
+                      {renderNodeDetails(selectedNode)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                      <span className="text-4xl mb-2 block">🔍</span>
+                      <p>Select a node from the hierarchy to view details</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            // Compact Mode: Stacked layout (current behavior)
+            <div
+              className="flex flex-col h-full space-y-4 overflow-hidden max-w-full"
+              style={{
+                width: "100%",
+                maxWidth: "480px",
+                minWidth: "480px",
+                boxSizing: "border-box",
+              }}
+            >
               {/* Hierarchy Overview */}
               <div className="bg-gray-50 p-3 rounded flex-shrink-0">
                 <Space split={<span className="text-gray-300">|</span>} wrap>
@@ -572,192 +739,37 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                 </Space>
               </div>
 
-              {/* Tree View and Timeline - Full height in expanded mode */}
-              <div className="flex-1 overflow-hidden border rounded">
-                <Tabs
-                  defaultActiveKey="tree"
-                  size="small"
-                  className="h-full"
-                  items={[
-                    {
-                      key: "tree",
-                      label: (
-                        <span>
-                          <BranchesOutlined />
-                          Tree View
-                        </span>
-                      ),
-                      children: (
-                        <div className="h-full overflow-auto">
-                          <Tree
-                            className="trace-hierarchy-tree p-2"
-                            style={{ width: "100%", overflow: "hidden" }}
-                            treeData={[convertToTreeData(data.hierarchy)]}
-                            defaultExpandAll
-                            showLine={{ showLeafIcon: false }}
-                            onSelect={handleNodeSelect}
-                            selectedKeys={
-                              selectedNodeKey ? [selectedNodeKey] : []
-                            }
-                          />
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "timeline",
-                      label: (
-                        <span>
-                          <BarChartOutlined />
-                          Timeline
-                        </span>
-                      ),
-                      children: (
-                        <div className="h-full overflow-auto p-4">
-                          <TraceTimeline
-                            hierarchy={data.hierarchy}
-                            selectedNodeId={selectedNodeKey || undefined}
-                            onNodeSelect={(nodeId) => {
-                              setSelectedNodeKey(nodeId);
-                              const findNode = (
-                                node: RunHierarchyNode
-                              ): RunHierarchyNode | null => {
-                                if (node.id === nodeId) return node;
-                                for (const child of node.children) {
-                                  const found = findNode(child);
-                                  if (found) return found;
-                                }
-                                return null;
-                              };
-                              const node = findNode(data.hierarchy);
-                              if (node) setSelectedNode(node);
-                            }}
-                          />
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "gantt",
-                      label: (
-                        <span>
-                          <ClockCircleOutlined />
-                          Gantt Chart
-                        </span>
-                      ),
-                      children: (
-                        <div className="h-full overflow-auto p-4">
-                          <SimpleTimeline
-                            hierarchy={data.hierarchy}
-                            selectedNodeId={selectedNodeKey || undefined}
-                            onNodeSelect={(nodeId) => {
-                              setSelectedNodeKey(nodeId);
-                              const findNode = (
-                                node: RunHierarchyNode
-                              ): RunHierarchyNode | null => {
-                                if (node.id === nodeId) return node;
-                                for (const child of node.children) {
-                                  const found = findNode(child);
-                                  if (found) return found;
-                                }
-                                return null;
-                              };
-                              const node = findNode(data.hierarchy);
-                              if (node) setSelectedNode(node);
-                            }}
-                          />
-                        </div>
-                      ),
-                    },
-                  ]}
+              {/* Tree View - Limited height in compact mode */}
+              <div className="flex-shrink-0 max-h-48 overflow-auto border rounded w-full max-w-full">
+                <Tree
+                  className="trace-hierarchy-tree p-2 w-full max-w-full"
+                  style={{
+                    width: "100%",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                  }}
+                  treeData={[convertToTreeData(data.hierarchy)]}
+                  defaultExpandAll
+                  showLine={{ showLeafIcon: false }}
+                  onSelect={handleNodeSelect}
+                  selectedKeys={selectedNodeKey ? [selectedNodeKey] : []}
                 />
               </div>
-            </div>
 
-            {/* Right Panel: Node Details */}
-            <div className="flex flex-col w-1/2 overflow-hidden">
-              {selectedNode ? (
-                <div className="flex flex-col h-full overflow-hidden">
-                  <Title level={5} className="mb-3 flex-shrink-0">
+              {/* Selected Node Details - Below tree in compact mode */}
+              {selectedNode && (
+                <div className="flex-1 border-t pt-4 overflow-auto min-h-0 max-w-full w-full">
+                  <Title level={5} className="mb-3">
                     Node Details
                   </Title>
-                  <div className="flex-1 overflow-auto">
+                  <div className="overflow-auto max-w-full w-full">
                     {renderNodeDetails(selectedNode)}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  <div className="text-center">
-                    <span className="text-4xl mb-2 block">🔍</span>
-                    <p>Select a node from the hierarchy to view details</p>
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        ) : (
-          // Compact Mode: Stacked layout (current behavior)
-          <div
-            className="flex flex-col h-full space-y-4 overflow-hidden max-w-full"
-            style={{
-              width: "100%",
-              maxWidth: "480px",
-              minWidth: "480px",
-              boxSizing: "border-box",
-            }}
-          >
-            {/* Hierarchy Overview */}
-            <div className="bg-gray-50 p-3 rounded flex-shrink-0">
-              <Space split={<span className="text-gray-300">|</span>} wrap>
-                <span className="text-sm">
-                  <ClockCircleOutlined className="mr-1" />
-                  Started:{" "}
-                  {formatters.formatRelativeTime(data.hierarchy.start_time)}
-                </span>
-                <span className="text-sm">
-                  Duration:{" "}
-                  {formatters.formatTaskDuration(
-                    data.hierarchy.duration_ms,
-                    data.hierarchy.start_time,
-                    data.hierarchy.end_time,
-                    data.hierarchy.status
-                  )}
-                </span>
-                <span className="text-sm">
-                  Status:{" "}
-                  <Tag
-                    color={formatters.formatStatus(data.hierarchy.status).color}
-                  >
-                    {formatters.formatStatus(data.hierarchy.status).text}
-                  </Tag>
-                </span>
-              </Space>
-            </div>
-
-            {/* Tree View - Limited height in compact mode */}
-            <div className="flex-shrink-0 max-h-48 overflow-auto border rounded w-full max-w-full">
-              <Tree
-                className="trace-hierarchy-tree p-2 w-full max-w-full"
-                style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}
-                treeData={[convertToTreeData(data.hierarchy)]}
-                defaultExpandAll
-                showLine={{ showLeafIcon: false }}
-                onSelect={handleNodeSelect}
-                selectedKeys={selectedNodeKey ? [selectedNodeKey] : []}
-              />
-            </div>
-
-            {/* Selected Node Details - Below tree in compact mode */}
-            {selectedNode && (
-              <div className="flex-1 border-t pt-4 overflow-auto min-h-0 max-w-full w-full">
-                <Title level={5} className="mb-3">
-                  Node Details
-                </Title>
-                <div className="overflow-auto max-w-full w-full">
-                  {renderNodeDetails(selectedNode)}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+          ))}
+      </div>
     </Card>
   );
 };
