@@ -1,6 +1,6 @@
 # Agent Spy 🕵️
 
-Powerful, self-hosted observability platform for AI agents and multi-step workflows. Agent Spy provides comprehensive tracing, monitoring, and debugging capabilities for complex agent interactions with **LangSmith-compatible API** for seamless integration.
+A powerful, self-hosted observability platform for AI agents and multi-step workflows. Agent Spy provides comprehensive tracing, monitoring, and debugging capabilities for complex agent interactions with **LangSmith-compatible API** for seamless integration.
 
 ## 🌟 Features
 
