@@ -887,4 +887,115 @@ client = Client()
 
 ## WebSocket Support
 
-Currently, Agent Spy does not support WebSocket connections. Real-time updates are achieved through polling the dashboard endpoints.
+Agent Spy provides WebSocket support for real-time updates. The WebSocket API allows clients to receive live notifications about trace events.
+
+### WebSocket Endpoints
+
+#### GET /ws
+
+Connect to the WebSocket server for real-time updates.
+
+**Query Parameters:**
+
+- `client_id` (required): Unique identifier for the client
+- `metadata` (optional): JSON string with client metadata
+
+**Example Connection:**
+
+```javascript
+const ws = new WebSocket(
+  'ws://localhost:8000/ws?client_id=dashboard-1&metadata={"type":"dashboard"}'
+);
+```
+
+### WebSocket Events
+
+The WebSocket server broadcasts the following event types:
+
+#### trace_created
+
+Emitted when a new trace is created.
+
+```json
+{
+  "type": "trace_created",
+  "data": {
+    "trace_id": "uuid",
+    "name": "Agent Execution",
+    "run_type": "chain",
+    "project_name": "my-project"
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+#### trace_updated
+
+Emitted when a trace is updated.
+
+```json
+{
+  "type": "trace_updated",
+  "data": {
+    "trace_id": "uuid",
+    "status": "completed",
+    "end_time": "2024-01-01T12:00:00Z"
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+#### trace_completed
+
+Emitted when a trace is marked as completed.
+
+```json
+{
+  "type": "trace_completed",
+  "data": {
+    "trace_id": "uuid",
+    "outputs": {...},
+    "execution_time": 1.5
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+### WebSocket Client Example
+
+```javascript
+// Connect to WebSocket
+const ws = new WebSocket("ws://localhost:8000/ws?client_id=my-client");
+
+ws.onopen = function () {
+  console.log("WebSocket connected");
+
+  // Subscribe to events
+  ws.send(
+    JSON.stringify({
+      action: "subscribe",
+      events: ["trace_created", "trace_updated", "trace_completed"],
+    })
+  );
+};
+
+ws.onmessage = function (event) {
+  const message = JSON.parse(event.data);
+
+  switch (message.type) {
+    case "trace_created":
+      console.log("New trace:", message.data);
+      break;
+    case "trace_updated":
+      console.log("Trace updated:", message.data);
+      break;
+    case "trace_completed":
+      console.log("Trace completed:", message.data);
+      break;
+  }
+};
+
+ws.onclose = function () {
+  console.log("WebSocket disconnected");
+};
+```

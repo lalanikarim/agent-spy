@@ -726,7 +726,6 @@ VITE_ENABLE_CHARTS=true
 
 - **Advanced Filtering**: More sophisticated filter options
 - **Export Functionality**: CSV/JSON export of trace data
-- **Real-time Updates**: WebSocket integration for live updates
 - **Custom Dashboards**: User-configurable dashboard layouts
 - **Trace Comparison**: Side-by-side trace comparison
 - **Performance Analytics**: Advanced performance insights
