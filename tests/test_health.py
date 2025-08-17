@@ -14,13 +14,18 @@ def test_health_check():
     assert response.status_code == 200
     data = response.json()
 
-    assert data["status"] == "healthy"
+    # Status might be "healthy" or "degraded" depending on database connectivity
+    assert data["status"] in ["healthy", "degraded"]
     assert "timestamp" in data
     assert "version" in data
     assert "environment" in data
     assert "uptime_seconds" in data
     assert isinstance(data["uptime_seconds"], int | float)
     assert data["uptime_seconds"] >= 0
+    assert "database_status" in data
+    assert "database_type" in data
+    assert data["database_type"] in ["sqlite", "postgresql", "unknown"]
+    assert "dependencies" in data
 
 
 def test_readiness_check():
