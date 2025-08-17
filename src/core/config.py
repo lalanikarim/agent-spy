@@ -1,6 +1,8 @@
 """Configuration management for Agent Spy."""
 
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +15,8 @@ class Settings(BaseSettings):
         env_file=".env",
         env_ignore_empty=True,
         extra="ignore",
+        # Load .env file first, then allow environment variables to override
+        env_file_encoding="utf-8",
     )
 
     # Application Settings
@@ -163,8 +167,50 @@ class Settings(BaseSettings):
             # Default SQLite URL
             return self.database_url
 
+    @classmethod
+    def load_env_file_priority(cls) -> dict[str, str]:
+        """Load environment variables with .env file taking priority over existing env vars."""
+        env_vars = {}
+
+        # First, load from .env file
+        env_file = Path(".env")
+        if env_file.exists():
+            with open(env_file, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        env_vars[key] = value
+
+        # Then, only add environment variables that are NOT already in .env file
+        for key, value in os.environ.items():
+            if key not in env_vars:
+                env_vars[key] = value
+
+        return env_vars
+
 
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    # Use custom environment loading to prioritize .env file
+    env_vars = Settings.load_env_file_priority()
+
+    # Temporarily set environment variables with .env file priority
+    original_env = dict(os.environ)
+    try:
+        # Clear existing environment variables that are in .env file
+        for key in env_vars:
+            if key in os.environ:
+                del os.environ[key]
+
+        # Set environment variables with .env file values first
+        for key, value in env_vars.items():
+            os.environ[key] = value
+
+        # Create settings instance
+        return Settings()
+    finally:
+        # Restore original environment
+        os.environ.clear()
+        os.environ.update(original_env)
