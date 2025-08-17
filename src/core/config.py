@@ -34,8 +34,21 @@ class Settings(BaseSettings):
         default="sqlite+aiosqlite:///./agentspy.db",
         description="Database connection URL",
     )
+    database_type: str = Field(
+        default="sqlite",
+        description="Database type (sqlite or postgresql)",
+    )
     database_pool_size: int = Field(default=20, description="Database connection pool size")
     database_echo: bool = Field(default=False, description="Echo SQL queries")
+
+    # PostgreSQL-specific settings (used when database_type is postgresql)
+    database_host: str = Field(default="localhost", description="PostgreSQL host")
+    database_port: int = Field(default=5432, description="PostgreSQL port")
+    database_name: str = Field(default="agentspy", description="PostgreSQL database name")
+    database_user: str = Field(default="agentspy_user", description="PostgreSQL username")
+    database_password: str = Field(default="", description="PostgreSQL password")
+    database_ssl_mode: str = Field(default="prefer", description="PostgreSQL SSL mode")
+    database_max_connections: int = Field(default=20, description="PostgreSQL max connections")
 
     # API Settings
     api_prefix: str = Field(default="/api/v1", description="API route prefix")
@@ -102,6 +115,24 @@ class Settings(BaseSettings):
             raise ValueError(f"Environment must be one of {allowed}")
         return v.lower()
 
+    @field_validator("database_type")
+    @classmethod
+    def validate_database_type(cls, v: str) -> str:
+        """Validate database type value."""
+        allowed = ["sqlite", "postgresql"]
+        if v.lower() not in allowed:
+            raise ValueError(f"Database type must be one of {allowed}")
+        return v.lower()
+
+    @field_validator("database_ssl_mode")
+    @classmethod
+    def validate_ssl_mode(cls, v: str) -> str:
+        """Validate PostgreSQL SSL mode."""
+        allowed = ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"]
+        if v.lower() not in allowed:
+            raise ValueError(f"SSL mode must be one of {allowed}")
+        return v.lower()
+
     @property
     def is_development(self) -> bool:
         """Check if running in development mode."""
@@ -116,6 +147,21 @@ class Settings(BaseSettings):
     def is_test(self) -> bool:
         """Check if running in test mode."""
         return self.environment == "test"
+
+    def get_database_url(self) -> str:
+        """Get the database URL, constructing it from components if needed."""
+        # If a direct URL is provided, use it
+        if self.database_url and not self.database_url.startswith("sqlite+aiosqlite:///./agentspy.db"):
+            return self.database_url
+
+        # Construct URL based on database type
+        if self.database_type == "postgresql":
+            # Build PostgreSQL URL from components
+            password_part = f":{self.database_password}" if self.database_password else ""
+            return f"postgresql+asyncpg://{self.database_user}{password_part}@{self.database_host}:{self.database_port}/{self.database_name}"
+        else:
+            # Default SQLite URL
+            return self.database_url
 
 
 @lru_cache

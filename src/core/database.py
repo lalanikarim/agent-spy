@@ -1,8 +1,10 @@
 """Database connection and session management."""
 
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -22,23 +24,41 @@ async def init_database() -> None:
     global engine, async_session_maker
 
     settings = get_settings()
-    logger.info(f"Initializing database connection: {settings.database_url}")
+    database_url = settings.get_database_url()
+    logger.info(f"Initializing database connection: {database_url}")
 
     # Configure engine based on database type
-    if settings.database_url.startswith("sqlite"):
+    if settings.database_type == "sqlite":
         # SQLite-specific configuration
         engine = create_async_engine(
-            settings.database_url,
+            database_url,
             echo=settings.database_echo,
             poolclass=StaticPool,
             connect_args={
                 "check_same_thread": False,
             },
         )
-    else:
-        # PostgreSQL and other databases
+    elif settings.database_type == "postgresql":
+        # PostgreSQL-specific configuration
+        connect_args = {}
+
+        # Add SSL configuration if specified
+        if settings.database_ssl_mode != "disable":
+            connect_args["ssl"] = True
+
         engine = create_async_engine(
-            settings.database_url,
+            database_url,
+            echo=settings.database_echo,
+            pool_size=settings.database_pool_size,
+            max_overflow=settings.database_max_connections - settings.database_pool_size,
+            pool_pre_ping=True,  # Verify connections before use
+            pool_recycle=3600,  # Recycle connections every hour
+            connect_args=connect_args,
+        )
+    else:
+        # Fallback for other databases
+        engine = create_async_engine(
+            database_url,
             echo=settings.database_echo,
             pool_size=settings.database_pool_size,
             max_overflow=20,
@@ -50,12 +70,25 @@ async def init_database() -> None:
         expire_on_commit=False,
     )
 
-    # Create all tables
+    # Create all tables with retry logic
     logger.info("Creating database tables...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    max_retries = 3
+    retry_delay = 2
 
-    logger.info("Database initialization complete")
+    for attempt in range(max_retries):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database initialization complete")
+            break
+        except OperationalError as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error(f"Failed to initialize database after {max_retries} attempts: {e}")
+                raise
 
 
 async def close_database() -> None:

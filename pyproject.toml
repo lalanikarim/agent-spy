@@ -6,9 +6,11 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.21.0",
+    "asyncpg>=0.30.0",
     "fastapi>=0.116.1",
     "greenlet>=3.2.4",
     "httpx>=0.28.1",
+    "psycopg2-binary>=2.9.10",
     "pydantic>=2.11.7",
     "pydantic-settings>=2.10.1",
     "python-multipart>=0.0.20",
