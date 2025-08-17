@@ -1,38 +1,38 @@
-import React from 'react';
-import { Button, Tooltip } from 'antd';
-import { SunOutlined, MoonOutlined } from '@ant-design/icons';
-import { useTheme } from '../contexts/ThemeContext';
+import { MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { Button, Tooltip } from "antd";
+import React from "react";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface ThemeToggleProps {
-  size?: 'small' | 'middle' | 'large';
+  size?: "small" | "middle" | "large";
   showLabel?: boolean;
   className?: string;
 }
 
-const ThemeToggle: React.FC<ThemeToggleProps> = ({ 
-  size = 'middle', 
+const ThemeToggle: React.FC<ThemeToggleProps> = ({
+  size = "middle",
   showLabel = false,
-  className = ''
+  className = "",
 }) => {
   const { theme, toggleTheme } = useTheme();
 
-  const isDark = theme === 'dark';
+  const isDark = theme === "dark";
 
   const buttonSize = {
-    small: 'w-8 h-8',
-    middle: 'w-10 h-10',
-    large: 'w-12 h-12'
+    small: "w-8 h-8",
+    middle: "w-10 h-10",
+    large: "w-12 h-12",
   };
 
   const iconSize = {
     small: 14,
     middle: 16,
-    large: 18
+    large: 18,
   };
 
   return (
-    <Tooltip 
-      title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+    <Tooltip
+      title={`Switch to ${isDark ? "light" : "dark"} mode`}
       placement="bottom"
     >
       <Button
@@ -40,24 +40,24 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
         icon={
           <div className="relative">
             {/* Sun Icon */}
-            <SunOutlined 
+            <SunOutlined
               size={iconSize[size]}
               className={`absolute inset-0 transition-all duration-theme-normal ${
-                isDark 
-                  ? 'opacity-0 rotate-90 scale-75' 
-                  : 'opacity-100 rotate-0 scale-100'
+                isDark
+                  ? "opacity-0 rotate-90 scale-75"
+                  : "opacity-100 rotate-0 scale-100"
               }`}
-              style={{ color: 'var(--color-warning)' }}
+              style={{ color: "#f59e0b" }}
             />
             {/* Moon Icon */}
-            <MoonOutlined 
+            <MoonOutlined
               size={iconSize[size]}
               className={`absolute inset-0 transition-all duration-theme-normal ${
-                isDark 
-                  ? 'opacity-100 rotate-0 scale-100' 
-                  : 'opacity-0 -rotate-90 scale-75'
+                isDark
+                  ? "opacity-100 rotate-0 scale-100"
+                  : "opacity-0 -rotate-90 scale-75"
               }`}
-              style={{ color: 'var(--color-secondary)' }}
+              style={{ color: "#6366f1" }}
             />
           </div>
         }
@@ -66,7 +66,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
           ${buttonSize[size]}
           flex items-center justify-center
           bg-surface hover:bg-surface-hover
-          border border-border hover:border-border-hover
+          border-gray-100 hover:border-gray-200
           rounded-theme-full
           transition-all duration-theme-normal
           hover:shadow-theme-md
@@ -74,13 +74,13 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
           ${className}
         `}
         style={{
-          minWidth: 'auto',
+          minWidth: "auto",
           padding: 0,
         }}
       >
         {showLabel && (
           <span className="ml-2 text-text font-theme-medium">
-            {isDark ? 'Light' : 'Dark'}
+            {isDark ? "Light" : "Dark"}
           </span>
         )}
       </Button>
