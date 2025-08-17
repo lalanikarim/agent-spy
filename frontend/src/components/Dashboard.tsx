@@ -1,21 +1,21 @@
 import { ApiOutlined, DashboardOutlined } from "@ant-design/icons";
 import { Alert, Layout, Spin, Typography } from "antd";
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { getBaseUrl } from "../config/environment";
 import { useHealth, useTraceHierarchy } from "../hooks/useTraces";
 import { useWebSocket } from "../hooks/useWebSocket";
+import ConnectionStatus from "./ConnectionStatus";
 import DashboardStats from "./DashboardStats";
+import RealTimeNotifications from "./RealTimeNotifications";
+import ThemeToggle from "./ThemeToggle";
 import TraceDetail from "./TraceDetail";
 import TraceTable from "./TraceTable";
-import ConnectionStatus from "./ConnectionStatus";
-import RealTimeNotifications from "./RealTimeNotifications";
+import Card from "./ui/Card";
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
 
 const Dashboard: React.FC = () => {
-  console.log("🎯 Dashboard component rendering...");
-
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
   const [isDetailExpanded, setIsDetailExpanded] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
@@ -36,12 +36,6 @@ const Dashboard: React.FC = () => {
   // Get hierarchy loading state for refresh button
   const { isLoading: hierarchyLoading } = useTraceHierarchy(selectedTraceId, {
     enabled: !healthError && !!selectedTraceId,
-  });
-
-  console.log("🏥 Dashboard health check state:", {
-    isLoading: healthLoading,
-    error: healthError,
-    errorMessage: healthError?.message,
   });
 
   const handleTraceSelect = (traceId: string) => {
@@ -102,31 +96,52 @@ const Dashboard: React.FC = () => {
       />
 
       {/* Header */}
-      <Header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <DashboardOutlined className="text-xl text-blue-600" />
-            <Title level={3} className="m-0 text-gray-800">
-              Agent Spy Dashboard
-            </Title>
+      <Header className="bg-surface border-b border-gray-100 shadow-theme-sm backdrop-blur-theme">
+        <div className="flex items-center justify-between px-6 py-0 h-16">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-theme-lg shadow-theme-sm">
+              <DashboardOutlined className="text-xl text-text-inverse" />
+            </div>
+            <div className="flex flex-col justify-center">
+              <Title
+                level={3}
+                className="m-0 text-text font-theme-bold leading-tight"
+              >
+                Agent Spy Dashboard
+              </Title>
+              <div className="text-text-secondary text-theme-sm font-theme-medium leading-tight">
+                Real-time monitoring & analytics
+              </div>
+            </div>
           </div>
 
-          {/* Health Status and WebSocket Connection */}
-          <div className="flex items-center space-x-4">
+          {/* Health Status, WebSocket Connection, and Theme Toggle */}
+          <div className="flex items-center space-x-3">
             {/* Backend Health Status */}
-            {healthLoading ? (
-              <Spin size="small" />
-            ) : healthError ? (
-              <div className="flex items-center space-x-2 text-red-500">
-                <ApiOutlined />
-                <span className="text-sm">Backend Offline</span>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2 text-green-500">
-                <ApiOutlined />
-                <span className="text-sm">Backend Online</span>
-              </div>
-            )}
+            <div className="flex items-center px-3 py-2 bg-surface-hover rounded-theme-lg border border-gray-100">
+              {healthLoading ? (
+                <div className="flex items-center space-x-2">
+                  <Spin size="small" />
+                  <span className="text-sm text-text-secondary">
+                    Checking...
+                  </span>
+                </div>
+              ) : healthError ? (
+                <div className="flex items-center space-x-2 text-error">
+                  <ApiOutlined className="text-base" />
+                  <span className="text-sm font-theme-medium">
+                    Backend Offline
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-success">
+                  <ApiOutlined className="text-base" />
+                  <span className="text-sm font-theme-medium">
+                    Backend Online
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* WebSocket Connection Status */}
             <ConnectionStatus
@@ -136,73 +151,74 @@ const Dashboard: React.FC = () => {
               onToggleRealtime={handleToggleRealtime}
               realtimeEnabled={realtimeEnabled}
             />
+
+            {/* Theme Toggle */}
+            <ThemeToggle size="middle" />
           </div>
         </div>
       </Header>
 
       {/* Main Content */}
-      <Content className="p-6">
-        {/* Backend Connection Error */}
-        {healthError && (
-          <Alert
-            message="Backend Connection Error"
-            description={`Cannot connect to Agent Spy backend. Please ensure the server is running at ${getBaseUrl()}`}
-            type="error"
-            showIcon
-            className="mb-6"
-          />
-        )}
-
-        {/* Dashboard Statistics */}
-        <div className="mb-6">
-          <DashboardStats />
-        </div>
-
-        {/* Main Dashboard Content */}
-        <div className="flex gap-6 overflow-hidden">
-          {/* Master Table - Root Traces */}
-          {!isDetailExpanded && (
-            <div
-              className={
-                selectedTraceId ? "flex-1 min-w-0 overflow-hidden" : "w-full"
-              }
-            >
-              <TraceTable
-                selectedTraceId={selectedTraceId}
-                onTraceSelect={handleTraceSelect}
-                onRefresh={handleRefresh}
-                refreshTrigger={refreshTrigger}
-                disabled={!!healthError}
+      <Content className="px-12 py-8 bg-theme">
+        <div className="max-w-7xl mx-auto">
+          {/* Backend Connection Error */}
+          {healthError && (
+            <div className="mb-8">
+              <Alert
+                message="Backend Connection Error"
+                description={`Cannot connect to Agent Spy backend. Please ensure the server is running at ${getBaseUrl()}`}
+                type="error"
+                showIcon
+                className="rounded-theme-lg border border-error"
               />
             </div>
           )}
 
-          {/* Detail View - Trace Hierarchy (only show when trace selected) */}
-          {selectedTraceId && (
-            <div
-              className={
-                isDetailExpanded
-                  ? "w-full overflow-hidden"
-                  : "w-120 flex-shrink-0 overflow-hidden"
-              }
-              style={
-                !isDetailExpanded
-                  ? { width: "480px", minWidth: "480px", maxWidth: "480px" }
-                  : {}
-              }
-            >
-              <TraceDetail
-                traceId={selectedTraceId}
-                onClose={handleTraceDeselect}
-                onToggleExpansion={handleToggleExpansion}
-                isExpanded={isDetailExpanded}
-                refreshTrigger={refreshTrigger}
-                onRefresh={handleHierarchyRefresh}
-                refreshLoading={hierarchyLoading}
-                disabled={!!healthError}
-              />
-            </div>
-          )}
+          {/* Dashboard Statistics */}
+          <div className="mb-8">
+            <DashboardStats />
+          </div>
+
+          {/* Main Dashboard Content */}
+          <div className="flex gap-8">
+            {/* Master Table - Root Traces */}
+            {!isDetailExpanded && (
+              <div className={selectedTraceId ? "flex-1 min-w-0" : "w-full"}>
+                <Card className="h-full shadow-2xl">
+                  <TraceTable
+                    selectedTraceId={selectedTraceId}
+                    onTraceSelect={handleTraceSelect}
+                    onRefresh={handleRefresh}
+                    refreshTrigger={refreshTrigger}
+                    disabled={!!healthError}
+                  />
+                </Card>
+              </div>
+            )}
+
+            {/* Detail View - Trace Hierarchy (only show when trace selected) */}
+            {selectedTraceId && (
+              <div
+                className={isDetailExpanded ? "w-full" : "w-120 flex-shrink-0"}
+                style={
+                  !isDetailExpanded
+                    ? { width: "480px", minWidth: "480px", maxWidth: "480px" }
+                    : {}
+                }
+              >
+                <TraceDetail
+                  traceId={selectedTraceId}
+                  onClose={handleTraceDeselect}
+                  onToggleExpansion={handleToggleExpansion}
+                  isExpanded={isDetailExpanded}
+                  refreshTrigger={refreshTrigger}
+                  onRefresh={handleHierarchyRefresh}
+                  refreshLoading={hierarchyLoading}
+                  disabled={!!healthError}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </Content>
     </Layout>

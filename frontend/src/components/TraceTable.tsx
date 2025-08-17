@@ -7,7 +7,6 @@ import {
 import {
   Alert,
   Button,
-  Card,
   Col,
   Input,
   Row,
@@ -218,24 +217,21 @@ const TraceTable: React.FC<TraceTableProps> = ({
   }, [data?.runs]);
 
   return (
-    <Card
-      title={
-        <div className="flex items-center justify-between">
-          <span>Root Traces</span>
-          <Space>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={onRefresh}
-              loading={isLoading}
-              disabled={disabled}
-            >
-              Refresh
-            </Button>
-          </Space>
-        </div>
-      }
-      className="h-full"
-    >
+    <div className="h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-lg font-semibold text-gray-900">Root Traces</span>
+        <Space>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={onRefresh}
+            loading={isLoading}
+            disabled={disabled}
+          >
+            Refresh
+          </Button>
+        </Space>
+      </div>
       {/* Filters */}
       <div className="mb-4 space-y-3">
         <Row gutter={[16, 16]}>
@@ -338,7 +334,7 @@ const TraceTable: React.FC<TraceTableProps> = ({
           className: selectedTraceId === record.id ? "bg-blue-50" : "",
         })}
       />
-    </Card>
+    </div>
   );
 };
 

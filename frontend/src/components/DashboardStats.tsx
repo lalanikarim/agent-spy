@@ -1,15 +1,17 @@
-import React from 'react';
-import { Card, Statistic, Row, Col, Spin, Alert } from 'antd';
 import {
-  DatabaseOutlined,
   BranchesOutlined,
-  ClockCircleOutlined,
   CheckCircleOutlined,
+  ClockCircleOutlined,
+  DatabaseOutlined,
   ExclamationCircleOutlined,
   FastForwardOutlined,
-} from '@ant-design/icons';
-import { useDashboardSummary } from '../hooks/useTraces';
-import { formatters } from '../utils/formatters';
+} from "@ant-design/icons";
+import { Alert, Card, Col, Row, Spin } from "antd";
+import React from "react";
+import { useDashboardSummary } from "../hooks/useTraces";
+import { formatters } from "../utils/formatters";
+import StatCard from "./ui/StatCard";
+import StatusCard from "./ui/StatusCard";
 
 const DashboardStats: React.FC = () => {
   const { data: summary, isLoading, error } = useDashboardSummary();
@@ -42,132 +44,143 @@ const DashboardStats: React.FC = () => {
   const { stats } = summary;
 
   // Calculate status percentages
-  const totalWithStatus = Object.values(stats.status_distribution).reduce((a, b) => a + b, 0);
+  const totalWithStatus = Object.values(stats.status_distribution).reduce(
+    (a, b) => a + b,
+    0
+  );
   const completedCount = stats.status_distribution.completed || 0;
   const failedCount = stats.status_distribution.failed || 0;
   const runningCount = stats.status_distribution.running || 0;
 
-  const successRate = totalWithStatus > 0 ? ((completedCount / totalWithStatus) * 100).toFixed(1) : '0';
+  const successRate =
+    totalWithStatus > 0
+      ? ((completedCount / totalWithStatus) * 100).toFixed(1)
+      : "0";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Main Statistics */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[24, 24]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Total Traces"
-              value={stats.total_traces}
-              prefix={<BranchesOutlined className="text-blue-500" />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
+          <StatCard
+            title="Total Traces"
+            value={formatters.formatNumber(stats.total_traces)}
+            icon={<BranchesOutlined />}
+            iconBgColor="bg-blue-100"
+            iconColor="text-blue-600"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Total Runs"
-              value={stats.total_runs}
-              prefix={<DatabaseOutlined className="text-green-500" />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
+          <StatCard
+            title="Total Runs"
+            value={formatters.formatNumber(stats.total_runs)}
+            icon={<DatabaseOutlined />}
+            iconBgColor="bg-green-100"
+            iconColor="text-green-600"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Recent (24h)"
-              value={stats.recent_runs_24h}
-              prefix={<ClockCircleOutlined className="text-orange-500" />}
-              valueStyle={{ color: '#fa8c16' }}
-            />
-          </Card>
+          <StatCard
+            title="Recent (24h)"
+            value={formatters.formatNumber(stats.recent_runs_24h)}
+            icon={<ClockCircleOutlined />}
+            iconBgColor="bg-orange-100"
+            iconColor="text-orange-600"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Success Rate"
-              value={successRate}
-              suffix="%"
-              prefix={<CheckCircleOutlined className="text-green-500" />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
+          <StatCard
+            title="Success Rate"
+            value={`${successRate}%`}
+            icon={<CheckCircleOutlined />}
+            iconBgColor="bg-green-100"
+            iconColor="text-green-600"
+          />
         </Col>
       </Row>
 
       {/* Detailed Statistics */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[24, 24]}>
         {/* Status Distribution */}
         <Col xs={24} lg={8}>
-          <Card title="Status Distribution" size="small">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="flex items-center">
-                  <CheckCircleOutlined className="text-green-500 mr-2" />
-                  Completed
-                </span>
-                <span className="font-semibold">{formatters.formatNumber(completedCount)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="flex items-center">
-                  <FastForwardOutlined className="text-blue-500 mr-2" />
-                  Running
-                </span>
-                <span className="font-semibold">{formatters.formatNumber(runningCount)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="flex items-center">
-                  <ExclamationCircleOutlined className="text-red-500 mr-2" />
-                  Failed
-                </span>
-                <span className="font-semibold">{formatters.formatNumber(failedCount)}</span>
-              </div>
-            </div>
-          </Card>
+          <StatusCard
+            title="Status Distribution"
+            description="Trace status overview"
+            headerIcon={<BranchesOutlined />}
+            headerIconBgColor="bg-blue-100"
+            headerIconColor="text-blue-600"
+            items={[
+              {
+                icon: <CheckCircleOutlined />,
+                title: "Completed",
+                count: completedCount,
+                iconBgColor: "bg-green-100",
+                iconColor: "text-green-600",
+              },
+              {
+                icon: <FastForwardOutlined />,
+                title: "Running",
+                count: runningCount,
+                iconBgColor: "bg-blue-100",
+                iconColor: "text-blue-600",
+              },
+              {
+                icon: <ExclamationCircleOutlined />,
+                title: "Failed",
+                count: failedCount,
+                iconBgColor: "bg-red-100",
+                iconColor: "text-red-600",
+              },
+            ]}
+          />
         </Col>
 
         {/* Run Type Distribution */}
         <Col xs={24} lg={8}>
-          <Card title="Run Types" size="small">
-            <div className="space-y-2">
-              {Object.entries(stats.run_type_distribution).map(([type, count]) => {
+          <StatusCard
+            title="Run Types"
+            description="Execution type breakdown"
+            headerIcon={<DatabaseOutlined />}
+            headerIconBgColor="bg-indigo-100"
+            headerIconColor="text-indigo-600"
+            items={Object.entries(stats.run_type_distribution).map(
+              ([type, count]) => {
                 const { text, icon } = formatters.formatRunType(type);
-                return (
-                  <div key={type} className="flex justify-between items-center">
-                    <span className="flex items-center">
-                      <span className="mr-2">{icon}</span>
-                      {text}
-                    </span>
-                    <span className="font-semibold">{formatters.formatNumber(count)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+                return {
+                  icon: icon,
+                  title: text,
+                  count: count,
+                  iconBgColor: "bg-indigo-100",
+                  iconColor: "text-indigo-600",
+                };
+              }
+            )}
+          />
         </Col>
 
         {/* Project Distribution */}
         <Col xs={24} lg={8}>
-          <Card title="Projects" size="small">
-            <div className="space-y-2">
-              {Object.entries(stats.project_distribution).length > 0 ? (
-                Object.entries(stats.project_distribution)
-                  .sort(([, a], [, b]) => b - a) // Sort by count descending
-                  .slice(0, 5) // Show top 5 projects
-                  .map(([project, count]) => (
-                    <div key={project} className="flex justify-between items-center">
-                      <span className="truncate mr-2" title={project}>
-                        {formatters.truncateString(project, 20)}
-                      </span>
-                      <span className="font-semibold">{formatters.formatNumber(count)}</span>
-                    </div>
-                  ))
-              ) : (
-                <div className="text-gray-500 text-sm">No projects found</div>
-              )}
-            </div>
-          </Card>
+          <StatusCard
+            title="Top Projects"
+            description="Most active projects"
+            headerIcon={<ClockCircleOutlined />}
+            headerIconBgColor="bg-orange-100"
+            headerIconColor="text-orange-600"
+            items={
+              Object.entries(stats.project_distribution).length > 0
+                ? Object.entries(stats.project_distribution)
+                    .sort(([, a], [, b]) => b - a) // Sort by count descending
+                    .slice(0, 5) // Show top 5 projects
+                    .map(([project, count]) => ({
+                      icon: "📁",
+                      title: formatters.truncateString(project, 20),
+                      count: count,
+                      iconBgColor: "bg-orange-100",
+                      iconColor: "text-orange-600",
+                    }))
+                : []
+            }
+          />
         </Col>
       </Row>
     </div>
