@@ -9,6 +9,10 @@
     "8000": {
       "label": "Backend API",
       "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Frontend Dev Server",
+      "onAutoForward": "ignore"
     }
   },
   "customizations": {
