@@ -1,6 +1,8 @@
 """Configuration management for Agent Spy."""
 
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +15,8 @@ class Settings(BaseSettings):
         env_file=".env",
         env_ignore_empty=True,
         extra="ignore",
+        # Load .env file first, then allow environment variables to override
+        env_file_encoding="utf-8",
     )
 
     # Application Settings
@@ -34,8 +38,21 @@ class Settings(BaseSettings):
         default="sqlite+aiosqlite:///./agentspy.db",
         description="Database connection URL",
     )
+    database_type: str = Field(
+        default="sqlite",
+        description="Database type (sqlite or postgresql)",
+    )
     database_pool_size: int = Field(default=20, description="Database connection pool size")
     database_echo: bool = Field(default=False, description="Echo SQL queries")
+
+    # PostgreSQL-specific settings (used when database_type is postgresql)
+    database_host: str = Field(default="localhost", description="PostgreSQL host")
+    database_port: int = Field(default=5432, description="PostgreSQL port")
+    database_name: str = Field(default="agentspy", description="PostgreSQL database name")
+    database_user: str = Field(default="agentspy_user", description="PostgreSQL username")
+    database_password: str = Field(default="", description="PostgreSQL password")
+    database_ssl_mode: str = Field(default="prefer", description="PostgreSQL SSL mode")
+    database_max_connections: int = Field(default=20, description="PostgreSQL max connections")
 
     # API Settings
     api_prefix: str = Field(default="/api/v1", description="API route prefix")
@@ -102,6 +119,24 @@ class Settings(BaseSettings):
             raise ValueError(f"Environment must be one of {allowed}")
         return v.lower()
 
+    @field_validator("database_type")
+    @classmethod
+    def validate_database_type(cls, v: str) -> str:
+        """Validate database type value."""
+        allowed = ["sqlite", "postgresql"]
+        if v.lower() not in allowed:
+            raise ValueError(f"Database type must be one of {allowed}")
+        return v.lower()
+
+    @field_validator("database_ssl_mode")
+    @classmethod
+    def validate_ssl_mode(cls, v: str) -> str:
+        """Validate PostgreSQL SSL mode."""
+        allowed = ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"]
+        if v.lower() not in allowed:
+            raise ValueError(f"SSL mode must be one of {allowed}")
+        return v.lower()
+
     @property
     def is_development(self) -> bool:
         """Check if running in development mode."""
@@ -117,8 +152,65 @@ class Settings(BaseSettings):
         """Check if running in test mode."""
         return self.environment == "test"
 
+    def get_database_url(self) -> str:
+        """Get the database URL, constructing it from components if needed."""
+        # If a direct URL is provided, use it
+        if self.database_url and not self.database_url.startswith("sqlite+aiosqlite:///./agentspy.db"):
+            return self.database_url
+
+        # Construct URL based on database type
+        if self.database_type == "postgresql":
+            # Build PostgreSQL URL from components
+            password_part = f":{self.database_password}" if self.database_password else ""
+            return f"postgresql+asyncpg://{self.database_user}{password_part}@{self.database_host}:{self.database_port}/{self.database_name}"
+        else:
+            # Default SQLite URL
+            return self.database_url
+
+    @classmethod
+    def load_env_file_priority(cls) -> dict[str, str]:
+        """Load environment variables with .env file taking priority over existing env vars."""
+        env_vars = {}
+
+        # First, load from .env file
+        env_file = Path(".env")
+        if env_file.exists():
+            with open(env_file, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        env_vars[key] = value
+
+        # Then, only add environment variables that are NOT already in .env file
+        for key, value in os.environ.items():
+            if key not in env_vars:
+                env_vars[key] = value
+
+        return env_vars
+
 
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    # Use custom environment loading to prioritize .env file
+    env_vars = Settings.load_env_file_priority()
+
+    # Temporarily set environment variables with .env file priority
+    original_env = dict(os.environ)
+    try:
+        # Clear existing environment variables that are in .env file
+        for key in env_vars:
+            if key in os.environ:
+                del os.environ[key]
+
+        # Set environment variables with .env file values first
+        for key, value in env_vars.items():
+            os.environ[key] = value
+
+        # Create settings instance
+        return Settings()
+    finally:
+        # Restore original environment
+        os.environ.clear()
+        os.environ.update(original_env)

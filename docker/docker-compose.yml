@@ -1,6 +1,34 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  # PostgreSQL Database
+  postgresql:
+    image: postgres:16-alpine
+    container_name: agentspy-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentspy}
+      POSTGRES_USER: ${POSTGRES_USER:-agentspy_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentspy_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+      - ./init-postgresql.sql:/docker-entrypoint-initdb.d/init-postgresql.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-agentspy_user} -d ${POSTGRES_DB:-agentspy}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - agentspy-network
+
   # Agent Spy Backend API
   backend:
     build:
@@ -16,8 +44,18 @@ services:
       PORT: 8000
 
       # Database Settings
-      DATABASE_URL: sqlite+aiosqlite:////app/data/agentspy.db
+      DATABASE_TYPE: ${DATABASE_TYPE:-sqlite}
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/data/agentspy.db}
       DATABASE_ECHO: ${DATABASE_ECHO:-false}
+
+      # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
+      DATABASE_HOST: ${DATABASE_HOST:-postgresql}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-agentspy}
+      DATABASE_USER: ${DATABASE_USER:-agentspy_user}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
+      DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
+      DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-20}
 
       # API Settings
       API_PREFIX: /api/v1
@@ -39,6 +77,9 @@ services:
       - "8000:8000"
     volumes:
       - sqlite_data:/app/data
+    depends_on:
+      postgresql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -62,7 +103,15 @@ services:
     environment:
       - VITE_API_BASE_URL=http://localhost:8000/api/v1
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80/",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -71,6 +120,8 @@ services:
 
 volumes:
   sqlite_data:
+    driver: local
+  postgresql_data:
     driver: local
 
 networks:

@@ -4,10 +4,12 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel
+from sqlalchemy import select
 
-from src.core.config import Settings, get_settings
+from src.core.config import get_settings
+from src.core.database import get_db_session
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -23,6 +25,7 @@ class HealthResponse(BaseModel):
     environment: str
     uptime_seconds: float
     database_status: str = "not_configured"
+    database_type: str = "unknown"
     dependencies: dict[str, str] = {}
 
 
@@ -39,9 +42,7 @@ _start_time = time.time()
 
 
 @router.get("/health", response_model=HealthResponse, summary="Health Check")
-async def health_check(
-    settings: Settings = Depends(get_settings),  # noqa: B008
-) -> HealthResponse:
+async def health_check() -> HealthResponse:
     """
     Health check endpoint that returns the current status of the application.
 
@@ -50,11 +51,23 @@ async def health_check(
     """
     logger.debug("Health check requested")
 
+    # Get fresh settings to ensure we have the latest environment variables
+    settings = get_settings()
+
     current_time = time.time()
     uptime = current_time - _start_time
 
-    # TODO: Add database connectivity check in Phase 3
-    database_status = "not_implemented"
+    # Check database connectivity
+    database_status = "unknown"
+    try:
+        async with get_db_session() as session:
+            # Execute a simple query to test connectivity
+            result = await session.execute(select(1))
+            result.scalar()
+            database_status = "connected"
+    except Exception as e:
+        logger.warning(f"Database connectivity check failed: {e}")
+        database_status = "disconnected"
 
     # TODO: Add dependency checks (Redis, external APIs, etc.) in later phases
     dependencies = {
@@ -62,23 +75,22 @@ async def health_check(
     }
 
     response = HealthResponse(
-        status="healthy",
+        status="healthy" if database_status == "connected" else "degraded",
         timestamp=datetime.now(UTC).isoformat(),
         version=settings.app_version,
         environment=settings.environment,
         uptime_seconds=round(uptime, 2),
         database_status=database_status,
+        database_type=settings.database_type,
         dependencies=dependencies,
     )
 
-    logger.info(f"Health check completed: {response.status}")
+    logger.info(f"Health check completed: {response.status} (database: {database_status})")
     return response
 
 
 @router.get("/health/ready", response_model=ReadinessResponse, summary="Readiness Check")
-async def readiness_check(
-    settings: Settings = Depends(get_settings),  # noqa: B008
-) -> ReadinessResponse:
+async def readiness_check() -> ReadinessResponse:
     """
     Readiness check endpoint for determining if app is ready to serve requests.
 
@@ -88,19 +100,29 @@ async def readiness_check(
     """
     logger.debug("Readiness check requested")
 
+    # Check database connectivity
+    database_ready = False
+    try:
+        async with get_db_session() as session:
+            # Execute a simple query to test connectivity
+            result = await session.execute(select(1))
+            result.scalar()
+            database_ready = True
+    except Exception as e:
+        logger.warning(f"Database readiness check failed: {e}")
+
     checks = {
         "application": True,  # Application is running if we reach this point
-        "database": False,  # TODO: Implement database connectivity check in Phase 3
+        "database": database_ready,  # Database connectivity check
         "configuration": True,  # Configuration loaded successfully
     }
 
     # Application is ready if all critical checks pass
-    ready = checks["application"] and checks["configuration"]
-    # Note: Database check will be required in Phase 3
+    ready = checks["application"] and checks["configuration"] and checks["database"]
 
     response = ReadinessResponse(ready=ready, checks=checks, timestamp=datetime.now(UTC).isoformat())
 
-    logger.info(f"Readiness check completed: ready={ready}")
+    logger.info(f"Readiness check completed: ready={ready} (database: {database_ready})")
     return response
 
 

@@ -9,10 +9,16 @@
     "8000": {
       "label": "Backend API",
       "onAutoForward": "notify"
-    },
+    }
+  },
+  "otherPortsAttributes": {
     "3000": {
-      "label": "Frontend Dev Server",
-      "onAutoForward": "ignore"
+      "label": "Frontend",
+      "onAutoForward": "silent"
+    },
+    "5432": {
+      "label": "Database",
+      "onAutoForward": "silent"
     }
   },
   "customizations": {
