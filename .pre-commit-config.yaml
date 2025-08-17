@@ -59,7 +59,7 @@ repos:
         exclude: ^tests/
 
 # Configuration
-default_install_hook_types: [pre-commit, pre-push]
+default_install_hook_types: [pre-commit]
 default_stages: [pre-commit]
 fail_fast: false
 minimum_pre_commit_version: '3.0.0'
