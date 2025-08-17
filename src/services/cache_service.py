@@ -283,6 +283,7 @@ def cached(ttl: int | None = None, key_prefix: str = ""):
                     f"{key_prefix}{func.__name__}" if key_prefix else func.__name__, *args, **kwargs
                 )
             )
+
         wrapper.cache_invalidate = cache_invalidate
 
         return wrapper
