@@ -171,27 +171,31 @@ const useWebSocket = () => {
 
   // Auto-connect and handle reconnection
   const connect = useCallback(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws');
+    const ws = new WebSocket("ws://localhost:8000/ws");
     // ... connection management
   }, []);
 
   // Handle real-time events
-  const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
-    switch (message.type) {
-      case 'trace.created':
-        queryClient.invalidateQueries(['rootTraces']);
-        break;
-      case 'trace.completed':
-        queryClient.invalidateQueries(['rootTraces', 'dashboardSummary']);
-        break;
-    }
-  }, [queryClient]);
+  const handleWebSocketMessage = useCallback(
+    (message: WebSocketMessage) => {
+      switch (message.type) {
+        case "trace.created":
+          queryClient.invalidateQueries(["rootTraces"]);
+          break;
+        case "trace.completed":
+          queryClient.invalidateQueries(["rootTraces", "dashboardSummary"]);
+          break;
+      }
+    },
+    [queryClient]
+  );
 
   return { isConnected, connectionError, subscribe, unsubscribe };
 };
 ```
 
 **Features:**
+
 - **Automatic Connection**: Establishes WebSocket connection on component mount
 - **Reconnection Logic**: Handles connection drops with exponential backoff
 - **Event Handling**: Processes real-time trace events
@@ -216,6 +220,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 ```
 
 **Features:**
+
 - **Visual Indicators**: Green/red status indicators for connection state
 - **Real-time Toggle**: Switch to enable/disable real-time updates
 - **Error Display**: Shows connection errors when they occur
@@ -236,6 +241,7 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
 ```
 
 **Features:**
+
 - **Event Notifications**: Toast notifications for trace events
 - **Status-based Alerts**: Different notifications for created, completed, failed traces
 - **Rich Information**: Shows trace name, project, and relevant details
