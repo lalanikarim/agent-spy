@@ -4,7 +4,6 @@ import "./App.css";
 import Dashboard from "./components/Dashboard";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useTheme } from "./hooks/useThemeStyles";
-import "./styles/theme.css";
 
 // App module loaded
 

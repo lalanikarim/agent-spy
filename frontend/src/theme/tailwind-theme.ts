@@ -188,14 +188,18 @@ export const generateCSSVariables = () => {
 
   const lightVars = Object.entries(light).flatMap(([category, values]) => {
     return Object.entries(values).map(([key, value]) => {
-      const cssVarName = `--${category}-${key}`;
+      // Use correct naming convention: --color-* for colors, --* for others
+      const cssVarName =
+        category === "colors" ? `--color-${key}` : `--${category}-${key}`;
       return `${cssVarName}: ${value};`;
     });
   });
 
   const darkVars = Object.entries(dark).flatMap(([category, values]) => {
     return Object.entries(values).map(([key, value]) => {
-      const cssVarName = `--${category}-${key}`;
+      // Use correct naming convention: --color-* for colors, --* for others
+      const cssVarName =
+        category === "colors" ? `--color-${key}` : `--${category}-${key}`;
       return `${cssVarName}: ${value};`;
     });
   });
@@ -225,18 +229,24 @@ export const generateOptimizedCSS = () => {
 }
 
 /* Utility Classes */
-.bg-theme-surface { background-color: var(--colors-surface); }
-.bg-theme-surface-hover { background-color: var(--colors-surface-hover); }
-.bg-theme-surface-active { background-color: var(--colors-surface-active); }
+.bg-theme-surface { background-color: var(--color-surface); }
+.bg-theme-surface-hover { background-color: var(--color-surface-hover); }
+.bg-theme-surface-active { background-color: var(--color-surface-active); }
 
-.text-theme-text { color: var(--colors-text); }
-.text-theme-text-secondary { color: var(--colors-text-secondary); }
-.text-theme-text-muted { color: var(--colors-text-muted); }
-.text-theme-text-inverse { color: var(--colors-text-inverse); }
+.text-theme-text { color: var(--color-text); }
+.text-theme-text-secondary { color: var(--color-text-secondary); }
+.text-theme-text-muted { color: var(--color-text-muted); }
+.text-theme-text-inverse { color: var(--color-text-inverse); }
 
-.border-theme-border { border-color: var(--colors-border); }
-.border-theme-border-hover { border-color: var(--colors-border-hover); }
-.border-theme-border-focus { border-color: var(--colors-border-focus); }
+.border-theme-border { border-color: var(--color-border); }
+.border-theme-border-hover { border-color: var(--color-border-hover); }
+.border-theme-border-focus { border-color: var(--color-border-focus); }
+
+/* Dedicated hover utility classes */
+.bg-theme-hover-light { background-color: var(--color-hover-light); }
+.bg-theme-hover-dark { background-color: var(--color-hover-dark); }
+.text-theme-hover-text { color: var(--color-hover-text); }
+.border-theme-hover-border { border-color: var(--color-hover-border); }
 
 .shadow-theme-sm { box-shadow: var(--shadows-sm); }
 .shadow-theme-md { box-shadow: var(--shadows-md); }

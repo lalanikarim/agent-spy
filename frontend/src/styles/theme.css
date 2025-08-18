@@ -2,39 +2,43 @@
 
 /* Light Theme Variables */
 :root {
-  --colors-primary: #3b82f6;
-  --colors-primary-hover: #2563eb;
-  --colors-primary-active: #1d4ed8;
-  --colors-secondary: #6366f1;
-  --colors-secondary-hover: #5855eb;
-  --colors-secondary-active: #4f46e5;
-  --colors-background: #f8fafc;
-  --colors-surface: #ffffff;
-  --colors-surface-hover: #f8fafc;
-  --colors-surface-active: #e2e8f0;
-  --colors-text: #1e293b;
-  --colors-text-secondary: #64748b;
-  --colors-text-muted: #94a3b8;
-  --colors-text-inverse: #ffffff;
-  --colors-border: #e2e8f0;
-  --colors-border-hover: #cbd5e1;
-  --colors-border-focus: #3b82f6;
-  --colors-success: #10b981;
-  --colors-success-hover: #059669;
-  --colors-warning: #f59e0b;
-  --colors-warning-hover: #d97706;
-  --colors-error: #ef4444;
-  --colors-error-hover: #dc2626;
-  --colors-info: #3b82f6;
-  --colors-info-hover: #2563eb;
-  --colors-status-running: #e6f7ff;
-  --colors-status-running-text: #1890ff;
-  --colors-status-completed: #f6ffed;
-  --colors-status-completed-text: #52c41a;
-  --colors-status-failed: #fff2f0;
-  --colors-status-failed-text: #ff4d4f;
-  --colors-icon-light: #fbbf24;
-  --colors-icon-dark: #d1d5db;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-active: #1d4ed8;
+  --color-secondary: #6366f1;
+  --color-secondary-hover: #5855eb;
+  --color-secondary-active: #4f46e5;
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f8fafc;
+  --color-surface-active: #e2e8f0;
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-text-inverse: #ffffff;
+  --color-border: #e2e8f0;
+  --color-border-hover: #cbd5e1;
+  --color-border-focus: #3b82f6;
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-error: #ef4444;
+  --color-error-hover: #dc2626;
+  --color-info: #3b82f6;
+  --color-info-hover: #2563eb;
+  --color-status-running: #e6f7ff;
+  --color-status-running-text: #1890ff;
+  --color-status-completed: #f6ffed;
+  --color-status-completed-text: #52c41a;
+  --color-status-failed: #fff2f0;
+  --color-status-failed-text: #ff4d4f;
+  --color-icon-light: #fbbf24;
+  --color-icon-dark: #d1d5db;
+  --color-hover-light: #e2e8f0;
+  --color-hover-dark: #475569;
+  --color-hover-text: #1e293b;
+  --color-hover-border: #cbd5e1;
   --spacing-1: 4px;
   --spacing-2: 8px;
   --spacing-3: 12px;
@@ -83,39 +87,43 @@
 
 /* Dark Theme Variables */
 [data-theme="dark"] {
-  --colors-primary: #1a365d;
-  --colors-primary-hover: #1e40af;
-  --colors-primary-active: #1e3a8a;
-  --colors-secondary: #00d4ff;
-  --colors-secondary-hover: #00b8e6;
-  --colors-secondary-active: #0099cc;
-  --colors-background: #0f172a;
-  --colors-surface: #1e293b;
-  --colors-surface-hover: #334155;
-  --colors-surface-active: #475569;
-  --colors-text: #e2e8f0;
-  --colors-text-secondary: #94a3b8;
-  --colors-text-muted: #64748b;
-  --colors-text-inverse: #0f172a;
-  --colors-border: #334155;
-  --colors-border-hover: #475569;
-  --colors-border-focus: #00d4ff;
-  --colors-success: #10b981;
-  --colors-success-hover: #059669;
-  --colors-warning: #f59e0b;
-  --colors-warning-hover: #d97706;
-  --colors-error: #ef4444;
-  --colors-error-hover: #dc2626;
-  --colors-info: #00d4ff;
-  --colors-info-hover: #00b8e6;
-  --colors-status-running: rgba(0, 212, 255, 0.1);
-  --colors-status-running-text: #00d4ff;
-  --colors-status-completed: rgba(16, 185, 129, 0.1);
-  --colors-status-completed-text: #10b981;
-  --colors-status-failed: rgba(239, 68, 68, 0.1);
-  --colors-status-failed-text: #ef4444;
-  --colors-icon-light: #fbbf24;
-  --colors-icon-dark: #6b7280;
+  --color-primary: #1a365d;
+  --color-primary-hover: #1e40af;
+  --color-primary-active: #1e3a8a;
+  --color-secondary: #00d4ff;
+  --color-secondary-hover: #00b8e6;
+  --color-secondary-active: #0099cc;
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-hover: #334155;
+  --color-surface-active: #475569;
+  --color-text: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #0f172a;
+  --color-border: #334155;
+  --color-border-hover: #475569;
+  --color-border-focus: #00d4ff;
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-error: #ef4444;
+  --color-error-hover: #dc2626;
+  --color-info: #00d4ff;
+  --color-info-hover: #00b8e6;
+  --color-status-running: rgba(0, 212, 255, 0.1);
+  --color-status-running-text: #00d4ff;
+  --color-status-completed: rgba(16, 185, 129, 0.1);
+  --color-status-completed-text: #10b981;
+  --color-status-failed: rgba(239, 68, 68, 0.1);
+  --color-status-failed-text: #ef4444;
+  --color-icon-light: #fbbf24;
+  --color-icon-dark: #6b7280;
+  --color-hover-light: #64748b;
+  --color-hover-dark: #475569;
+  --color-hover-text: #e2e8f0;
+  --color-hover-border: #475569;
   --spacing-1: 4px;
   --spacing-2: 8px;
   --spacing-3: 12px;
@@ -163,18 +171,24 @@
 }
 
 /* Utility Classes */
-.bg-theme-surface { background-color: var(--colors-surface); }
-.bg-theme-surface-hover { background-color: var(--colors-surface-hover); }
-.bg-theme-surface-active { background-color: var(--colors-surface-active); }
+.bg-theme-surface { background-color: var(--color-surface); }
+.bg-theme-surface-hover { background-color: var(--color-surface-hover); }
+.bg-theme-surface-active { background-color: var(--color-surface-active); }
 
-.text-theme-text { color: var(--colors-text); }
-.text-theme-text-secondary { color: var(--colors-text-secondary); }
-.text-theme-text-muted { color: var(--colors-text-muted); }
-.text-theme-text-inverse { color: var(--colors-text-inverse); }
+.text-theme-text { color: var(--color-text); }
+.text-theme-text-secondary { color: var(--color-text-secondary); }
+.text-theme-text-muted { color: var(--color-text-muted); }
+.text-theme-text-inverse { color: var(--color-text-inverse); }
 
-.border-theme-border { border-color: var(--colors-border); }
-.border-theme-border-hover { border-color: var(--colors-border-hover); }
-.border-theme-border-focus { border-color: var(--colors-border-focus); }
+.border-theme-border { border-color: var(--color-border); }
+.border-theme-border-hover { border-color: var(--color-border-hover); }
+.border-theme-border-focus { border-color: var(--color-border-focus); }
+
+/* Dedicated hover utility classes */
+.bg-theme-hover-light { background-color: var(--color-hover-light); }
+.bg-theme-hover-dark { background-color: var(--color-hover-dark); }
+.text-theme-hover-text { color: var(--color-hover-text); }
+.border-theme-hover-border { border-color: var(--color-hover-border); }
 
 .shadow-theme-sm { box-shadow: var(--shadows-sm); }
 .shadow-theme-md { box-shadow: var(--shadows-md); }

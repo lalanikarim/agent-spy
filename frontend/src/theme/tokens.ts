@@ -37,6 +37,11 @@ export interface ColorTokens {
   // Icon colors for ThemeToggle
   "icon-light": string;
   "icon-dark": string;
+  // Dedicated hover colors for consistent hover states
+  "hover-light": string;
+  "hover-dark": string;
+  "hover-text": string;
+  "hover-border": string;
 }
 
 export interface SpacingTokens {
@@ -155,6 +160,11 @@ export const lightTokens: ThemeTokens = {
     // Icon colors for ThemeToggle
     "icon-light": "#fbbf24", // yellow-400
     "icon-dark": "#d1d5db", // gray-300
+    // Dedicated hover colors for consistent hover states
+    "hover-light": "#e2e8f0", // slate-200 - more visible light hover
+    "hover-dark": "#475569", // slate-600 - visible dark hover
+    "hover-text": "#1e293b", // slate-800 - dark text on hover
+    "hover-border": "#cbd5e1", // slate-300 - light border on hover
   },
   spacing: {
     "1": "4px",
@@ -259,6 +269,11 @@ export const darkTokens: ThemeTokens = {
     // Icon colors for ThemeToggle
     "icon-light": "#fbbf24", // yellow-400
     "icon-dark": "#6b7280", // gray-500
+    // Dedicated hover colors for consistent hover states
+    "hover-light": "#64748b", // slate-500 - more visible light hover on dark
+    "hover-dark": "#334155", // slate-700 - subtle dark hover
+    "hover-text": "#e2e8f0", // slate-200 - light text on hover
+    "hover-border": "#64748b", // slate-500 - dark border on hover
   },
   spacing: {
     "1": "4px",
