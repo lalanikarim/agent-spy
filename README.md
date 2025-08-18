@@ -1,6 +1,20 @@
 # Agent Spy 🕵️
 
-A powerful, self-hosted observability platform for AI agents and multi-step workflows. Agent Spy provides comprehensive tracing, monitoring, and debugging capabilities for complex agent interactions with **LangSmith-compatible API** for seamless integration.
+A powerful, self-hosted observability platform for AI agents and multi-step workflows. Agent Spy provides comprehensive tracing, monitoring, and debugging capabilities for complex agent interactions with **API specification compatible with LangSmith endpoints** for seamless integration.
+
+## ⚖️ Legal Disclaimer
+
+Agent Spy is an independent, open-source project and is not affiliated with, endorsed by, or sponsored by LangChain AI or the LangSmith platform. The use of the term "LangSmith" is for compatibility purposes only and does not imply any association with LangChain AI. All trademarks and registered trademarks are the property of their respective owners.
+
+This project implements an API specification compatible with LangSmith endpoints to enable integration with existing LangChain SDK configurations. The implementation is original work developed independently without access to LangSmith's proprietary source code.
+
+## ⚠️ Disclaimer & Project Status
+
+Agent Spy is an experimental project provided "as is" under the MIT License, without warranty of any kind. It is intended for research, development, and personal use.
+
+This software is not recommended for production environments. Users assume all risks associated with its use, including but not limited to data loss, system instability, and unexpected behavior.
+
+While Agent Spy aims to provide a powerful open-source alternative for AI observability, it is not a replacement for enterprise-grade, commercially supported solutions like LangSmith. For business-critical applications, we recommend using a commercially supported and validated product.
 
 ## 🌟 Features
 
@@ -23,7 +37,7 @@ A powerful, self-hosted observability platform for AI agents and multi-step work
 - **Statistics & Insights**: Understand agent behavior patterns and performance trends
 - **Timeline Visualization**: Advanced timeline component for execution flow analysis
 
-### 🏗️ **Production Ready**
+### 🏗️ **Development & Research Ready**
 
 - **High Performance**: Optimized for handling thousands of concurrent traces
 - **Scalable Storage**: SQLite for development, PostgreSQL support planned
@@ -33,7 +47,7 @@ A powerful, self-hosted observability platform for AI agents and multi-step work
 
 ### 🔌 **Framework Compatibility**
 
-- **LangSmith Compatible**: Drop-in replacement for LangSmith tracing
+- **LangSmith API Specification Compatible**: Self-hosted alternative for AI agent observability
 - **LangChain Support**: Full compatibility with all LangChain components
 - **LangGraph Support**: Multi-node agent workflows with complex hierarchies
 - **Custom Agents**: REST API for any framework to send trace data
@@ -89,7 +103,7 @@ The server will be running at `http://localhost:8000` with the API documentation
 
 ### Docker Deployment
 
-For production deployments or if you prefer containerized environments:
+For development, research, or testing environments using containerized deployment:
 
 1. **Clone and configure**
 
@@ -99,7 +113,7 @@ For production deployments or if you prefer containerized environments:
    cp env.example .env
    ```
 
-2. **Start Agent Spy (Production)**
+2. **Start Agent Spy (Development)**
 
    ```bash
    # Using the convenience script
@@ -109,7 +123,7 @@ For production deployments or if you prefer containerized environments:
    docker compose -f docker/docker-compose.yml up -d
    ```
 
-3. **Start Agent Spy (Development)**
+3. **Start Agent Spy (Development with Hot Reload)**
 
    ```bash
    # Using the convenience script
@@ -132,10 +146,10 @@ For production deployments or if you prefer containerized environments:
 To send traces from your agents to Agent Spy, configure these environment variables in your agent application:
 
 ```bash
-# Enable tracing
+# Enable tracing (compatible with LangChain SDK)
 LANGSMITH_TRACING=true
 
-# Point to Agent Spy instead of LangSmith
+# Point to Agent Spy (compatible with LangSmith API specification)
 LANGSMITH_ENDPOINT=http://localhost:8000/api/v1
 
 # API key (can be any value for now, authentication is optional)
@@ -147,7 +161,7 @@ LANGSMITH_PROJECT=your-project-name
 
 ### Basic Trace Ingestion
 
-Agent Spy accepts traces through a LangSmith-compatible REST API:
+Agent Spy accepts traces through a REST API compatible with the LangSmith API specification:
 
 ```python
 import requests
@@ -412,7 +426,7 @@ agent-spy/
 **Infrastructure**
 
 - **Docker & Docker Compose** for containerization
-- **SQLite** for development (PostgreSQL planned for production)
+- **SQLite** for development (PostgreSQL planned for future releases)
 - **Nginx** for serving frontend assets
 - **Health checks** and monitoring built-in
 
@@ -454,7 +468,7 @@ agent-spy/
 
 ### Phase 3: Advanced Features 🚧
 
-- [ ] PostgreSQL production support
+- [ ] PostgreSQL support for larger deployments
 - [ ] Authentication and authorization
 - [ ] Advanced analytics and insights
 - [ ] Alert system for anomalies
@@ -489,6 +503,8 @@ Built with modern Python tools and best practices:
 - **uv** - Fast Python package manager
 - **React** - Modern frontend framework
 - **Ant Design** - Professional UI components
+
+**Note**: This project is not affiliated with LangChain AI or the LangSmith platform. The API compatibility is implemented independently based on public API specifications.
 
 ---
 
