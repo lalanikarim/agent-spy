@@ -21,7 +21,7 @@ const StatCard: React.FC<StatCardProps> = ({
   return (
     <Card className={`h-full ${className}`}>
       {/* First row: Title */}
-      <div className="text-gray-400 text-sm font-medium mb-4">{title}</div>
+      <div className="text-gray-400 dark:text-gray-500 text-sm font-medium mb-4" style={{ color: "var(--color-text-secondary)" }}>{title}</div>
 
       {/* Second row: Icon, value, and description */}
       <div className="flex items-center justify-between">

@@ -162,7 +162,10 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
 
   return (
     <div className="w-full">
-      <div className="mb-2 text-sm font-medium text-gray-700">
+      <div
+        className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+        style={{ color: "var(--color-text)" }}
+      >
         Execution Timeline
       </div>
       <div

@@ -70,6 +70,14 @@ const AntDesignTheme: React.FC<{ children: React.ReactNode }> = ({
           : "var(--color-surface-active)",
         borderColor: "var(--color-border)",
         headerSplitColor: "var(--color-border)",
+        colorBgContainer: isDark
+          ? "var(--color-surface)"
+          : "var(--color-surface)",
+        colorText: isDark ? "var(--color-text)" : "var(--color-text)",
+        colorTextHeading: isDark ? "var(--color-text)" : "var(--color-text)",
+        colorFillAlter: isDark
+          ? "var(--color-surface-hover)"
+          : "var(--color-surface-hover)",
       },
       Card: {
         headerBg: isDark ? "var(--color-surface)" : "var(--color-surface)",
@@ -82,7 +90,14 @@ const AntDesignTheme: React.FC<{ children: React.ReactNode }> = ({
       Button: {
         borderRadius: 8,
         controlHeight: 36,
-        primaryShadow: "none",
+        primaryShadow: isDark ? "none" : "0 2px 0 rgba(0, 0, 0, 0.045)",
+        colorBgContainer: isDark ? "#1e293b" : "#ffffff",
+        colorBorder: isDark ? "#334155" : "#e2e8f0",
+        colorText: isDark ? "#e2e8f0" : "#1e293b",
+        colorPrimary: isDark ? "#00d4ff" : "#3b82f6",
+        colorPrimaryHover: isDark ? "#00b8e6" : "#2563eb",
+        colorPrimaryActive: isDark ? "#0099cc" : "#1d4ed8",
+        borderWidth: isDark ? 1 : 1,
       },
       Input: {
         borderRadius: 8,
@@ -105,6 +120,12 @@ const AntDesignTheme: React.FC<{ children: React.ReactNode }> = ({
         colorTextPlaceholder: isDark
           ? "var(--color-text-muted)"
           : "var(--color-text-muted)",
+        colorBgElevated: isDark
+          ? "var(--color-surface)"
+          : "var(--color-surface)",
+        colorTextQuaternary: isDark
+          ? "var(--color-text-muted)"
+          : "var(--color-text-muted)",
       },
       Alert: {
         borderRadius: 8,
@@ -121,6 +142,19 @@ const AntDesignTheme: React.FC<{ children: React.ReactNode }> = ({
           ? "var(--color-surface)"
           : "var(--color-surface)",
         colorTextLightSolid: isDark ? "var(--color-text)" : "var(--color-text)",
+      },
+      Tree: {
+        colorBgContainer: isDark
+          ? "var(--color-surface)"
+          : "var(--color-surface)",
+        colorText: isDark ? "var(--color-text)" : "var(--color-text)",
+        colorBorder: "var(--color-border)",
+        colorFill: isDark
+          ? "var(--color-surface-hover)"
+          : "var(--color-surface-hover)",
+        colorFillSecondary: isDark
+          ? "var(--color-surface-active)"
+          : "var(--color-surface-active)",
       },
     },
   };

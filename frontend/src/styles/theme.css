@@ -9,21 +9,21 @@
   --color-secondary: #6366f1;
   --color-secondary-hover: #5855eb;
   --color-secondary-active: #4f46e5;
-  
+
   --color-background: #f8fafc;
   --color-surface: #ffffff;
   --color-surface-hover: #f1f5f9;
   --color-surface-active: #e2e8f0;
-  
+
   --color-text: #1e293b;
   --color-text-secondary: #64748b;
   --color-text-muted: #94a3b8;
   --color-text-inverse: #ffffff;
-  
+
   --color-border: #e2e8f0;
   --color-border-hover: #cbd5e1;
   --color-border-focus: #3b82f6;
-  
+
   --color-success: #10b981;
   --color-success-hover: #059669;
   --color-warning: #f59e0b;
@@ -32,7 +32,7 @@
   --color-error-hover: #dc2626;
   --color-info: #3b82f6;
   --color-info-hover: #2563eb;
-  
+
   /* Status Colors */
   --color-status-running: #e6f7ff;
   --color-status-running-text: #1890ff;
@@ -40,20 +40,20 @@
   --color-status-completed-text: #52c41a;
   --color-status-failed: #fff2f0;
   --color-status-failed-text: #ff4d4f;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  
+
   /* Border Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
-  
+
   /* Spacing */
   --space-1: 4px;
   --space-2: 8px;
@@ -64,7 +64,7 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
-  
+
   /* Typography */
   --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-size-xs: 12px;
@@ -74,21 +74,21 @@
   --font-size-xl: 20px;
   --font-size-2xl: 24px;
   --font-size-3xl: 30px;
-  
+
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  
+
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.6;
-  
+
   /* Transitions */
   --transition-fast: 150ms ease-in-out;
   --transition-normal: 250ms ease-in-out;
   --transition-slow: 350ms ease-in-out;
-  
+
   /* Z-index */
   --z-dropdown: 1000;
   --z-sticky: 1020;
@@ -108,21 +108,21 @@
   --color-secondary: #00d4ff;
   --color-secondary-hover: #00b8e6;
   --color-secondary-active: #0099cc;
-  
+
   --color-background: #0f172a;
   --color-surface: #1e293b;
   --color-surface-hover: #334155;
   --color-surface-active: #475569;
-  
+
   --color-text: #e2e8f0;
   --color-text-secondary: #94a3b8;
   --color-text-muted: #64748b;
   --color-text-inverse: #0f172a;
-  
+
   --color-border: #334155;
   --color-border-hover: #475569;
   --color-border-focus: #00d4ff;
-  
+
   --color-success: #10b981;
   --color-success-hover: #059669;
   --color-warning: #f59e0b;
@@ -131,7 +131,7 @@
   --color-error-hover: #dc2626;
   --color-info: #00d4ff;
   --color-info-hover: #00b8e6;
-  
+
   /* Status Colors - Dark Mode */
   --color-status-running: rgba(0, 212, 255, 0.1);
   --color-status-running-text: #00d4ff;
@@ -139,7 +139,7 @@
   --color-status-completed-text: #10b981;
   --color-status-failed: rgba(239, 68, 68, 0.1);
   --color-status-failed-text: #ef4444;
-  
+
   /* Shadows - Dark Mode */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
@@ -149,7 +149,7 @@
 
 /* Utility Classes */
 .theme-transition {
-  transition: 
+  transition:
     background-color var(--transition-normal),
     border-color var(--transition-normal),
     color var(--transition-normal),
@@ -241,4 +241,98 @@
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Table row hover effects */
+.hover-row:hover {
+  background-color: var(--color-surface-hover) !important;
+  transition: background-color var(--transition-fast);
+}
+
+.selected-row {
+  background-color: var(--color-surface-active) !important;
+}
+
+/* Override Ant Design table selection styles */
+.ant-table-tbody > tr.selected-row {
+  background-color: #334155 !important;
+}
+
+.ant-table-tbody > tr.selected-row:hover {
+  background-color: #334155 !important;
+}
+
+/* Also target the Ant Design selection class */
+.ant-table-tbody > tr.ant-table-row-selected {
+  background-color: #334155 !important;
+}
+
+.ant-table-tbody > tr.ant-table-row-selected:hover {
+  background-color: #334155 !important;
+}
+
+/* Target the cell level with highest specificity */
+.ant-table-wrapper .ant-table-tbody .ant-table-row.ant-table-row-selected > .ant-table-cell {
+  background: var(--color-surface-active) !important;
+}
+
+/* Also target our custom selected row class at cell level */
+.ant-table-wrapper .ant-table-tbody .ant-table-row.selected-row > .ant-table-cell {
+  background: var(--color-surface-active) !important;
+}
+
+/* Override Ant Design button box shadows in dark mode */
+[data-theme="dark"] .ant-btn {
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .ant-btn-color-default {
+  box-shadow: none !important;
+}
+
+/* Override Ant Design Tree component styles in dark mode */
+[data-theme="dark"] .ant-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  background-color: var(--color-surface-active) !important;
+  color: var(--color-text) !important;
+}
+
+[data-theme="dark"] .ant-tree .ant-tree-node-content-wrapper:hover {
+  background-color: var(--color-surface-hover) !important;
+}
+
+/* Also override for light mode to ensure consistency */
+.ant-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  background-color: var(--color-surface-active) !important;
+  color: var(--color-text) !important;
+}
+
+.ant-tree .ant-tree-node-content-wrapper:hover {
+  background-color: var(--color-surface-hover) !important;
+}
+
+/* Override Ant Design Descriptions borders in dark mode */
+[data-theme="dark"] .ant-descriptions.ant-descriptions-bordered > .ant-descriptions-view .ant-descriptions-row {
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+[data-theme="dark"] .ant-descriptions.ant-descriptions-bordered > .ant-descriptions-view .ant-descriptions-item-label {
+  border-right: 1px solid var(--color-border) !important;
+}
+
+[data-theme="dark"] .ant-descriptions.ant-descriptions-bordered > .ant-descriptions-view .ant-descriptions-item-content {
+  border-right: none !important;
+}
+
+[data-theme="dark"] .ant-descriptions.ant-descriptions-bordered > .ant-descriptions-view {
+  border: 1px solid var(--color-border) !important;
+}
+
+[data-theme="dark"] .ant-descriptions.ant-descriptions-bordered > .ant-descriptions-view .ant-descriptions-row:last-child {
+  border-bottom: none !important;
+}
+
+/* Override Ant Design Collapse component styles in dark mode */
+[data-theme="dark"] .ant-collapse .ant-collapse-content {
+  background-color: var(--color-surface) !important;
+  border-top: 1px solid var(--color-border) !important;
 }

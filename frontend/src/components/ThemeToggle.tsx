@@ -66,7 +66,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
           ${buttonSize[size]}
           flex items-center justify-center
           bg-surface hover:bg-surface-hover
-          border-gray-100 hover:border-gray-200
+          border-gray-100 dark:border-gray-600 hover:border-gray-200 dark:hover:border-gray-500
           rounded-theme-full
           transition-all duration-theme-normal
           hover:shadow-theme-md
