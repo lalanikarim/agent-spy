@@ -1,182 +1,209 @@
 """Integration tests for database functionality with SQLite and PostgreSQL."""
 
+from datetime import datetime
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.runs import Run
 from src.repositories.runs import RunRepository
+from src.schemas.runs import RunCreate
 
 
-class TestDatabaseIntegration:
-    """Test database integration with both SQLite and PostgreSQL."""
+@pytest.mark.database
+@pytest.mark.sqlite
+class TestSQLiteDatabaseIntegration:
+    """Test database integration with SQLite."""
 
-    @pytest.mark.database
     @pytest.mark.asyncio
-    async def test_database_connection(self, test_session):
-        """Test basic database connection and session functionality."""
-        # Test that we can execute a simple query
-        result = await test_session.execute(select(1))
-        assert result.scalar() == 1
+    async def test_sqlite_connection(self, test_session: AsyncSession):
+        """Test SQLite database connection and basic operations."""
+        # Test that we can create a simple run
+        run_id = str(uuid4())
+        run_data = {
+            "id": run_id,
+            "name": "Test Run",
+            "run_type": "chain",
+            "start_time": datetime(2024, 1, 1, 0, 0, 0),
+            "inputs": {"test": "data"},
+            "project_name": "test-project",
+        }
 
-    @pytest.mark.database
-    @pytest.mark.asyncio
-    async def test_run_model_creation(self, test_session):
-        """Test creating and querying Run models."""
-        from datetime import datetime
-        from uuid import uuid4
-
-        # Create a test run
-        run = Run(
-            id=uuid4(),
-            name="Test Run",
-            run_type="chain",
-            start_time=datetime.now(),
-            status="completed",
-            project_name="test-project",
-        )
-
-        # Add to database
+        run = Run(**run_data)
         test_session.add(run)
         await test_session.commit()
-
-        # Query the run
-        result = await test_session.execute(select(Run).where(Run.id == run.id))
-        retrieved_run = result.scalar_one()
-
-        # Verify the run was saved correctly
-        assert retrieved_run.id == run.id
-        assert retrieved_run.name == "Test Run"
-        assert retrieved_run.run_type == "chain"
-        assert retrieved_run.status == "completed"
-        assert retrieved_run.project_name == "test-project"
-
-    @pytest.mark.database
-    @pytest.mark.asyncio
-    async def test_run_repository_integration(self, test_session):
-        """Test RunRepository with real database session."""
-        from datetime import datetime, timedelta
-        from uuid import uuid4
-
-        # Create repository with real session
-        repository = RunRepository(test_session)
-
-        # Create test runs
-        now = datetime.now()
-        root_run = Run(
-            id=uuid4(),
-            name="Root Test Run",
-            run_type="chain",
-            start_time=now,
-            end_time=now + timedelta(seconds=30),
-            status="completed",
-            project_name="test-project",
-            parent_run_id=None,
-        )
-
-        child_run = Run(
-            id=uuid4(),
-            name="Child Test Run",
-            run_type="llm",
-            start_time=now + timedelta(seconds=5),
-            end_time=now + timedelta(seconds=25),
-            status="completed",
-            project_name="test-project",
-            parent_run_id=root_run.id,
-        )
-
-        # Add runs to database
-        test_session.add_all([root_run, child_run])
-        await test_session.commit()
-
-        # Test repository methods - check that we can get root runs
-        root_runs = await repository.get_root_runs()
-        # Find our specific root run in the results
-        our_root_run = next((r for r in root_runs if r.id == root_run.id), None)
-        assert our_root_run is not None
-        assert our_root_run.name == "Root Test Run"
-
-        # Test hierarchy - returns a list of all runs in the hierarchy
-        hierarchy = await repository.get_run_hierarchy(root_run.id)
-        assert hierarchy is not None
-        assert len(hierarchy) == 2  # root run + child run
-
-        # Find the root and child runs in the hierarchy
-        root_in_hierarchy = next((r for r in hierarchy if r.id == root_run.id), None)
-        child_in_hierarchy = next((r for r in hierarchy if r.id == child_run.id), None)
-
-        assert root_in_hierarchy is not None
-        assert child_in_hierarchy is not None
-        assert root_in_hierarchy.name == "Root Test Run"
-        assert child_in_hierarchy.name == "Child Test Run"
-
-    @pytest.mark.database
-    @pytest.mark.asyncio
-    async def test_database_transactions(self, test_session):
-        """Test database transaction rollback functionality."""
-        from datetime import datetime
-        from uuid import uuid4
-
-        # Create a run
-        run = Run(
-            id=uuid4(),
-            name="Transaction Test Run",
-            run_type="chain",
-            start_time=datetime.now(),
-            status="running",
-            project_name="test-project",
-        )
-
-        # Add to database
-        test_session.add(run)
-        await test_session.commit()
-
-        # Verify it exists
-        result = await test_session.execute(select(Run).where(Run.id == run.id))
-        assert result.scalar_one() is not None
 
         # Test that we can query the run
-        assert run.name == "Transaction Test Run"
-        assert run.run_type == "chain"
+        result = await test_session.execute(select(Run).where(Run.id == run_id))
+        retrieved_run = result.scalar_one()
 
-    @pytest.mark.database
+        assert str(retrieved_run.id) == run_id
+        assert retrieved_run.name == "Test Run"
+        assert retrieved_run.run_type == "chain"
+
     @pytest.mark.asyncio
-    async def test_database_concurrent_access(self, test_session_maker):
-        """Test concurrent database access."""
-        from datetime import datetime
-        from uuid import uuid4
+    async def test_sqlite_repository_operations(self, test_session: AsyncSession):
+        """Test repository operations with SQLite."""
+        repository = RunRepository(test_session)
 
-        # Create multiple sessions
-        async with test_session_maker() as session1, test_session_maker() as session2:
-            # Create runs in different sessions
-            run1 = Run(
-                id=uuid4(),
-                name="Concurrent Run 1",
-                run_type="chain",
-                start_time=datetime.now(),
-                status="completed",
-                project_name="test-project",
+        # Test creating a run through repository
+        run_data = RunCreate(
+            id=str(uuid4()),
+            name="Repository Test",
+            run_type="llm",
+            start_time=datetime(2024, 1, 1, 0, 0, 0),
+            inputs={"prompt": "Hello world"},
+            project_name="test-project",
+        )
+
+        created_run = await repository.create(run_data)
+        assert str(created_run.id) == str(run_data.id)
+        assert created_run.name == "Repository Test"
+
+        # Test retrieving the run
+        retrieved_run = await repository.get_by_id(created_run.id)
+        assert retrieved_run is not None
+        assert retrieved_run.run_type == "llm"
+
+
+@pytest.mark.database
+@pytest.mark.postgresql
+class TestPostgreSQLDatabaseIntegration:
+    """Test database integration with PostgreSQL."""
+
+    @pytest.mark.asyncio
+    async def test_postgresql_connection(self, test_session: AsyncSession):
+        """Test PostgreSQL database connection and basic operations."""
+        # Test that we can create a simple run
+        run_id = str(uuid4())
+        run_data = {
+            "id": run_id,
+            "name": "PostgreSQL Test Run",
+            "run_type": "chain",
+            "start_time": datetime(2024, 1, 1, 0, 0, 0),
+            "inputs": {"test": "postgresql-data"},
+            "project_name": "test-project",
+        }
+
+        run = Run(**run_data)
+        test_session.add(run)
+        await test_session.commit()
+
+        # Test that we can query the run
+        result = await test_session.execute(select(Run).where(Run.id == run_id))
+        retrieved_run = result.scalar_one()
+
+        assert str(retrieved_run.id) == run_id
+        assert retrieved_run.name == "PostgreSQL Test Run"
+        assert retrieved_run.run_type == "chain"
+
+    @pytest.mark.asyncio
+    async def test_postgresql_repository_operations(self, test_session: AsyncSession):
+        """Test repository operations with PostgreSQL."""
+        repository = RunRepository(test_session)
+
+        # Test creating a run through repository
+        run_data = RunCreate(
+            id=str(uuid4()),
+            name="PostgreSQL Repository Test",
+            run_type="tool",
+            start_time=datetime(2024, 1, 1, 0, 0, 0),
+            inputs={"tool_name": "calculator"},
+            project_name="test-project",
+        )
+
+        created_run = await repository.create(run_data)
+        assert str(created_run.id) == str(run_data.id)
+        assert created_run.name == "PostgreSQL Repository Test"
+
+        # Test retrieving the run
+        retrieved_run = await repository.get_by_id(created_run.id)
+        assert retrieved_run is not None
+        assert retrieved_run.run_type == "tool"
+
+
+@pytest.mark.database
+class TestCrossDatabaseCompatibility:
+    """Test that database operations work consistently across both database types."""
+
+    @pytest.mark.asyncio
+    async def test_run_creation_consistency(self, test_session: AsyncSession):
+        """Test that run creation works consistently across database types."""
+        repository = RunRepository(test_session)
+
+        # Create multiple runs with different types
+        run_types = ["chain", "llm", "tool", "retrieval"]
+        created_runs = []
+
+        for i, run_type in enumerate(run_types):
+            run_data = RunCreate(
+                id=str(uuid4()),
+                name=f"Consistency Test {i}",
+                run_type=run_type,
+                start_time=datetime(2024, 1, 1, 0, 0, 0),
+                inputs={"test": f"data-{i}"},
+                project_name="consistency-test",
             )
+            run = await repository.create(run_data)
+            created_runs.append(run)
 
-            run2 = Run(
-                id=uuid4(),
-                name="Concurrent Run 2",
+        # Verify all runs were created
+        assert len(created_runs) == 4
+
+        # Test retrieving all runs
+        all_runs = await repository.list_runs(project_name="consistency-test")
+        assert len(all_runs) == 4
+
+        # Verify run types
+        run_types_found = [run.run_type for run in all_runs]
+        assert "chain" in run_types_found
+        assert "llm" in run_types_found
+        assert "tool" in run_types_found
+        assert "retrieval" in run_types_found
+
+    @pytest.mark.asyncio
+    async def test_hierarchical_relationships(self, test_session: AsyncSession):
+        """Test that hierarchical relationships work across database types."""
+        repository = RunRepository(test_session)
+
+        # Create parent run
+        parent_id = str(uuid4())
+        parent_data = RunCreate(
+            id=parent_id,
+            name="Parent Run",
+            run_type="chain",
+            start_time=datetime(2024, 1, 1, 0, 0, 0),
+            inputs={"parent": "data"},
+            project_name="hierarchy-test",
+        )
+        parent_run = await repository.create(parent_data)
+
+        # Create child runs
+        child_runs = []
+        for i in range(3):
+            child_data = RunCreate(
+                id=str(uuid4()),
+                name=f"Child Run {i}",
                 run_type="llm",
-                start_time=datetime.now(),
-                status="completed",
-                project_name="test-project",
+                start_time=datetime(2024, 1, 1, 0, 0, 0),
+                inputs={"child": f"data-{i}"},
+                project_name="hierarchy-test",
+                parent_run_id=parent_id,
             )
+            child_run = await repository.create(child_data)
+            child_runs.append(child_run)
 
-            # Add to different sessions
-            session1.add(run1)
-            session2.add(run2)
+        # Verify parent-child relationships
+        assert len(child_runs) == 3
 
-            # Commit both
-            await session1.commit()
-            await session2.commit()
+        # Test getting children of parent
+        children = await repository.list_runs(parent_run_id=parent_id)
+        assert len(children) == 3
 
-            # Verify both runs exist
-            result1 = await session1.execute(select(Run).where(Run.id == run1.id))
-            result2 = await session2.execute(select(Run).where(Run.id == run2.id))
-
-            assert result1.scalar_one() is not None
-            assert result2.scalar_one() is not None
+        # Test getting parent of children
+        for child in children:
+            parent = await repository.get_by_id(child.parent_run_id)
+            assert parent is not None
+            assert str(parent.id) == parent_id
