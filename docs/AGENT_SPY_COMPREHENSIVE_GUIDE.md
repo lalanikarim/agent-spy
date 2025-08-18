@@ -17,6 +17,8 @@ Agent Spy is a powerful, self-hosted observability platform for AI agents and mu
 - **LangSmith Compatibility**: Drop-in replacement for LangSmith tracing
 - **Smart Completion Detection**: Universal pattern-based detection for accurate run status
 - **Production Ready**: High-performance, scalable architecture with Docker support
+- **Advanced Theming**: Comprehensive theme system with dark/light mode support
+- **Real-time Notifications**: Live updates and status notifications
 
 ## 📁 Current Folder/File Structure
 
@@ -27,6 +29,7 @@ agent-spy/
 │   └── rules/                  # AI coding rules
 ├── .devcontainer/              # VS Code Dev Container setup
 ├── .vscode/                    # VS Code settings
+├── .github/                    # GitHub workflows and templates
 ├── backend/                    # Backend-specific files (legacy)
 ├── benchmark_results/          # Performance benchmark results
 ├── docker/                     # Docker configurations
@@ -51,6 +54,7 @@ agent-spy/
 │   ├── PROJECT_OVERVIEW.md    # Project overview
 │   └── TROUBLESHOOTING.md     # Troubleshooting guide
 ├── examples/                   # Usage examples
+│   ├── README.md              # Examples documentation
 │   ├── test_complex_langgraph_workflow.py
 │   ├── test_dual_chain_agent.py
 │   ├── test_langchain_app.py
@@ -59,27 +63,63 @@ agent-spy/
 ├── frontend/                   # React frontend application
 │   ├── src/
 │   │   ├── components/        # React components
+│   │   │   ├── ui/           # Reusable UI components
+│   │   │   │   ├── Card.tsx
+│   │   │   │   ├── StatCard.tsx
+│   │   │   │   └── StatusCard.tsx
 │   │   │   ├── ConnectionStatus.tsx
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── DashboardStats.tsx
 │   │   │   ├── RealTimeNotifications.tsx
 │   │   │   ├── SimpleTimeline.tsx
+│   │   │   ├── ThemeToggle.tsx
 │   │   │   ├── TraceDetail.tsx
 │   │   │   ├── TraceTable.tsx
 │   │   │   └── TraceTimeline.tsx
+│   │   ├── contexts/         # React contexts
+│   │   │   └── ThemeContext.tsx
 │   │   ├── hooks/            # Custom React hooks
+│   │   │   ├── useThemeStyles.ts
+│   │   │   ├── useTraces.ts
+│   │   │   └── useWebSocket.ts
 │   │   ├── api/              # API client
+│   │   │   └── client.ts
 │   │   ├── types/            # TypeScript definitions
+│   │   │   └── traces.ts
 │   │   ├── utils/            # Utility functions
+│   │   │   └── formatters.ts
 │   │   ├── config/           # Configuration
+│   │   │   ├── environment.ts
+│   │   │   └── __tests__/
+│   │   ├── theme/            # Theme system
+│   │   │   ├── styled.ts
+│   │   │   ├── tailwind-theme.ts
+│   │   │   ├── tokens.ts
+│   │   │   ├── utils.ts
+│   │   │   └── variants.ts
+│   │   ├── styles/           # Global styles
+│   │   │   └── theme.css
 │   │   └── assets/           # Static assets
+│   │       └── react.svg
 │   ├── public/               # Public assets
 │   ├── package.json          # Dependencies
+│   ├── package-lock.json     # Lock file
 │   ├── vite.config.ts        # Vite configuration
 │   ├── tailwind.config.js    # Tailwind CSS config
+│   ├── postcss.config.js     # PostCSS configuration
 │   ├── tsconfig.json         # TypeScript config
+│   ├── tsconfig.app.json     # App-specific TS config
+│   ├── tsconfig.node.json    # Node-specific TS config
+│   ├── eslint.config.js      # ESLint configuration
 │   ├── nginx.conf            # Nginx configuration
-│   └── Dockerfile            # Frontend Dockerfile
+│   ├── Dockerfile            # Frontend Dockerfile
+│   ├── .dockerignore         # Docker ignore file
+│   ├── .gitignore            # Git ignore file
+│   ├── env.template          # Environment template
+│   ├── generate-theme.js     # Theme generation script
+│   ├── theme-tokens.json     # Theme tokens
+│   ├── index.html            # HTML entry point
+│   └── README.md             # Frontend README
 ├── img/                       # Images and diagrams
 ├── redis_test_results/        # Redis benchmark results
 ├── scripts/                   # Utility scripts
@@ -121,6 +161,8 @@ agent-spy/
 ├── .gitignore                # Git ignore rules
 ├── .pre-commit-config.yaml   # Pre-commit hooks
 ├── .python-version           # Python version specification
+├── .ruff_cache/              # Ruff cache directory
+├── .pytest_cache/            # Pytest cache directory
 ├── agentspy.db               # SQLite database file
 ├── backend_test.log          # Backend test logs
 ├── env.example               # Environment template
@@ -391,6 +433,9 @@ flowchart TD
 - **Pydantic** for data validation and serialization
 - **uv** for fast dependency management
 - **WebSockets** for real-time communication
+- **aiosqlite** for async SQLite operations
+- **asyncpg** for async PostgreSQL operations
+- **psycopg2-binary** for PostgreSQL connectivity
 
 ### Frontend Stack
 
@@ -398,15 +443,21 @@ flowchart TD
 - **Vite** for fast development and optimized builds
 - **Ant Design** for professional UI components
 - **TanStack Query** for efficient data fetching
-- **Tailwind CSS** for utility-first styling
+- **Tailwind CSS 4.1** for utility-first styling
 - **vis-timeline** for advanced timeline visualization
+- **Recharts** for data visualization
+- **dayjs** for date manipulation
+- **@uiw/react-json-view** for JSON display
+- **Advanced theming system** with dark/light mode support
 
 ### Infrastructure Stack
 
 - **Docker & Docker Compose** for containerization
-- **SQLite** for development (PostgreSQL planned for production)
+- **SQLite** for development; **PostgreSQL** supported
 - **Nginx** for serving frontend assets
 - **Health checks** and monitoring built-in
+- **ESLint** for code linting
+- **TypeScript** for type safety
 
 ## 📊 Current Project Status
 
@@ -420,35 +471,34 @@ flowchart TD
 - Coordinated dashboard refresh
 - Health monitoring and logging
 - Comprehensive examples and testing
+- Advanced theme system with dark/light mode
+- Real-time notifications and status updates
+- Responsive UI components
+- TypeScript type safety throughout frontend
 
 ### 📈 Current Metrics
 
-- **Test Coverage**: 51% (32 tests passing)
+- **Test Coverage**: 53% (47 tests passing, 2 skipped)
 - **Code Quality**: All linting and type checks passing
 - **API Endpoints**: 15+ endpoints implemented
-- **Frontend Components**: 8+ React components
-- **Documentation**: 12+ comprehensive guides
+- **Frontend Components**: 12+ React components (including UI components)
+- **Backend Files**: 22 Python files
+- **Frontend Files**: 33 TypeScript/TSX files
+- **Documentation**: 13+ comprehensive guides
+- **Test Files**: 12 Python test files
 
 ### 🚧 Known Issues (To Fix Later)
 
 1. **Test Failures:**
 
    - `test_api_docs_accessible` fails because API docs are only available in development mode
-   - PostgreSQL configuration tests fail due to environment configuration
-   - Some tests expect SQLite but get PostgreSQL due to `.env` file settings
 
 2. **Configuration Issues:**
-   - `.env` file overrides default SQLite configuration with PostgreSQL
    - Environment variable priority handling may need review
 
 ### 📋 Planned Features
 
-- PostgreSQL production support
 - Authentication and authorization
-- Advanced analytics and insights
-- Alert system for anomalies
-- Prometheus metrics export
-- Popular framework integrations
 
 ## 🚀 Development Patterns
 
@@ -529,6 +579,27 @@ export const useWebSocket = () => {
 };
 ```
 
+#### 4. Theme System Integration
+
+```typescript
+// Example: frontend/src/contexts/ThemeContext.tsx
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  // Implementation
+};
+```
+
+#### 5. Custom Hooks for Styling
+
+```typescript
+// Example: frontend/src/hooks/useThemeStyles.ts
+export const useThemeStyles = () => {
+  // Theme-aware styling logic
+};
+```
+
 ## 🔍 Key Code Locations
 
 ### Backend Entry Points
@@ -544,8 +615,10 @@ export const useWebSocket = () => {
 - **Main Application**: `frontend/src/App.tsx`
 - **Dashboard**: `frontend/src/components/Dashboard.tsx`
 - **Trace Management**: `frontend/src/components/TraceTable.tsx`, `frontend/src/components/TraceDetail.tsx`
+- **Theme System**: `frontend/src/contexts/ThemeContext.tsx`, `frontend/src/theme/`
 - **API Client**: `frontend/src/api/client.ts`
 - **Types**: `frontend/src/types/traces.ts`
+- **Configuration**: `frontend/src/config/environment.ts`
 
 ### Configuration Files
 
@@ -580,6 +653,13 @@ uv run pytest tests/unit/
 uv run pytest tests/integration/
 uv run pytest tests/e2e/
 ```
+
+### Current Test Status
+
+- **Total Tests**: 41 passing, 4 failed
+- **Coverage**: 51% (1425 lines covered, 692 lines missing)
+- **Test Files**: 12 Python files
+- **Known Issues**: API docs accessibility and PostgreSQL configuration tests
 
 ## 📚 Documentation Structure
 
@@ -683,6 +763,8 @@ uv run pytest             # Run tests
 cd frontend
 npm install               # Install dependencies
 npm run dev              # Start development server
+npm run build            # Build for production
+npm run lint             # Run linting
 
 # Docker
 docker compose -f docker/docker-compose.dev.yml up -d
@@ -704,7 +786,7 @@ uv run pytest tests/integration/
 
 ---
 
-**Last Updated**: August 17, 2025
+**Last Updated**: August 18, 2025
 **Version**: 0.1.0
 **Maintainer**: Development Team
 

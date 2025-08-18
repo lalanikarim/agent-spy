@@ -36,13 +36,15 @@ While Agent Spy aims to provide a powerful open-source alternative for AI observ
 - **Filtering & Search**: Find specific traces by project, status, time range, or content
 - **Statistics & Insights**: Understand agent behavior patterns and performance trends
 - **Timeline Visualization**: Advanced timeline component for execution flow analysis
+- **Advanced Theming**: Comprehensive theme system with dark/light mode support
+- **Responsive Design**: Optimized for desktop and mobile viewing
 
 ### 🏗️ **Development & Research Ready**
 
 - **High Performance**: Optimized for handling thousands of concurrent traces
-- **Scalable Storage**: SQLite for development, PostgreSQL support planned
+- **Scalable Storage**: SQLite for development; PostgreSQL supported
 - **API-First Design**: RESTful API for integration with any agent framework
-- **Comprehensive Testing**: Unit, integration, and end-to-end test coverage (51% coverage)
+- **Comprehensive Testing**: Unit, integration, and end-to-end test coverage (53% coverage, 47 tests passing, 2 skipped)
 - **Containerized Deployment**: Docker Compose setup for easy deployment
 
 ### 🔌 **Framework Compatibility**
@@ -242,6 +244,13 @@ Agent Spy uses intelligent pattern-based detection to automatically mark runs as
 - **User Control**: Toggle to enable/disable real-time updates
 - **Performance Optimized**: Efficient event filtering and subscription management
 
+### Advanced Theme System
+
+- **Dark/Light Mode**: Comprehensive theme switching with persistent preferences
+- **Customizable UI**: Advanced theming system with CSS-in-JS support
+- **Responsive Design**: Optimized layouts for desktop and mobile devices
+- **Professional Styling**: Modern UI components with consistent design language
+
 ### Smart Completion Detection
 
 - **Universal Pattern Recognition**: Automatically detects completion across all run types (tools, chains, prompts, parsers, etc.)
@@ -367,10 +376,12 @@ uv run bandit -r src/
 
 ### Current Benchmarks
 
-- **Test Coverage**: 51% (32 tests passing)
+- **Test Coverage**: 53% (47 tests passing, 2 skipped)
 - **Code Quality**: All linting and type checks passing
 - **Response Time**: Sub-second API responses for typical queries
 - **Memory Usage**: Optimized for concurrent trace processing
+- **Frontend Components**: 12+ React components with TypeScript
+- **Backend Files**: 22 Python files with comprehensive API coverage
 
 ### Optimization Features
 
@@ -390,9 +401,15 @@ agent-spy/
 │   ├── core/              # Database, config, logging
 │   ├── models/            # SQLAlchemy models
 │   ├── repositories/      # Data access layer
-│   └── schemas/           # Pydantic models
+│   ├── schemas/           # Pydantic models
+│   └── services/          # Business logic layer
 ├── frontend/              # React dashboard
 │   ├── src/               # React components
+│   │   ├── components/    # UI components
+│   │   ├── contexts/      # React contexts
+│   │   ├── hooks/         # Custom hooks
+│   │   ├── theme/         # Theme system
+│   │   └── api/           # API client
 │   ├── public/            # Static assets
 │   └── package.json       # Dependencies
 ├── tests/                 # Test suite
@@ -421,12 +438,15 @@ agent-spy/
 - **Vite** for fast development and optimized builds
 - **Ant Design** for professional UI components
 - **TanStack Query** for efficient data fetching
-- **Tailwind CSS** for utility-first styling
+- **Tailwind CSS 4.1** for utility-first styling
+- **Advanced Theming**: CSS-in-JS system with dark/light mode
+- **Recharts** for data visualization
+- **vis-timeline** for advanced timeline visualization
 
 **Infrastructure**
 
 - **Docker & Docker Compose** for containerization
-- **SQLite** for development (PostgreSQL planned for future releases)
+- **SQLite** for development; **PostgreSQL** supported
 - **Nginx** for serving frontend assets
 - **Health checks** and monitoring built-in
 
@@ -465,21 +485,17 @@ agent-spy/
 - [x] Real-time updates and filtering
 - [x] Advanced timeline visualization
 - [x] Statistics and metrics display
+- [x] Advanced theme system with dark/light mode
+- [x] Responsive design for mobile and desktop
+- [x] Real-time notifications and status updates
 
 ### Phase 3: Advanced Features 🚧
 
-- [ ] PostgreSQL support for larger deployments
+- [x] PostgreSQL support
 - [ ] Authentication and authorization
-- [ ] Advanced analytics and insights
-- [ ] Alert system for anomalies
-- [ ] Performance optimization
 
 ### Phase 4: Integrations 📋
 
-- [ ] Popular agent framework integrations
-- [ ] Prometheus metrics export
-- [ ] Grafana dashboard templates
-- [ ] Webhook notifications
 - [ ] Kubernetes deployment manifests
 
 ## 📄 License
@@ -503,6 +519,8 @@ Built with modern Python tools and best practices:
 - **uv** - Fast Python package manager
 - **React** - Modern frontend framework
 - **Ant Design** - Professional UI components
+- **Tailwind CSS** - Utility-first CSS framework
+- **TanStack Query** - Data fetching and caching
 
 **Note**: This project is not affiliated with LangChain AI or the LangSmith platform. The API compatibility is implemented independently based on public API specifications.
 
