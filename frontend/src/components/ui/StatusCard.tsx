@@ -1,23 +1,36 @@
-import { Typography } from "antd";
 import React from "react";
+import { useThemeColors, useThemeSpacing } from "../../hooks/useThemeStyles";
 import Card from "./Card";
-
-const { Title, Text } = Typography;
+import { ThemeIcon, ThemeText } from "./theme";
 
 interface StatusItem {
   icon: React.ReactNode;
   title: string;
   count: number;
-  iconBgColor?: string;
-  iconColor?: string;
+  iconColor?:
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "error"
+    | "info"
+    | "muted"
+    | "inverse";
 }
 
 interface StatusCardProps {
   title: string;
   description: string;
   headerIcon: React.ReactNode;
-  headerIconBgColor?: string;
-  headerIconColor?: string;
+  headerIconColor?:
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "error"
+    | "info"
+    | "muted"
+    | "inverse";
   items: StatusItem[];
   className?: string;
 }
@@ -26,34 +39,46 @@ const StatusCard: React.FC<StatusCardProps> = ({
   title,
   description,
   headerIcon,
-  headerIconBgColor = "bg-blue-100",
-  headerIconColor = "text-blue-600",
+  headerIconColor = "primary",
   items,
   className = "",
 }) => {
+  const { getColor } = useThemeColors();
+  const { getSpacing } = useThemeSpacing();
+
   return (
     <Card className={className}>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center" style={{ gap: "24px" }}>
+        <div className="flex items-center" style={{ gap: getSpacing("6") }}>
           <div
-            className={`flex items-center justify-center w-10 h-10 ${headerIconBgColor} rounded-xl`}
+            className="flex items-center justify-center w-10 h-10 rounded-xl"
+            style={{
+              backgroundColor: getColor("surface-hover"),
+            }}
           >
-            <div className={`text-xl ${headerIconColor}`}>{headerIcon}</div>
+            <ThemeIcon size="lg" color={headerIconColor}>
+              {headerIcon}
+            </ThemeIcon>
           </div>
           <div style={{ padding: "4px 0" }}>
-            <Title
-              level={4}
-              className="m-0 p-0 text-gray-900"
+            <ThemeText
+              size="xl"
+              weight="semibold"
+              variant="primary"
+              as="h4"
               style={{ margin: 0, padding: 0, lineHeight: 1.2 }}
             >
               {title}
-            </Title>
-            <Text
-              className="text-gray-600 m-0 p-0"
+            </ThemeText>
+            <ThemeText
+              variant="secondary"
+              size="base"
+              weight="normal"
+              as="p"
               style={{ margin: 0, padding: 0, lineHeight: 1.2 }}
             >
               {description}
-            </Text>
+            </ThemeText>
           </div>
         </div>
       </div>
@@ -62,26 +87,37 @@ const StatusCard: React.FC<StatusCardProps> = ({
         {items.map((item, index) => (
           <div
             key={index}
-            className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
+            className="flex justify-between items-center p-4 rounded-lg"
+            style={{
+              backgroundColor: getColor("surface-hover"),
+              borderColor: getColor("border"),
+              gap: getSpacing("3"),
+            }}
           >
             <span
-              className="flex items-center text-gray-800"
-              style={{ gap: "12px" }}
+              className="flex items-center"
+              style={{
+                gap: getSpacing("3"),
+                color: getColor("text"),
+              }}
             >
               <div
-                className={`flex items-center justify-center w-8 h-8 ${
-                  item.iconBgColor || "bg-gray-100"
-                } rounded-lg`}
+                className="flex items-center justify-center w-8 h-8 rounded-lg"
+                style={{
+                  backgroundColor: getColor("surface-active"),
+                }}
               >
-                <div className={item.iconColor || "text-gray-600"}>
+                <ThemeIcon size="sm" color={item.iconColor || "text-secondary"}>
                   {item.icon}
-                </div>
+                </ThemeIcon>
               </div>
-              <span className="font-medium">{item.title}</span>
+              <ThemeText variant="primary" size="base" weight="medium">
+                {item.title}
+              </ThemeText>
             </span>
-            <span className="font-bold text-lg text-gray-900">
+            <ThemeText variant="primary" size="lg" weight="bold">
               {item.count}
-            </span>
+            </ThemeText>
           </div>
         ))}
       </div>

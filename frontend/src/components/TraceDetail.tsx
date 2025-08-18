@@ -175,7 +175,6 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
       <div className="space-y-4">
         <div className="max-w-full">
           <Descriptions
-            title="Run Details"
             size="small"
             column={1}
             bordered
@@ -240,10 +239,11 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
         >
           <Collapse
             size="small"
-            className="w-full border-gray-200"
+            className="w-full border-gray-200 dark:border-gray-600"
             style={{
               width: "100%",
               boxSizing: "border-box",
+              borderColor: "var(--color-border)",
             }}
           >
             {node.inputs && (
@@ -277,13 +277,15 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                   }}
                 >
                   <pre
-                    className="text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 whitespace-pre overflow-x-auto overflow-y-auto block w-full"
+                    className="text-xs bg-gray-50 dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600 whitespace-pre overflow-x-auto overflow-y-auto block w-full"
                     style={{
                       width: "100%",
                       minWidth: "0",
                       wordWrap: "break-word",
                       wordBreak: "break-all",
                       boxSizing: "border-box",
+                      backgroundColor: "var(--color-surface-hover)",
+                      borderColor: "var(--color-border-hover)",
                     }}
                   >
                     {formatters.formatJSON(node.inputs)}
@@ -322,13 +324,15 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                   }}
                 >
                   <pre
-                    className="text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 whitespace-pre overflow-x-auto overflow-y-auto block w-full"
+                    className="text-xs bg-gray-50 dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600 whitespace-pre overflow-x-auto overflow-y-auto block w-full"
                     style={{
                       width: "100%",
                       minWidth: "0",
                       wordWrap: "break-word",
                       wordBreak: "break-all",
                       boxSizing: "border-box",
+                      backgroundColor: "var(--color-surface-hover)",
+                      borderColor: "var(--color-border-hover)",
                     }}
                   >
                     {formatters.formatJSON(node.outputs)}
@@ -411,13 +415,15 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                   }}
                 >
                   <pre
-                    className="text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 whitespace-pre overflow-x-auto overflow-y-auto block w-full"
+                    className="text-xs bg-gray-50 dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600 whitespace-pre overflow-x-auto overflow-y-auto block w-full"
                     style={{
                       width: "100%",
                       minWidth: "0",
                       wordWrap: "break-word",
                       wordBreak: "break-all",
                       boxSizing: "border-box",
+                      backgroundColor: "var(--color-surface-hover)",
+                      borderColor: "var(--color-border-hover)",
                     }}
                   >
                     {formatters.formatJSON(node.extra)}
@@ -434,7 +440,10 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
   if (!traceId) {
     return (
       <Card className="h-full">
-        <div className="text-lg font-semibold text-gray-900 mb-4">
+        <div
+          className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4"
+          style={{ color: "var(--color-text)" }}
+        >
           Trace Details
         </div>
         <Empty
@@ -465,7 +474,10 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
       <div className="flex items-center justify-between mb-4">
         <Space>
           <BranchesOutlined />
-          <span className="text-lg font-semibold text-gray-900">
+          <span
+            className="text-lg font-semibold text-gray-900 dark:text-gray-100"
+            style={{ color: "var(--color-text)" }}
+          >
             Trace Hierarchy
           </span>
           {data && (
@@ -545,8 +557,24 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               {/* Left Panel: Hierarchy Overview + Tree View */}
               <div className="flex flex-col w-1/2 space-y-4 overflow-hidden">
                 {/* Hierarchy Overview */}
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex-shrink-0">
-                  <Space split={<span className="text-gray-300">|</span>} wrap>
+                <div
+                  className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 flex-shrink-0"
+                  style={{
+                    backgroundColor: "var(--color-surface-hover)",
+                    borderColor: "var(--color-border)",
+                  }}
+                >
+                  <Space
+                    split={
+                      <span
+                        className="text-gray-300 dark:text-gray-500"
+                        style={{ color: "var(--color-text-muted)" }}
+                      >
+                        |
+                      </span>
+                    }
+                    wrap
+                  >
                     <span className="text-sm">
                       <ClockCircleOutlined className="mr-1" />
                       Started:{" "}
@@ -575,7 +603,10 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                 </div>
 
                 {/* Tree View and Timeline - Full height in expanded mode */}
-                <div className="flex-1 overflow-hidden border border-gray-200 rounded-lg">
+                <div
+                  className="flex-1 overflow-hidden border border-gray-200 dark:border-gray-600 rounded-lg"
+                  style={{ borderColor: "var(--color-border)" }}
+                >
                   <div className="px-4 pt-2">
                     <Tabs
                       defaultActiveKey="tree"
@@ -688,7 +719,10 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500">
+                  <div
+                    className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400"
+                    style={{ color: "var(--color-text-secondary)" }}
+                  >
                     <div className="text-center">
                       <span className="text-4xl mb-2 block">🔍</span>
                       <p>Select a node from the hierarchy to view details</p>
@@ -708,8 +742,24 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               }}
             >
               {/* Hierarchy Overview */}
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex-shrink-0">
-                <Space split={<span className="text-gray-300">|</span>} wrap>
+              <div
+                className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 flex-shrink-0"
+                style={{
+                  backgroundColor: "var(--color-surface-hover)",
+                  borderColor: "var(--color-border)",
+                }}
+              >
+                <Space
+                  split={
+                    <span
+                      className="text-gray-300 dark:text-gray-500"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      |
+                    </span>
+                  }
+                  wrap
+                >
                   <span className="text-sm">
                     <ClockCircleOutlined className="mr-1" />
                     Started:{" "}
@@ -738,7 +788,10 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               </div>
 
               {/* Tree View - Limited height in compact mode */}
-              <div className="flex-shrink-0 max-h-48 overflow-auto border border-gray-200 rounded-lg w-full p-3">
+              <div
+                className="flex-shrink-0 max-h-48 overflow-auto border border-gray-200 dark:border-gray-600 rounded-lg w-full p-3"
+                style={{ borderColor: "var(--color-border)" }}
+              >
                 <Tree
                   className="trace-hierarchy-tree w-full"
                   style={{
@@ -755,7 +808,10 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
 
               {/* Selected Node Details - Below tree in compact mode */}
               {selectedNode && (
-                <div className="flex-1 border-t border-gray-200 pt-4 overflow-auto min-h-0 w-full">
+                <div
+                  className="flex-1 border-t border-gray-200 dark:border-gray-600 pt-4 overflow-auto min-h-0 w-full"
+                  style={{ borderTopColor: "var(--color-border)" }}
+                >
                   <Title level={5} className="mb-3">
                     Node Details
                   </Title>

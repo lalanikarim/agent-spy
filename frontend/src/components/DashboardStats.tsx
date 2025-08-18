@@ -66,8 +66,7 @@ const DashboardStats: React.FC = () => {
             title="Total Traces"
             value={formatters.formatNumber(stats.total_traces)}
             icon={<BranchesOutlined />}
-            iconBgColor="bg-blue-100"
-            iconColor="text-blue-600"
+            iconColor="info"
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -75,8 +74,7 @@ const DashboardStats: React.FC = () => {
             title="Total Runs"
             value={formatters.formatNumber(stats.total_runs)}
             icon={<DatabaseOutlined />}
-            iconBgColor="bg-green-100"
-            iconColor="text-green-600"
+            iconColor="success"
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -84,8 +82,7 @@ const DashboardStats: React.FC = () => {
             title="Recent (24h)"
             value={formatters.formatNumber(stats.recent_runs_24h)}
             icon={<ClockCircleOutlined />}
-            iconBgColor="bg-orange-100"
-            iconColor="text-orange-600"
+            iconColor="warning"
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -93,8 +90,7 @@ const DashboardStats: React.FC = () => {
             title="Success Rate"
             value={`${successRate}%`}
             icon={<CheckCircleOutlined />}
-            iconBgColor="bg-green-100"
-            iconColor="text-green-600"
+            iconColor="success"
           />
         </Col>
       </Row>
@@ -107,29 +103,25 @@ const DashboardStats: React.FC = () => {
             title="Status Distribution"
             description="Trace status overview"
             headerIcon={<BranchesOutlined />}
-            headerIconBgColor="bg-blue-100"
-            headerIconColor="text-blue-600"
+            headerIconColor="info"
             items={[
               {
                 icon: <CheckCircleOutlined />,
                 title: "Completed",
                 count: completedCount,
-                iconBgColor: "bg-green-100",
-                iconColor: "text-green-600",
+                iconColor: "success",
               },
               {
                 icon: <FastForwardOutlined />,
                 title: "Running",
                 count: runningCount,
-                iconBgColor: "bg-blue-100",
-                iconColor: "text-blue-600",
+                iconColor: "info",
               },
               {
                 icon: <ExclamationCircleOutlined />,
                 title: "Failed",
                 count: failedCount,
-                iconBgColor: "bg-red-100",
-                iconColor: "text-red-600",
+                iconColor: "error",
               },
             ]}
           />
@@ -141,8 +133,7 @@ const DashboardStats: React.FC = () => {
             title="Run Types"
             description="Execution type breakdown"
             headerIcon={<DatabaseOutlined />}
-            headerIconBgColor="bg-indigo-100"
-            headerIconColor="text-indigo-600"
+            headerIconColor="secondary"
             items={Object.entries(stats.run_type_distribution).map(
               ([type, count]) => {
                 const { text, icon } = formatters.formatRunType(type);
@@ -150,8 +141,7 @@ const DashboardStats: React.FC = () => {
                   icon: icon,
                   title: text,
                   count: count,
-                  iconBgColor: "bg-indigo-100",
-                  iconColor: "text-indigo-600",
+                  iconColor: "secondary",
                 };
               }
             )}
@@ -164,8 +154,7 @@ const DashboardStats: React.FC = () => {
             title="Top Projects"
             description="Most active projects"
             headerIcon={<ClockCircleOutlined />}
-            headerIconBgColor="bg-orange-100"
-            headerIconColor="text-orange-600"
+            headerIconColor="warning"
             items={
               Object.entries(stats.project_distribution).length > 0
                 ? Object.entries(stats.project_distribution)
@@ -175,8 +164,7 @@ const DashboardStats: React.FC = () => {
                       icon: "📁",
                       title: formatters.truncateString(project, 20),
                       count: count,
-                      iconBgColor: "bg-orange-100",
-                      iconColor: "text-orange-600",
+                      iconColor: "warning",
                     }))
                 : []
             }

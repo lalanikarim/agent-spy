@@ -96,7 +96,7 @@ const Dashboard: React.FC = () => {
       />
 
       {/* Header */}
-      <Header className="bg-surface border-b border-gray-100 shadow-theme-sm backdrop-blur-theme">
+      <Header className="bg-surface border-b border-gray-100 dark:border-gray-700 shadow-theme-sm backdrop-blur-theme">
         <div className="flex items-center justify-between px-6 py-0 h-16">
           <div className="flex items-center space-x-4">
             <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-theme-lg shadow-theme-sm">
@@ -118,7 +118,7 @@ const Dashboard: React.FC = () => {
           {/* Health Status, WebSocket Connection, and Theme Toggle */}
           <div className="flex items-center space-x-3">
             {/* Backend Health Status */}
-            <div className="flex items-center px-3 py-2 bg-surface-hover rounded-theme-lg border border-gray-100">
+            <div className="flex items-center px-3 py-2 bg-surface-hover rounded-theme-lg border border-gray-100 dark:border-gray-700">
               {healthLoading ? (
                 <div className="flex items-center space-x-2">
                   <Spin size="small" />

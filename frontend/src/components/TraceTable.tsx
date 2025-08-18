@@ -19,6 +19,7 @@ import {
 } from "antd";
 import type { ColumnsType, TableProps } from "antd/es/table";
 import React, { useMemo, useState } from "react";
+import { useTheme } from "../hooks/useThemeStyles";
 import { useRootTraces } from "../hooks/useTraces";
 import type { PaginationParams, TraceFilters, TraceRun } from "../types/traces";
 import { formatters } from "../utils/formatters";
@@ -41,6 +42,8 @@ const TraceTable: React.FC<TraceTableProps> = ({
   refreshTrigger,
   disabled = false,
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   // State for filters and pagination
   const [filters, setFilters] = useState<TraceFilters>({});
   const [pagination, setPagination] = useState<PaginationParams>({
@@ -111,10 +114,14 @@ const TraceTable: React.FC<TraceTableProps> = ({
       width: 250,
       render: (name: string, record: TraceRun) => (
         <div>
-          <Text strong className="block">
+          <Text strong className="block" style={{ color: "var(--color-text)" }}>
             {formatters.truncateString(name, 30)}
           </Text>
-          <Text type="secondary" className="text-xs">
+          <Text
+            type="secondary"
+            className="text-xs"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
             {record.id.slice(0, 8)}...
           </Text>
         </div>
@@ -154,7 +161,10 @@ const TraceTable: React.FC<TraceTableProps> = ({
       width: 100,
       render: (duration: number | null, record: TraceRun) => {
         return (
-          <Text className="font-mono text-sm">
+          <Text
+            className="font-mono text-sm"
+            style={{ color: "var(--color-text)" }}
+          >
             {formatters.formatTaskDuration(
               duration,
               record.start_time,
@@ -172,7 +182,7 @@ const TraceTable: React.FC<TraceTableProps> = ({
       width: 150,
       render: (startTime: string) => (
         <Tooltip title={formatters.formatDateTime(startTime)}>
-          <Text className="text-sm">
+          <Text className="text-sm" style={{ color: "var(--color-text)" }}>
             {formatters.formatRelativeTime(startTime)}
           </Text>
         </Tooltip>
@@ -187,7 +197,12 @@ const TraceTable: React.FC<TraceTableProps> = ({
         project ? (
           <Tag color="blue">{formatters.truncateString(project, 15)}</Tag>
         ) : (
-          <Text type="secondary">—</Text>
+          <Text
+            type="secondary"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            —
+          </Text>
         ),
     },
   ];
@@ -220,7 +235,12 @@ const TraceTable: React.FC<TraceTableProps> = ({
     <div className="h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-lg font-semibold text-gray-900">Root Traces</span>
+        <span
+          className="text-lg font-semibold text-gray-900 dark:text-gray-100"
+          style={{ color: "var(--color-text)" }}
+        >
+          Root Traces
+        </span>
         <Space>
           <Button
             icon={<ReloadOutlined />}
@@ -331,7 +351,22 @@ const TraceTable: React.FC<TraceTableProps> = ({
         size="small"
         onRow={(record) => ({
           onClick: () => !disabled && onTraceSelect(record.id),
-          className: selectedTraceId === record.id ? "bg-blue-50" : "",
+          className:
+            selectedTraceId === record.id ? "selected-row" : "hover-row",
+          style: {
+            backgroundColor:
+              selectedTraceId === record.id
+                ? isDark
+                  ? "var(--color-selection-dark)"
+                  : "var(--color-selection-light)"
+                : undefined,
+            color:
+              selectedTraceId === record.id
+                ? isDark
+                  ? "var(--color-selection-text-dark)"
+                  : "var(--color-selection-text-light)"
+                : undefined,
+          },
         })}
       />
     </div>

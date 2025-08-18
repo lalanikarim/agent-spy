@@ -1,4 +1,5 @@
 import React from "react";
+import { ThemeCard } from "./theme";
 
 interface CardProps {
   children: React.ReactNode;
@@ -12,34 +13,27 @@ const Card: React.FC<CardProps> = ({
   children,
   className = "",
   padding = "lg",
-  hover = true,
+  hover = false, // Changed default to false to match original behavior
   style = {},
 }) => {
-  const paddingValues = {
-    sm: "8px",
-    md: "12px",
-    lg: "16px",
-    xl: "20px",
+  // Map old padding values to new theme padding values
+  const paddingMap = {
+    sm: "small" as const,
+    md: "medium" as const,
+    lg: "medium" as const,
+    xl: "large" as const,
   };
 
-  const baseClasses = "bg-white";
-  const hoverClasses = hover
-    ? "hover:shadow-2xl hover:border-gray-200 transition-all duration-200"
-    : "";
-
   return (
-    <div
-      className={`${baseClasses} ${hoverClasses} ${className}`}
-      style={{
-        backgroundColor: "white",
-        borderRadius: "16px",
-        padding: paddingValues[padding],
-        boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)",
-        ...style,
-      }}
+    <ThemeCard
+      variant={hover ? "interactive" : "default"}
+      padding={paddingMap[padding]}
+      hover={hover}
+      className={className}
+      style={style}
     >
       {children}
-    </div>
+    </ThemeCard>
   );
 };
 
