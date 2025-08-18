@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-
-type Theme = "light" | "dark";
+import React, { createContext, useEffect, useState } from "react";
+import type { Theme } from "../theme/tokens";
+import { applyThemeToDocument } from "../theme/utils";
 
 interface ThemeContextType {
   theme: Theme;
@@ -36,13 +36,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     localStorage.setItem("agent-spy-theme", newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
-    // Apply Tailwind dark mode class
-    if (newTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    
+    // Apply theme using new utility function
+    applyThemeToDocument(newTheme);
   };
 
   const toggleTheme = () => {
@@ -52,14 +48,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // Apply theme to document on mount and theme change
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-
-    // Apply Tailwind dark mode class
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    // Apply theme using new utility function
+    applyThemeToDocument(theme);
 
     // Add theme transition class to body for smooth transitions
     document.body.classList.add("theme-transition");
@@ -99,31 +89,5 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   );
 };
 
-export const useTheme = (): ThemeContextType => {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
-};
-
-// Hook for getting theme-aware styles
-export const useThemeStyles = () => {
-  const { theme } = useTheme();
-
-  return {
-    isDark: theme === "dark",
-    isLight: theme === "light",
-    theme,
-    // Common style combinations
-    cardStyle:
-      "bg-surface border border-border rounded-theme-lg shadow-theme-md",
-    buttonStyle:
-      "bg-primary hover:bg-primary-hover text-text-inverse px-4 py-2 rounded-theme-md transition-colors duration-theme-normal",
-    inputStyle:
-      "bg-surface border border-border focus:border-border-focus rounded-theme-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-opacity-50",
-    textStyle: "text-text",
-    textSecondaryStyle: "text-text-secondary",
-    textMutedStyle: "text-text-muted",
-  };
-};
+// Export the context for use in hooks
+export { ThemeContext };

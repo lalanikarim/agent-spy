@@ -1,7 +1,7 @@
 import { MoonFilled, SunFilled } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 import React from "react";
-import { useTheme } from "../contexts/ThemeContext";
+import { useTheme, useThemeColors } from "../hooks/useThemeStyles";
 
 interface ThemeToggleProps {
   size?: "small" | "middle" | "large";
@@ -15,6 +15,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
   className = "",
 }) => {
   const { theme, toggleTheme } = useTheme();
+  const { getColor } = useThemeColors();
   const isDark = theme === "dark";
 
   const buttonSize = {
@@ -40,14 +41,14 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
           isDark ? (
             <SunFilled
               style={{
-                color: "var(--color-yellow-500)",
+                color: getColor("icon-light"),
                 fontSize: iconSize[size],
               }}
             />
           ) : (
             <MoonFilled
               style={{
-                color: "var(--color-gray-300)",
+                color: getColor("icon-dark"),
                 fontSize: iconSize[size],
               }}
             />

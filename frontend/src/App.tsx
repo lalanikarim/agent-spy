@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App as AntApp, ConfigProvider } from "antd";
 import "./App.css";
 import Dashboard from "./components/Dashboard";
-import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { useTheme } from "./hooks/useThemeStyles";
 import "./styles/theme.css";
 
 // App module loaded

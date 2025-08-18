@@ -1,12 +1,12 @@
 import React from "react";
+import { useThemeColors, useThemeSpacing } from "../../hooks/useThemeStyles";
 import Card from "./Card";
+import { ThemeIcon, ThemeText } from "./theme";
 
 interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ReactNode;
-  iconBgColor?: string;
-  iconColor?: string;
   className?: string;
 }
 
@@ -14,25 +14,41 @@ const StatCard: React.FC<StatCardProps> = ({
   title,
   value,
   icon,
-  iconBgColor = "bg-blue-100",
-  iconColor = "text-blue-600",
   className = "",
 }) => {
+  const { getColor } = useThemeColors();
+  const { getSpacing } = useThemeSpacing();
+
   return (
     <Card className={`h-full ${className}`}>
       {/* First row: Title */}
-      <div className="text-gray-400 dark:text-gray-500 text-sm font-medium mb-4" style={{ color: "var(--color-text-secondary)" }}>{title}</div>
+      <ThemeText
+        variant="secondary"
+        size="sm"
+        weight="medium"
+        style={{ marginBottom: getSpacing("4") }}
+      >
+        {title}
+      </ThemeText>
 
       {/* Second row: Icon, value, and description */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div
-            className={`flex items-center justify-center w-14 h-14 ${iconBgColor} rounded-lg transition-colors duration-200 flex-shrink-0`}
+            className="flex items-center justify-center w-14 h-14 rounded-lg transition-colors duration-200 flex-shrink-0"
+            style={{
+              backgroundColor: getColor("surface-hover"),
+              gap: getSpacing("4"),
+            }}
           >
-            <div className={`text-2xl ${iconColor}`}>{icon}</div>
+            <ThemeIcon size="xl" color="primary">
+              {icon}
+            </ThemeIcon>
           </div>
           <div className="flex flex-col">
-            <div className={`text-4xl font-bold ${iconColor}`}>{value}</div>
+            <ThemeText size="3xl" weight="bold" variant="primary">
+              {value}
+            </ThemeText>
           </div>
         </div>
       </div>
