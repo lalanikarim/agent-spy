@@ -7,6 +7,15 @@ interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ReactNode;
+  iconColor?:
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "error"
+    | "info"
+    | "muted"
+    | "inverse";
   className?: string;
 }
 
@@ -14,6 +23,7 @@ const StatCard: React.FC<StatCardProps> = ({
   title,
   value,
   icon,
+  iconColor = "primary",
   className = "",
 }) => {
   const { getColor } = useThemeColors();
@@ -41,7 +51,7 @@ const StatCard: React.FC<StatCardProps> = ({
               gap: getSpacing("4"),
             }}
           >
-            <ThemeIcon size="xl" color="primary">
+            <ThemeIcon size="xl" color={iconColor}>
               {icon}
             </ThemeIcon>
           </div>

@@ -7,12 +7,30 @@ interface StatusItem {
   icon: React.ReactNode;
   title: string;
   count: number;
+  iconColor?:
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "error"
+    | "info"
+    | "muted"
+    | "inverse";
 }
 
 interface StatusCardProps {
   title: string;
   description: string;
   headerIcon: React.ReactNode;
+  headerIconColor?:
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "error"
+    | "info"
+    | "muted"
+    | "inverse";
   items: StatusItem[];
   className?: string;
 }
@@ -21,6 +39,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
   title,
   description,
   headerIcon,
+  headerIconColor = "primary",
   items,
   className = "",
 }) => {
@@ -37,7 +56,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
               backgroundColor: getColor("surface-hover"),
             }}
           >
-            <ThemeIcon size="lg" color="primary">
+            <ThemeIcon size="lg" color={headerIconColor}>
               {headerIcon}
             </ThemeIcon>
           </div>
@@ -88,7 +107,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
                   backgroundColor: getColor("surface-active"),
                 }}
               >
-                <ThemeIcon size="sm" color="text-secondary">
+                <ThemeIcon size="sm" color={item.iconColor || "text-secondary"}>
                   {item.icon}
                 </ThemeIcon>
               </div>
