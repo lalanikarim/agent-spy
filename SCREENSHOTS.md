@@ -5,22 +5,22 @@ This document contains screenshots of the Agent Spy application with brief descr
 ## Dashboard View
 
 ![Dashboard](img/Dashboard.png)
-**Description**: Main dashboard interface showing the primary overview and navigation of the Agent Spy application.
+**Description**: Main dashboard interface of the Agent Spy application.
 
 ## Details View
 
 ![Details View](img/DetailsView.png)
-**Description**: Detailed view showing specific information and data breakdowns for selected items or agents.
+**Description**: Detailed view of the Agent Spy application.
 
 ## Preview Mode
 
 ![Preview](img/Preview.png)
-**Description**: Preview interface displaying how data or content appears before final processing or display.
+**Description**: Preview interface of the Agent Spy application.
 
 ## Traces View
 
 ![Traces](img/Traces.png)
-**Description**: Trace monitoring interface showing execution paths, logs, or debugging information for agent activities.
+**Description**: Trace monitoring interface of the Agent Spy application.
 
 ## Dark Mode Interface
 
