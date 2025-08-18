@@ -39,6 +39,10 @@
   --color-hover-dark: #475569;
   --color-hover-text: #1e293b;
   --color-hover-border: #cbd5e1;
+  --color-selection-light: #dbeafe;
+  --color-selection-dark: #1e40af;
+  --color-selection-text-light: #1e293b;
+  --color-selection-text-dark: #ffffff;
   --spacing-1: 4px;
   --spacing-2: 8px;
   --spacing-3: 12px;
@@ -124,6 +128,10 @@
   --color-hover-dark: #475569;
   --color-hover-text: #e2e8f0;
   --color-hover-border: #475569;
+  --color-selection-light: #1e3a8a;
+  --color-selection-dark: #64748b;
+  --color-selection-text-light: #ffffff;
+  --color-selection-text-dark: #ffffff;
   --spacing-1: 4px;
   --spacing-2: 8px;
   --spacing-3: 12px;
@@ -189,6 +197,12 @@
 .bg-theme-hover-dark { background-color: var(--color-hover-dark); }
 .text-theme-hover-text { color: var(--color-hover-text); }
 .border-theme-hover-border { border-color: var(--color-hover-border); }
+
+/* Dedicated selection utility classes */
+.bg-theme-selection-light { background-color: var(--color-selection-light); }
+.bg-theme-selection-dark { background-color: var(--color-selection-dark); }
+.text-theme-selection-text-light { color: var(--color-selection-text-light); }
+.text-theme-selection-text-dark { color: var(--color-selection-text-dark); }
 
 .shadow-theme-sm { box-shadow: var(--shadows-sm); }
 .shadow-theme-md { box-shadow: var(--shadows-md); }

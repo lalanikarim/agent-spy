@@ -42,6 +42,11 @@ export interface ColorTokens {
   "hover-dark": string;
   "hover-text": string;
   "hover-border": string;
+  // Dedicated selection colors for table row selection
+  "selection-light": string;
+  "selection-dark": string;
+  "selection-text-light": string;
+  "selection-text-dark": string;
 }
 
 export interface SpacingTokens {
@@ -165,6 +170,11 @@ export const lightTokens: ThemeTokens = {
     "hover-dark": "#475569", // slate-600 - visible dark hover
     "hover-text": "#1e293b", // slate-800 - dark text on hover
     "hover-border": "#cbd5e1", // slate-300 - light border on hover
+    // Dedicated selection colors for table row selection
+    "selection-light": "#dbeafe", // blue-100 - light blue selection
+    "selection-dark": "#1e40af", // blue-700 - darker blue selection
+    "selection-text-light": "#1e293b", // slate-800 - dark text on selection
+    "selection-text-dark": "#ffffff", // white text on selection
   },
   spacing: {
     "1": "4px",
@@ -274,6 +284,11 @@ export const darkTokens: ThemeTokens = {
     "hover-dark": "#334155", // slate-700 - subtle dark hover
     "hover-text": "#e2e8f0", // slate-200 - light text on hover
     "hover-border": "#64748b", // slate-500 - dark border on hover
+    // Dedicated selection colors for table row selection
+    "selection-light": "#1e3a8a", // blue-800 - darker blue selection for dark mode
+    "selection-dark": "#64748b", // slate-500 - bright gray selection for dark mode
+    "selection-text-light": "#ffffff", // white text on selection
+    "selection-text-dark": "#ffffff", // white text on selection
   },
   spacing: {
     "1": "4px",
@@ -355,16 +370,16 @@ export const getThemeTokens = (theme: Theme): ThemeTokens => {
 export const getThemeValue = (path: string, theme: Theme): string => {
   const tokens = getThemeTokens(theme);
   const keys = path.split(".");
-  let value: any = tokens;
+  let value: unknown = tokens;
 
   for (const key of keys) {
     if (value && typeof value === "object" && key in value) {
-      value = value[key];
+      value = (value as Record<string, unknown>)[key];
     } else {
       console.warn(`Theme token not found: ${path}`);
       return "";
     }
   }
 
-  return value;
+  return String(value);
 };

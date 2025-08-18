@@ -19,6 +19,7 @@ import {
 } from "antd";
 import type { ColumnsType, TableProps } from "antd/es/table";
 import React, { useMemo, useState } from "react";
+import { useTheme } from "../hooks/useThemeStyles";
 import { useRootTraces } from "../hooks/useTraces";
 import type { PaginationParams, TraceFilters, TraceRun } from "../types/traces";
 import { formatters } from "../utils/formatters";
@@ -41,6 +42,8 @@ const TraceTable: React.FC<TraceTableProps> = ({
   refreshTrigger,
   disabled = false,
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   // State for filters and pagination
   const [filters, setFilters] = useState<TraceFilters>({});
   const [pagination, setPagination] = useState<PaginationParams>({
@@ -353,7 +356,15 @@ const TraceTable: React.FC<TraceTableProps> = ({
           style: {
             backgroundColor:
               selectedTraceId === record.id
-                ? "var(--color-primary)"
+                ? isDark
+                  ? "var(--color-selection-dark)"
+                  : "var(--color-selection-light)"
+                : undefined,
+            color:
+              selectedTraceId === record.id
+                ? isDark
+                  ? "var(--color-selection-text-dark)"
+                  : "var(--color-selection-text-light)"
                 : undefined,
           },
         })}

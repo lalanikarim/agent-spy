@@ -66,8 +66,14 @@ const AntDesignTheme: React.FC<{ children: React.ReactNode }> = ({
           : "var(--color-surface-hover)",
         headerColor: isDark ? "var(--color-text)" : "var(--color-text)",
         rowHoverBg: isDark
-          ? "var(--color-surface-active)"
-          : "var(--color-surface-active)",
+          ? "var(--color-hover-dark)"
+          : "var(--color-hover-light)",
+        rowSelectedBg: isDark
+          ? "var(--color-selection-dark)"
+          : "var(--color-selection-light)",
+        rowSelectedHoverBg: isDark
+          ? "var(--color-selection-dark)"
+          : "var(--color-selection-light)",
         borderColor: "var(--color-border)",
         headerSplitColor: "var(--color-border)",
         colorBgContainer: isDark
@@ -150,11 +156,11 @@ const AntDesignTheme: React.FC<{ children: React.ReactNode }> = ({
         colorText: isDark ? "var(--color-text)" : "var(--color-text)",
         colorBorder: "var(--color-border)",
         colorFill: isDark
-          ? "var(--color-surface-hover)"
-          : "var(--color-surface-hover)",
+          ? "var(--color-hover-dark)"
+          : "var(--color-hover-light)",
         colorFillSecondary: isDark
-          ? "var(--color-surface-active)"
-          : "var(--color-surface-active)",
+          ? "var(--color-selection-dark)"
+          : "var(--color-selection-light)",
       },
     },
   };

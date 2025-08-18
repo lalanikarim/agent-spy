@@ -6,17 +6,27 @@
 }
 
 /* Tree hover styles with higher specificity */
-.trace-hierarchy-tree .ant-tree-node-content-wrapper:hover,
-.trace-hierarchy-tree .ant-tree-node-content-wrapper.ant-tree-node-selected:hover {
+.trace-hierarchy-tree .ant-tree-node-content-wrapper:hover {
   background-color: var(--color-hover-light) !important;
   color: var(--color-hover-text) !important;
 }
 
+/* Tree selection styles */
+.trace-hierarchy-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  background-color: var(--color-selection-light) !important;
+  color: var(--color-selection-text-light) !important;
+}
+
 /* Dark mode hover */
-[data-theme="dark"] .trace-hierarchy-tree .ant-tree-node-content-wrapper:hover,
-[data-theme="dark"] .trace-hierarchy-tree .ant-tree-node-content-wrapper.ant-tree-node-selected:hover {
+[data-theme="dark"] .trace-hierarchy-tree .ant-tree-node-content-wrapper:hover {
   background-color: var(--color-hover-dark) !important;
   color: var(--color-hover-text) !important;
+}
+
+/* Dark mode selection */
+[data-theme="dark"] .trace-hierarchy-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  background-color: var(--color-selection-dark) !important;
+  color: var(--color-selection-text-dark) !important;
 }
 
 /* Debug: Add a visible border to see if our CSS is loading */

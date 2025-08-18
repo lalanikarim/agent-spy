@@ -248,6 +248,12 @@ export const generateOptimizedCSS = () => {
 .text-theme-hover-text { color: var(--color-hover-text); }
 .border-theme-hover-border { border-color: var(--color-hover-border); }
 
+/* Dedicated selection utility classes */
+.bg-theme-selection-light { background-color: var(--color-selection-light); }
+.bg-theme-selection-dark { background-color: var(--color-selection-dark); }
+.text-theme-selection-text-light { color: var(--color-selection-text-light); }
+.text-theme-selection-text-dark { color: var(--color-selection-text-dark); }
+
 .shadow-theme-sm { box-shadow: var(--shadows-sm); }
 .shadow-theme-md { box-shadow: var(--shadows-md); }
 .shadow-theme-lg { box-shadow: var(--shadows-lg); }
