@@ -1,4 +1,4 @@
-import { MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { MoonFilled, SunFilled } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 import React from "react";
 import { useTheme } from "../contexts/ThemeContext";
@@ -15,7 +15,6 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
   className = "",
 }) => {
   const { theme, toggleTheme } = useTheme();
-
   const isDark = theme === "dark";
 
   const buttonSize = {
@@ -38,50 +37,40 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
       <Button
         type="text"
         icon={
-          <div className="relative">
-            {/* Sun Icon */}
-            <SunOutlined
-              size={iconSize[size]}
-              className={`absolute inset-0 transition-all duration-theme-normal ${
-                isDark
-                  ? "opacity-0 rotate-90 scale-75"
-                  : "opacity-100 rotate-0 scale-100"
-              }`}
-              style={{ color: "#f59e0b" }}
+          isDark ? (
+            <SunFilled
+              style={{
+                color: "var(--color-yellow-500)",
+                fontSize: iconSize[size],
+              }}
             />
-            {/* Moon Icon */}
-            <MoonOutlined
-              size={iconSize[size]}
-              className={`absolute inset-0 transition-all duration-theme-normal ${
-                isDark
-                  ? "opacity-100 rotate-0 scale-100"
-                  : "opacity-0 -rotate-90 scale-75"
-              }`}
-              style={{ color: "#6366f1" }}
+          ) : (
+            <MoonFilled
+              style={{
+                color: "var(--color-gray-300)",
+                fontSize: iconSize[size],
+              }}
             />
-          </div>
+          )
         }
         onClick={toggleTheme}
         className={`
           ${buttonSize[size]}
           flex items-center justify-center
-          bg-surface hover:bg-surface-hover
-          border-gray-100 dark:border-gray-600 hover:border-gray-200 dark:hover:border-gray-500
-          rounded-theme-full
-          transition-all duration-theme-normal
-          hover:shadow-theme-md
-          focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-opacity-50
+          rounded-full
+          transition-all duration-200
           ${className}
         `}
         style={{
           minWidth: "auto",
           padding: 0,
+          backgroundColor: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          color: "var(--color-text)",
         }}
       >
         {showLabel && (
-          <span className="ml-2 text-text font-theme-medium">
-            {isDark ? "Light" : "Dark"}
-          </span>
+          <span className="ml-2 font-medium">{isDark ? "Light" : "Dark"}</span>
         )}
       </Button>
     </Tooltip>
