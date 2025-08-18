@@ -3,6 +3,7 @@
 import asyncio
 import os
 from collections.abc import AsyncGenerator, Generator
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -14,15 +15,18 @@ from src.models.base import Base
 
 def pytest_configure(config):
     """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "database: mark test to run with database integration"
-    )
-    config.addinivalue_line(
-        "markers", "sqlite: mark test to run with SQLite database"
-    )
-    config.addinivalue_line(
-        "markers", "postgresql: mark test to run with PostgreSQL database"
-    )
+    config.addinivalue_line("markers", "database: mark test to run with database integration")
+    config.addinivalue_line("markers", "sqlite: mark test to run with SQLite database")
+    config.addinivalue_line("markers", "postgresql: mark test to run with PostgreSQL database")
+
+    # Set testing environment variable
+    os.environ["TESTING"] = "true"
+
+
+def pytest_unconfigure(config):
+    """Clean up after pytest."""
+    # Remove testing environment variable
+    os.environ.pop("TESTING", None)
 
 
 @pytest.fixture(scope="session")
@@ -44,10 +48,7 @@ def database_url(database_type: str) -> str:
     """Get the database URL for testing."""
     if database_type == "postgresql":
         # Use test PostgreSQL database
-        return os.getenv(
-            "TEST_DATABASE_URL",
-            "postgresql+asyncpg://test_user:test_pass@localhost:5432/test_db"
-        )
+        return os.getenv("TEST_DATABASE_URL", "postgresql+asyncpg://test_user:test_pass@localhost:5432/test_db")
     else:
         # Use in-memory SQLite for testing
         return "sqlite+aiosqlite:///:memory:"
@@ -102,6 +103,43 @@ def mock_settings():
     settings.database_url = "sqlite+aiosqlite:///:memory:"
     settings.database_echo = False
     return settings
+
+
+@pytest.fixture
+def sqlite_settings():
+    """Create SQLite-specific settings for testing."""
+    with patch.dict(
+        os.environ,
+        {"DATABASE_TYPE": "sqlite", "DATABASE_URL": "sqlite+aiosqlite:///:memory:", "DATABASE_ECHO": "false"},
+        clear=False,
+    ):
+        get_settings.cache_clear()
+        settings = get_settings()
+        yield settings
+        get_settings.cache_clear()
+
+
+@pytest.fixture
+def postgresql_settings():
+    """Create PostgreSQL-specific settings for testing."""
+    with patch.dict(
+        os.environ,
+        {
+            "DATABASE_TYPE": "postgresql",
+            "DATABASE_HOST": "localhost",
+            "DATABASE_PORT": "5432",
+            "DATABASE_NAME": "test_db",
+            "DATABASE_USER": "test_user",
+            "DATABASE_PASSWORD": "test_pass",
+            "DATABASE_SSL_MODE": "disable",
+            "DATABASE_ECHO": "false",
+        },
+        clear=False,
+    ):
+        get_settings.cache_clear()
+        settings = get_settings()
+        yield settings
+        get_settings.cache_clear()
 
 
 # Database-specific test markers
