@@ -97,6 +97,7 @@ const AntDesignTheme: React.FC<{ children: React.ReactNode }> = ({
         borderRadius: 8,
         controlHeight: 36,
         primaryShadow: isDark ? "none" : "0 2px 0 rgba(0, 0, 0, 0.045)",
+        defaultShadow: isDark ? "none" : "0 2px 0 rgba(0, 0, 0, 0.045)",
         colorBgContainer: isDark ? "#1e293b" : "#ffffff",
         colorBorder: isDark ? "#334155" : "#e2e8f0",
         colorText: isDark ? "#e2e8f0" : "#1e293b",
