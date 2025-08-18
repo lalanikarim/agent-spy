@@ -175,7 +175,6 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
       <div className="space-y-4">
         <div className="max-w-full">
           <Descriptions
-            title="Run Details"
             size="small"
             column={1}
             bordered

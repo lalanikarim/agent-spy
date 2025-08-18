@@ -55,6 +55,11 @@
   color: #ff4d4f;
 }
 
+/* Ant Design Descriptions border override */
+.ant-descriptions-bordered > .ant-descriptions-view {
+  border-color: var(--color-border) !important;
+}
+
 /* Custom scrollbar for hierarchy view */
 .hierarchy-scroll::-webkit-scrollbar {
   width: 6px;

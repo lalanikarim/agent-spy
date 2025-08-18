@@ -162,6 +162,16 @@ const AntDesignTheme: React.FC<{ children: React.ReactNode }> = ({
           ? "var(--color-selection-dark)"
           : "var(--color-selection-light)",
       },
+      Descriptions: {
+        colorBgContainer: isDark
+          ? "var(--color-surface)"
+          : "var(--color-surface)",
+        colorText: isDark ? "var(--color-text)" : "var(--color-text)",
+        colorBorder: "var(--color-border)",
+        colorTextLabel: isDark
+          ? "var(--color-text-secondary)"
+          : "var(--color-text-secondary)",
+      },
     },
   };
 
