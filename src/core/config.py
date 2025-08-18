@@ -193,6 +193,11 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
+    # Check if we're in a test environment
+    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING"):
+        # In test environment, prioritize environment variables over .env file
+        return Settings(_env_file=None)
+    
     # Use custom environment loading to prioritize .env file
     env_vars = Settings.load_env_file_priority()
 
