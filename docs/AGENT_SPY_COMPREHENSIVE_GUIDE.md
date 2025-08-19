@@ -53,7 +53,7 @@ agent-spy/
 │   ├── EXAMPLES_GUIDE.md      # Usage examples
 │   ├── FRONTEND_DASHBOARD.md  # Frontend documentation
 │   ├── OLLAMA_SETUP.md        # Ollama integration
-│   ├── PORT_CONFIGURATION_IMPLEMENTATION_SUMMARY.md
+│   ├── OTLP_INTEGRATION.md    # OpenTelemetry Protocol integration
 │   ├── PROJECT_OVERVIEW.md    # Project overview
 │   └── TROUBLESHOOTING.md     # Troubleshooting guide
 ├── examples/                   # Usage examples
@@ -146,9 +146,13 @@ agent-spy/
 │   │   ├── receiver/         # OTLP receivers
 │   │   │   ├── http_server.py # OTLP HTTP receiver
 │   │   │   ├── grpc_server.py # OTLP gRPC receiver
-│   │   │   └── converter.py   # OTLP span converter
-│   │   └── utils/            # OTLP utilities
-│   │       └── mapping.py    # OTLP mapping utilities
+│   │   │   ├── converter.py   # OTLP span converter
+│   │   │   ├── models.py      # OTLP data models
+│   │   │   └── protobuf_parser.py # OTLP protobuf parser
+│   │   ├── utils/            # OTLP utilities
+│   │   │   ├── mapping.py    # OTLP mapping utilities
+│   │   │   └── validation.py # OTLP validation utilities
+│   │   └── forwarder/        # OTLP forwarding (future)
 │   ├── repositories/         # Data access layer
 │   │   ├── feedback.py       # Feedback repository
 │   │   └── runs.py           # Run repository
@@ -513,31 +517,33 @@ flowchart TD
 - **Incremental trace sending** support for running and completed states
 - Responsive UI components
 - TypeScript type safety throughout frontend
+- **OTLP WebSocket integration** for real-time trace updates
+- **OTLP protobuf parsing** and validation
+- **OTLP span conversion** to Agent Spy runs
 
 ### 📈 Current Metrics
 
-- **Test Coverage**: 53% (47 tests passing, 2 skipped)
+- **Test Coverage**: 51% (65 tests passing, 2 skipped)
 - **Code Quality**: All linting and type checks passing
 - **API Endpoints**: 15+ endpoints implemented
 - **Frontend Components**: 12+ React components (including UI components)
-- **Backend Files**: 25 Python files (including OTLP integration)
+- **Backend Files**: 25+ Python files (including OTLP integration)
 - **Frontend Files**: 33 TypeScript/TSX files
 - **Documentation**: 13+ comprehensive guides
 - **Test Files**: 12 Python test files
 - **OTLP Support**: HTTP and gRPC receivers with real-time updates
+- **OTLP Tests**: 9 integration tests covering all major scenarios
 
 ### 🚧 Known Issues (To Fix Later)
 
-1. **Test Failures:**
-
-   - `test_api_docs_accessible` fails because API docs are only available in development mode
-
-2. **Configuration Issues:**
-   - Environment variable priority handling may need review
+1. **Test Coverage**: Some OTLP components have lower coverage due to complex async operations
+2. **Configuration Issues**: Environment variable priority handling may need review
 
 ### 📋 Planned Features
 
 - Authentication and authorization
+- Enhanced OTLP gRPC testing
+- Additional OTLP format support
 
 ## 🚀 Development Patterns
 
@@ -708,13 +714,12 @@ uv run pytest tests/e2e/
 
 - **README.md**: Main project overview and quick start
 - **AGENT_SPY_COMPREHENSIVE_GUIDE.md**: This document (for AI assistants)
-- **PROJECT_OVERVIEW.md**: Detailed project overview
-- **ARCHITECTURE.md**: System architecture documentation
+- **PROJECT_OVERVIEW.md**: High-level project introduction
+- **ARCHITECTURE.md**: Technical architecture details
 
 ### API Documentation
 
-- **API_REFERENCE.md**: Comprehensive API documentation
-- **BACKEND_API.md**: Backend-specific documentation
+- **API_REFERENCE.md**: Comprehensive API documentation (LangSmith + OTLP)
 - **OTLP_INTEGRATION.md**: OpenTelemetry Protocol integration guide
 
 ### Development Documentation
@@ -728,6 +733,7 @@ uv run pytest tests/e2e/
 - **FRONTEND_DASHBOARD.md**: Frontend component documentation
 - **EXAMPLES_GUIDE.md**: Usage examples and tutorials
 - **TROUBLESHOOTING.md**: Common issues and solutions
+- **OLLAMA_SETUP.md**: Ollama integration guide
 
 ## 🔄 Maintenance Instructions
 

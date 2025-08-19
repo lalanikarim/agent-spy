@@ -140,76 +140,62 @@ The OTLP integration automatically converts OpenTelemetry spans to Agent Spy run
 | `SPAN_KIND_PRODUCER` | `llm`              | Message producers      |
 | `SPAN_KIND_CONSUMER` | `retrieval`        | Message consumers      |
 
-## Real-time Updates
+## Real-time WebSocket Integration
 
 ### WebSocket Events
 
-The OTLP integration broadcasts real-time events:
+OTLP traces trigger the following WebSocket events:
 
-#### `trace.created`
+- **`trace.created`**: Sent when a new trace is created from OTLP span
+- **`trace.completed`**: Sent when a trace is completed (has end_time)
+
+### Event Data Structure
 
 ```json
 {
   "type": "trace.created",
   "data": {
-    "id": "uuid-string",
     "trace_id": "uuid-string",
     "name": "span-name",
-    "run_type": "internal",
+    "run_type": "chain|llm|tool|internal",
     "project_name": "service-name",
-    "source": "otlp_http",
-    "status": "running",
-    "start_time": "2025-08-19T19:12:18.202055Z",
-    "parent_run_id": "parent-uuid"
+    "source": "otlp_http|otlp_grpc"
   }
 }
 ```
 
-#### `trace.updated`
+### Integration Points
 
-```json
-{
-  "type": "trace.updated",
-  "data": {
-    "id": "uuid-string",
-    "trace_id": "uuid-string",
-    "name": "span-name",
-    "run_type": "internal",
-    "project_name": "service-name",
-    "source": "otlp_http",
-    "status": "completed",
-    "end_time": "2025-08-19T19:12:25.123456Z",
-    "duration_ms": 6913
-  }
-}
-```
+#### HTTP OTLP Receiver (`src/otel/receiver/http_server.py`)
 
-#### `trace.completed`
+- Broadcasts events after successful trace creation
+- Source: `"otlp_http"`
+- Handles protobuf and JSON formats
 
-```json
-{
-  "type": "trace.completed",
-  "data": {
-    "id": "uuid-string",
-    "trace_id": "uuid-string",
-    "name": "span-name",
-    "run_type": "internal",
-    "project_name": "service-name",
-    "source": "otlp_http",
-    "execution_time": 6.913,
-    "duration_ms": 6913
-  }
-}
-```
+#### gRPC OTLP Receiver (`src/otel/receiver/grpc_server.py`)
 
-### Frontend Integration
+- Broadcasts events after successful trace creation
+- Source: `"otlp_grpc"`
+- Handles standard OTLP gRPC protocol
 
-The frontend automatically updates with real-time data:
+### Error Handling
 
-- **2-second refresh intervals** for running traces
-- **Live elapsed time updates** for active traces
-- **Automatic UI updates** when new traces arrive
-- **Real-time notifications** for trace events
+- WebSocket failures don't break OTLP processing
+- UUID serialization handled properly
+- Graceful degradation if WebSocket is unavailable
+
+### Dashboard Integration
+
+The frontend automatically receives WebSocket events and updates:
+
+- Trace table in real-time
+- Real-time notifications
+- Connection status indicators
+- Automatic cache invalidation
+
+### Configuration
+
+No additional configuration required. WebSocket integration is enabled by default when OTLP receivers are active.
 
 ## Usage Examples
 
