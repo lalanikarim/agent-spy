@@ -1,5 +1,6 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { tracesApi } from "../api/client";
 import type {
   DashboardSummary,
@@ -17,6 +18,19 @@ export const QUERY_KEYS = {
   health: "health",
 } as const;
 
+// Custom hook for real-time elapsed time updates
+export const useRealTimeUpdates = (interval: number = 1000) => {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick(Date.now());
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [interval]);
+};
+
 // Custom hooks for data fetching
 export const useRootTraces = (
   filters: TraceFilters = {},
@@ -26,8 +40,8 @@ export const useRootTraces = (
   return useQuery({
     queryKey: [QUERY_KEYS.rootTraces, filters, pagination],
     queryFn: () => tracesApi.getRootTraces(filters, pagination),
-    staleTime: 30000, // 30 seconds
-    refetchInterval: options?.refetchInterval || 60000, // Refetch every minute
+    staleTime: 2000, // 2 seconds - allow frequent updates for running traces
+    refetchInterval: options?.refetchInterval || 2000, // Refetch every 2 seconds for real-time updates
     enabled: options?.enabled !== false,
   });
 };
@@ -39,7 +53,8 @@ export const useTraceHierarchy = (
   return useQuery({
     queryKey: [QUERY_KEYS.traceHierarchy, traceId],
     queryFn: () => tracesApi.getTraceHierarchy(traceId!),
-    staleTime: 60000, // 1 minute
+    staleTime: 2000, // 2 seconds - allow frequent updates for running traces
+    refetchInterval: 2000, // Refetch every 2 seconds for real-time updates
     enabled: !!traceId && options?.enabled !== false,
   });
 };
@@ -71,11 +86,5 @@ export const useHealth = (options?: {
     staleTime: 30000, // 30 seconds
     refetchInterval: options?.refetchInterval || 30000, // Refetch every 30 seconds
     enabled: options?.enabled !== false,
-    onSuccess: (data) => {
-      console.log("🏥 useHealth success:", data);
-    },
-    onError: (error) => {
-      console.error("🏥 useHealth error:", error);
-    },
   });
 };

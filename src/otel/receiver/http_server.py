@@ -130,18 +130,46 @@ class OtlpHttpServer:
                 logger.info(f"🔍 DEBUG: Attempting to create {len(runs_to_create)} runs in database")
 
                 created_runs = []
+                updated_runs = []
                 if runs_to_create:
                     try:
                         async with get_db_session() as session:
                             run_repository = RunRepository(session)
                             for i, run_create in enumerate(runs_to_create):
-                                logger.info(f"🔍 DEBUG: Creating run #{i + 1}: {run_create.name}")
-                                created_run = await run_repository.create(run_create, disable_events=True)
-                                created_runs.append(created_run)
-                                logger.info(f"✅ DEBUG: Successfully created run: {run_create.name}")
+                                logger.info(f"🔍 DEBUG: Processing run #{i + 1}: {run_create.name}")
+
+                                # Check if run already exists
+                                existing_run = await run_repository.get_by_id(run_create.id)
+
+                                if existing_run:
+                                    # Update existing run
+                                    logger.info(f"🔄 DEBUG: Updating existing run: {run_create.name}")
+                                    from src.schemas.runs import RunUpdate
+
+                                    run_update = RunUpdate(
+                                        id=run_create.id,
+                                        end_time=run_create.end_time,
+                                        outputs=run_create.outputs,
+                                        error=run_create.error,
+                                        extra=run_create.extra,
+                                        tags=run_create.tags,
+                                        events=run_create.events,
+                                    )
+                                    updated_run = await run_repository.update(run_create.id, run_update)
+                                    if updated_run:
+                                        updated_runs.append(updated_run)
+                                        logger.info(f"✅ DEBUG: Successfully updated run: {run_create.name}")
+                                else:
+                                    # Create new run
+                                    logger.info(f"🆕 DEBUG: Creating new run: {run_create.name}")
+                                    created_run = await run_repository.create(run_create, disable_events=True)
+                                    created_runs.append(created_run)
+                                    logger.info(f"✅ DEBUG: Successfully created run: {run_create.name}")
+
                             # The context manager will handle commit automatically
                         logger.info(
-                            f"✅ DEBUG: Successfully created {len(runs_to_create)} runs from {total_spans} spans via HTTP"
+                            f"✅ DEBUG: Successfully processed {len(runs_to_create)} runs from {total_spans} spans via HTTP "
+                            + f"(created: {len(created_runs)}, updated: {len(updated_runs)})"
                         )
 
                         # Broadcast WebSocket events for created runs
@@ -151,11 +179,15 @@ class OtlpHttpServer:
                                 await websocket_manager.broadcast_event(
                                     "trace.created",
                                     {
+                                        "id": str(created_run.id),
                                         "trace_id": str(created_run.id),
                                         "name": created_run.name,
                                         "run_type": created_run.run_type,
                                         "project_name": created_run.project_name,
                                         "source": "otlp_http",
+                                        "status": created_run.status,
+                                        "start_time": created_run.start_time.isoformat() if created_run.start_time else None,
+                                        "parent_run_id": str(created_run.parent_run_id) if created_run.parent_run_id else None,
                                     },
                                 )
                                 logger.info(f"📡 DEBUG: Broadcasted trace.created event for run: {created_run.name}")
@@ -165,12 +197,16 @@ class OtlpHttpServer:
                                     await websocket_manager.broadcast_event(
                                         "trace.completed",
                                         {
+                                            "id": str(created_run.id),
                                             "trace_id": str(created_run.id),
                                             "name": created_run.name,
                                             "run_type": created_run.run_type,
                                             "project_name": created_run.project_name,
                                             "source": "otlp_http",
                                             "execution_time": created_run.execution_time,
+                                            "duration_ms": created_run.execution_time * 1000
+                                            if created_run.execution_time
+                                            else None,
                                         },
                                     )
                                     logger.info(f"📡 DEBUG: Broadcasted trace.completed event for run: {created_run.name}")
@@ -178,6 +214,57 @@ class OtlpHttpServer:
                             except Exception as ws_error:
                                 logger.warning(
                                     f"⚠️ DEBUG: Failed to broadcast WebSocket event for run {created_run.name}: {ws_error}"
+                                )
+                                # Don't fail the OTLP request if WebSocket fails
+
+                        # Broadcast WebSocket events for updated runs
+                        for updated_run in updated_runs:
+                            try:
+                                # Broadcast trace.updated for status changes
+                                if updated_run.status in ["completed", "failed"]:
+                                    await websocket_manager.broadcast_event(
+                                        "trace.updated",
+                                        {
+                                            "id": str(updated_run.id),
+                                            "trace_id": str(updated_run.id),
+                                            "name": updated_run.name,
+                                            "run_type": updated_run.run_type,
+                                            "project_name": updated_run.project_name,
+                                            "source": "otlp_http",
+                                            "status": updated_run.status,
+                                            "end_time": updated_run.end_time.isoformat() if updated_run.end_time else None,
+                                            "duration_ms": updated_run.execution_time * 1000
+                                            if updated_run.execution_time
+                                            else None,
+                                        },
+                                    )
+                                    logger.info(f"📡 DEBUG: Broadcasted trace.updated event for run: {updated_run.name}")
+
+                                    # Also broadcast completion event
+                                    if updated_run.status == "completed":
+                                        await websocket_manager.broadcast_event(
+                                            "trace.completed",
+                                            {
+                                                "id": str(updated_run.id),
+                                                "trace_id": str(updated_run.id),
+                                                "name": updated_run.name,
+                                                "run_type": updated_run.run_type,
+                                                "project_name": updated_run.project_name,
+                                                "source": "otlp_http",
+                                                "execution_time": updated_run.execution_time,
+                                                "duration_ms": updated_run.execution_time * 1000
+                                                if updated_run.execution_time
+                                                else None,
+                                            },
+                                        )
+                                        logger.info(
+                                            f"📡 DEBUG: Broadcasted trace.completed event for updated run: {updated_run.name}"
+                                        )
+
+                            except Exception as ws_error:
+                                logger.warning(
+                                    "⚠️ DEBUG: Failed to broadcast WebSocket event for updated run "
+                                    + f"{updated_run.name}: {ws_error}"
                                 )
                                 # Don't fail the OTLP request if WebSocket fails
 
@@ -216,7 +303,11 @@ class OtlpHttpServer:
 
         # Convert timestamps
         start_time = unix_nanos_to_datetime(span_proto.start_time_unix_nano)
-        end_time = unix_nanos_to_datetime(span_proto.end_time_unix_nano) if span_proto.end_time_unix_nano else None
+        end_time = (
+            unix_nanos_to_datetime(span_proto.end_time_unix_nano)
+            if span_proto.end_time_unix_nano and span_proto.end_time_unix_nano > 0
+            else None
+        )
 
         # Convert attributes
         attributes = {}
@@ -287,7 +378,7 @@ class OtlpHttpServer:
         # Convert timestamps
         start_time = unix_nanos_to_datetime(int(span_json.get("startTimeUnixNano", 0)))
         end_time = None
-        if "endTimeUnixNano" in span_json and span_json["endTimeUnixNano"]:
+        if "endTimeUnixNano" in span_json and span_json["endTimeUnixNano"] and int(span_json["endTimeUnixNano"]) > 0:
             end_time = unix_nanos_to_datetime(int(span_json["endTimeUnixNano"]))
 
         # Convert attributes
