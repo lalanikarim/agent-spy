@@ -4,6 +4,7 @@
   "service": "backend",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
+  "appPort": [8000],
   "forwardPorts": [8000],
   "portsAttributes": {
     "8000": {
@@ -12,13 +13,9 @@
     }
   },
   "otherPortsAttributes": {
-    "3000": {
-      "label": "Frontend",
-      "onAutoForward": "silent"
-    },
     "5432": {
       "label": "Database",
-      "onAutoForward": "silent"
+      "onAutoForward": "ignore"
     }
   },
   "customizations": {
@@ -49,7 +46,9 @@
         "editor.formatOnSave": true,
         "files.eol": "\n",
         "files.insertFinalNewline": true,
-        "files.trimTrailingWhitespace": true
+        "files.trimTrailingWhitespace": true,
+        "remote.autoForwardPorts": false,
+        "remote.autoForwardPortsSource": "output"
       },
       "extensions": [
         "ms-python.python",
