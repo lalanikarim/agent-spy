@@ -1,10 +1,11 @@
-"""OTLP HTTP server for receiving traces."""
+"""OTLP HTTP receiver for Agent Spy."""
 
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from src.api.websocket import manager as websocket_manager
 from src.core.database import get_db_session
 from src.core.logging import get_logger
 from src.otel.receiver.converter import OtlpToAgentSpyConverter
@@ -128,18 +129,58 @@ class OtlpHttpServer:
                 # Create runs
                 logger.info(f"🔍 DEBUG: Attempting to create {len(runs_to_create)} runs in database")
 
+                created_runs = []
                 if runs_to_create:
                     try:
                         async with get_db_session() as session:
                             run_repository = RunRepository(session)
                             for i, run_create in enumerate(runs_to_create):
                                 logger.info(f"🔍 DEBUG: Creating run #{i + 1}: {run_create.name}")
-                                await run_repository.create(run_create, disable_events=True)
+                                created_run = await run_repository.create(run_create, disable_events=True)
+                                created_runs.append(created_run)
                                 logger.info(f"✅ DEBUG: Successfully created run: {run_create.name}")
                             # The context manager will handle commit automatically
                         logger.info(
                             f"✅ DEBUG: Successfully created {len(runs_to_create)} runs from {total_spans} spans via HTTP"
                         )
+
+                        # Broadcast WebSocket events for created runs
+                        for created_run in created_runs:
+                            try:
+                                # Always broadcast trace.created
+                                await websocket_manager.broadcast_event(
+                                    "trace.created",
+                                    {
+                                        "trace_id": str(created_run.id),
+                                        "name": created_run.name,
+                                        "run_type": created_run.run_type,
+                                        "project_name": created_run.project_name,
+                                        "source": "otlp_http",
+                                    },
+                                )
+                                logger.info(f"📡 DEBUG: Broadcasted trace.created event for run: {created_run.name}")
+
+                                # If the run is completed, also broadcast trace.completed
+                                if created_run.status == "completed":
+                                    await websocket_manager.broadcast_event(
+                                        "trace.completed",
+                                        {
+                                            "trace_id": str(created_run.id),
+                                            "name": created_run.name,
+                                            "run_type": created_run.run_type,
+                                            "project_name": created_run.project_name,
+                                            "source": "otlp_http",
+                                            "execution_time": created_run.execution_time,
+                                        },
+                                    )
+                                    logger.info(f"📡 DEBUG: Broadcasted trace.completed event for run: {created_run.name}")
+
+                            except Exception as ws_error:
+                                logger.warning(
+                                    f"⚠️ DEBUG: Failed to broadcast WebSocket event for run {created_run.name}: {ws_error}"
+                                )
+                                # Don't fail the OTLP request if WebSocket fails
+
                     except Exception as e:
                         logger.error(f"❌ DEBUG: Failed to create runs via HTTP: {e}")
                         raise HTTPException(status_code=500, detail=f"Failed to store traces: {str(e)}")

@@ -1,4 +1,4 @@
-"""OTLP gRPC server for receiving traces."""
+"""OTLP gRPC server for Agent Spy."""
 
 import asyncio
 from concurrent import futures
@@ -7,6 +7,7 @@ from typing import Any
 import grpc
 from opentelemetry.proto.collector.trace.v1 import trace_service_pb2, trace_service_pb2_grpc
 
+from src.api.websocket import manager as websocket_manager
 from src.core.database import get_db_session
 from src.core.logging import get_logger
 from src.otel.receiver.converter import OtlpToAgentSpyConverter
@@ -58,14 +59,52 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
                             continue
 
             # Batch create runs
+            created_runs = []
             if runs_to_create:
                 try:
                     async with get_db_session() as session:
                         run_repository = RunRepository(session)
                         for run_create in runs_to_create:
-                            await run_repository.create(run_create, disable_events=True)
+                            created_run = await run_repository.create(run_create, disable_events=True)
+                            created_runs.append(created_run)
                         # The context manager will handle commit automatically
                     logger.info(f"Successfully created {len(runs_to_create)} runs from {total_spans} spans")
+
+                    # Broadcast WebSocket events for created runs
+                    for created_run in created_runs:
+                        try:
+                            # Always broadcast trace.created
+                            await websocket_manager.broadcast_event(
+                                "trace.created",
+                                {
+                                    "trace_id": str(created_run.id),
+                                    "name": created_run.name,
+                                    "run_type": created_run.run_type,
+                                    "project_name": created_run.project_name,
+                                    "source": "otlp_grpc",
+                                },
+                            )
+                            logger.info(f"📡 Broadcasted trace.created event for run: {created_run.name}")
+
+                            # If the run is completed, also broadcast trace.completed
+                            if created_run.status == "completed":
+                                await websocket_manager.broadcast_event(
+                                    "trace.completed",
+                                    {
+                                        "trace_id": str(created_run.id),
+                                        "name": created_run.name,
+                                        "run_type": created_run.run_type,
+                                        "project_name": created_run.project_name,
+                                        "source": "otlp_grpc",
+                                        "execution_time": created_run.execution_time,
+                                    },
+                                )
+                                logger.info(f"📡 Broadcasted trace.completed event for run: {created_run.name}")
+
+                        except Exception as ws_error:
+                            logger.warning(f"⚠️ Failed to broadcast WebSocket event for run {created_run.name}: {ws_error}")
+                            # Don't fail the gRPC request if WebSocket fails
+
                 except Exception as e:
                     logger.error(f"Failed to create runs: {e}")
                     context.set_code(grpc.StatusCode.INTERNAL)
