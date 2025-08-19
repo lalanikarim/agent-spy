@@ -57,7 +57,11 @@ class NestedWorkflowOTLPgRPC:
         status_message: str = "",
     ) -> bytes:
         """Create a span with the given parameters."""
-        span_id = uuid4().bytes
+        # Add timestamp to make UUID more unique and prevent collisions
+        import time
+        unique_id = f"{uuid4()}-{int(time.time() * 1000000)}"
+        span_id = unique_id.encode('utf-8')[:16]  # Take first 16 bytes for span ID
+
         span = trace_pb2.Span()
 
         span.name = name
@@ -157,11 +161,6 @@ class NestedWorkflowOTLPgRPC:
         """Simulate a second-level call with random wait time."""
         print(f"🔄 Second-level call {call_number} starting...")
 
-        # Random wait time between 5-10 seconds
-        wait_time = random.uniform(5.0, 10.0)
-
-        start_time = datetime.now()
-
         # Create span for this call (STARTING - no end_time)
         span_id = self.create_span(
             name=f"second_level_call_{call_number}",
@@ -173,17 +172,21 @@ class NestedWorkflowOTLPgRPC:
                 "component": "workflow_engine",
                 "input.data": f"Processing data for call {call_number}",
             },
-            start_time=start_time,
+            start_time=datetime.now(),
             # No end_time = running status
         )
 
         # Send the span immediately when it starts (running status)
         span = next(s for s in self.spans if s.span_id == span_id)
-        await self.send_single_span(span)
-        print(f"   📤 Sent trace for call {call_number} (RUNNING)")
+        # Don't send running status - only send when completed
+        # await self.send_single_span(span)
+        print(f"   📤 Created trace for call {call_number} (will send when completed)")
 
-        # Simulate the work
-        await asyncio.sleep(wait_time)
+        # Random wait time for the actual work (10-20 seconds)
+        work_wait_time = random.uniform(10.0, 20.0)
+        print(f"   ⏳ Call {call_number} working for {work_wait_time:.2f}s...")
+        await asyncio.sleep(work_wait_time)
+
         end_time = datetime.now()
 
         # Update the span with completion data
@@ -194,8 +197,8 @@ class NestedWorkflowOTLPgRPC:
 
                 # Add completion attributes
                 completion_attr = span.attributes.add()
-                completion_attr.key = "wait_time_seconds"
-                completion_attr.value.double_value = round(wait_time, 2)
+                completion_attr.key = "work_wait_time_seconds"
+                completion_attr.value.double_value = round(work_wait_time, 2)
 
                 completion_attr = span.attributes.add()
                 completion_attr.key = "output.result"
@@ -209,10 +212,10 @@ class NestedWorkflowOTLPgRPC:
                 await self.send_single_span(span)
                 break
 
-        print(f"   ✅ Second-level call {call_number} completed in {wait_time:.2f}s")
+        print(f"   ✅ Second-level call {call_number} completed in {work_wait_time:.2f}s")
         print(f"   📤 Sent trace for call {call_number} (COMPLETED)")
 
-        return {"call_number": call_number, "duration": wait_time, "span_id": span_id, "status": "completed"}
+        return {"call_number": call_number, "duration": work_wait_time, "span_id": span_id, "status": "completed"}
 
     async def run_nested_workflow(self):
         """Execute the nested workflow."""
@@ -239,9 +242,10 @@ class NestedWorkflowOTLPgRPC:
         )
 
         # Send root span immediately when it starts (running status)
-        root_span = next(s for s in self.spans if s.span_id == root_span_id)
-        await self.send_single_span(root_span)
-        print("📤 Sent trace for root workflow (RUNNING)")
+        # root_span = next(s for s in self.spans if s.span_id == root_span_id)
+        # Don't send running status - only send when completed
+        # await self.send_single_span(root_span)
+        print("📤 Created root workflow span (will send when completed)")
 
         print("📋 Step 1: Top-level call started")
         print("   ⏳ Waiting 5 seconds...")
@@ -301,16 +305,17 @@ class NestedWorkflowOTLPgRPC:
         print(f"   Total spans created: {len(self.spans)}")
         print(f"   Second-level calls completed: {len(second_level_results)}")
         print("📤 Sent trace for root workflow (COMPLETED)")
-
-        for result in second_level_results:
-            print(f"   - Call {result['call_number']}: {result['duration']:.2f}s")
+        for i, result in enumerate(second_level_results):
+            print(f"   - Call {i + 1}: {result['duration']:.2f}s")
 
         print("\n🔍 View your trace in Agent Spy:")
         print("   Dashboard: http://localhost:8000")
         print(f"   Trace ID: {self.trace_id.hex()}")
         print("   You should see traces appear in real-time as they start and complete!")
 
-        return True
+        print("\n✅ Example completed successfully!")
+        print("   Check the Agent Spy dashboard to see the trace hierarchy.")
+        print("   You should have seen traces appear in real-time!")
 
 
 async def main():

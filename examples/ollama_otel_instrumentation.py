@@ -32,6 +32,7 @@ Usage:
 """
 
 import asyncio
+import os
 import time
 from typing import Any
 
@@ -69,6 +70,19 @@ class OllamaOTelInstrumentation:
 
     def _detect_ollama_host(self) -> str:
         """Auto-detect Ollama host URL for container environment."""
+        # First check if OLLAMA_HOST environment variable is set
+        ollama_host = os.getenv("OLLAMA_HOST")
+        if ollama_host:
+            print(f"🔍 Using OLLAMA_HOST: {ollama_host}")
+            try:
+                test_client = ollama.Client(host=ollama_host)
+                test_client.list()
+                print(f"✅ Found Ollama at: {ollama_host}")
+                return ollama_host
+            except Exception as e:
+                print(f"⚠️  OLLAMA_HOST {ollama_host} not accessible: {e}")
+                print("   Falling back to auto-detection...")
+
         # Try common container-to-host networking options
         potential_hosts = [
             "http://192.168.1.200:11434",  # Specified host IP
