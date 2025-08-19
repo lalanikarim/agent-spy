@@ -84,11 +84,11 @@ class OtlpHttpServer:
                                             span = scope_spans.spans.add()
 
                                             # Basic span fields
-                                            if "traceId" in span_json:
+                                            if "traceId" in span_json and span_json["traceId"] is not None:
                                                 span.trace_id = span_json["traceId"].encode()
-                                            if "spanId" in span_json:
+                                            if "spanId" in span_json and span_json["spanId"] is not None:
                                                 span.span_id = span_json["spanId"].encode()
-                                            if "parentSpanId" in span_json:
+                                            if "parentSpanId" in span_json and span_json["parentSpanId"] is not None:
                                                 span.parent_span_id = span_json["parentSpanId"].encode()
                                             if "name" in span_json:
                                                 span.name = span_json["name"]
