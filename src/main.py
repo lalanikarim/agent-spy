@@ -134,8 +134,7 @@ def create_app() -> FastAPI:
     if settings.otlp_http_enabled:
         try:
             otlp_http_server = OtlpHttpServer(path=settings.otlp_http_path)
-            run_repository = RunRepository()
-            otlp_http_server.set_run_repository(run_repository)
+            # Note: RunRepository will be set with proper session in the request handlers
             app.include_router(otlp_http_server.router)
             logger.info(f"OTLP HTTP server configured at {settings.otlp_http_path}")
         except Exception as e:

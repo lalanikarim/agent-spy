@@ -1,12 +1,12 @@
 """OTLP HTTP server for receiving traces."""
 
-
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from opentelemetry.proto.collector.trace.v1 import trace_service_pb2
 
+from src.core.database import get_db_session
 from src.core.logging import get_logger
 from src.otel.receiver.converter import OtlpToAgentSpyConverter
 from src.otel.receiver.models import OtlpSpan
@@ -15,6 +15,7 @@ from src.otel.utils.mapping import (
     extract_resource_attributes,
     unix_nanos_to_datetime,
 )
+from src.repositories.runs import RunRepository
 
 logger = get_logger(__name__)
 
@@ -49,15 +50,9 @@ class OtlpHttpServer:
                     # Parse JSON message (if supported)
                     body = await request.json()
                     # TODO: Implement JSON parsing for OTLP
-                    raise HTTPException(
-                        status_code=400,
-                        detail="JSON format not yet supported for OTLP HTTP"
-                    )
+                    raise HTTPException(status_code=400, detail="JSON format not yet supported for OTLP HTTP")
                 else:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Unsupported content type. Use application/x-protobuf"
-                    )
+                    raise HTTPException(status_code=400, detail="Unsupported content type. Use application/x-protobuf")
 
                 # Convert and store traces
                 runs_to_create = []
@@ -83,20 +78,21 @@ class OtlpHttpServer:
                                 # Continue processing other spans
                                 continue
 
-                # Batch create runs
-                if runs_to_create and self.run_repository:
+                # Create runs
+                if runs_to_create:
                     try:
-                        await self.run_repository.create_batch(runs_to_create)
+                        async with get_db_session() as session:
+                            run_repository = RunRepository(session)
+                            for run_create in runs_to_create:
+                                await run_repository.create(run_create)
+                            await session.commit()
                         logger.info(f"Successfully created {len(runs_to_create)} runs from {total_spans} spans via HTTP")
                     except Exception as e:
                         logger.error(f"Failed to create runs via HTTP: {e}")
                         raise HTTPException(status_code=500, detail=f"Failed to store traces: {str(e)}")
 
                 # Return success response
-                return JSONResponse(
-                    status_code=200,
-                    content={"status": "success", "spans_processed": total_spans}
-                )
+                return JSONResponse(status_code=200, content={"status": "success", "spans_processed": total_spans})
 
             except HTTPException:
                 raise
@@ -108,12 +104,7 @@ class OtlpHttpServer:
         async def health_check():
             """Health check endpoint for OTLP HTTP server."""
             return JSONResponse(
-                status_code=200,
-                content={
-                    "status": "healthy",
-                    "service": "otlp-http-receiver",
-                    "endpoint": self.path
-                }
+                status_code=200, content={"status": "healthy", "service": "otlp-http-receiver", "endpoint": self.path}
             )
 
     def _convert_proto_span(self, span_proto) -> OtlpSpan:
@@ -141,7 +132,7 @@ class OtlpHttpServer:
             event: dict[str, Any] = {
                 "name": event_proto.name,
                 "time": unix_nanos_to_datetime(event_proto.time_unix_nano),
-                "attributes": {}
+                "attributes": {},
             }
             for attr in event_proto.attributes:
                 if attr.key:
@@ -156,7 +147,7 @@ class OtlpHttpServer:
             link: dict[str, Any] = {
                 "trace_id": bytes_to_hex_string(link_proto.trace_id),
                 "span_id": bytes_to_hex_string(link_proto.span_id),
-                "attributes": {}
+                "attributes": {},
             }
             for attr in link_proto.attributes:
                 if attr.key:
@@ -166,10 +157,7 @@ class OtlpHttpServer:
             links.append(link)
 
         # Convert status
-        status = {
-            "code": span_proto.status.code,
-            "message": span_proto.status.message if span_proto.status.message else None
-        }
+        status = {"code": span_proto.status.code, "message": span_proto.status.message if span_proto.status.message else None}
 
         # Create resource dict (will be populated from resource_spans)
         resource = {}
@@ -186,7 +174,7 @@ class OtlpHttpServer:
             events=events,
             links=links,
             status=status,
-            resource=resource
+            resource=resource,
         )
 
     def _convert_attribute_value(self, value_proto) -> Any | None:
@@ -226,7 +214,3 @@ class OtlpHttpServer:
                 if value is not None:
                     result[kv.key] = value
         return result
-
-    def set_run_repository(self, run_repository):
-        """Set the run repository for storing traces."""
-        self.run_repository = run_repository
