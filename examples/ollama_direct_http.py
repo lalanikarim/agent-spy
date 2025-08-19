@@ -3,6 +3,7 @@
 # dependencies = [
 #   "ollama>=0.3.0",
 #   "requests>=2.31.0",
+#   "opentelemetry-proto>=1.0.0",
 # ]
 # ///
 
@@ -30,6 +31,7 @@ Usage:
 """
 
 import asyncio
+import os
 import time
 import uuid
 from typing import Any
@@ -62,6 +64,21 @@ class OllamaDirectHTTPInstrumentation:
 
     def _detect_ollama_host(self) -> str:
         """Auto-detect Ollama host URL for container environment."""
+        # First check if OLLAMA_HOST environment variable is set
+        ollama_host = os.getenv("OLLAMA_HOST")
+        if ollama_host:
+            print(f"🔍 Using OLLAMA_HOST: {ollama_host}")
+            try:
+                import ollama
+
+                test_client = ollama.Client(host=ollama_host)
+                test_client.list()
+                print(f"✅ Found Ollama at: {ollama_host}")
+                return ollama_host
+            except Exception as e:
+                print(f"⚠️  OLLAMA_HOST {ollama_host} not accessible: {e}")
+                print("   Falling back to auto-detection...")
+
         # Try common container-to-host networking options
         potential_hosts = [
             "http://192.168.1.200:11434",  # Specified host IP
@@ -173,8 +190,77 @@ class OllamaDirectHTTPInstrumentation:
     def _send_trace_to_agent_spy(self, trace_data: dict[str, Any]) -> bool:
         """Send trace data directly to Agent Spy via HTTP POST."""
         try:
+            # Convert JSON trace data to protobuf format
+            from opentelemetry.proto.collector.trace.v1 import trace_service_pb2
+            from opentelemetry.proto.trace.v1 import trace_pb2
+
+            # Create protobuf request
+            request = trace_service_pb2.ExportTraceServiceRequest()
+
+            # Convert resource spans
+            for resource_span_json in trace_data.get("resourceSpans", []):
+                resource_spans = request.resource_spans.add()
+
+                # Convert resource
+                if "resource" in resource_span_json:
+                    for attr in resource_span_json["resource"].get("attributes", []):
+                        resource_attr = resource_spans.resource.attributes.add()
+                        resource_attr.key = attr["key"]
+
+                        if "stringValue" in attr["value"]:
+                            resource_attr.value.string_value = attr["value"]["stringValue"]
+                        elif "intValue" in attr["value"]:
+                            resource_attr.value.int_value = attr["value"]["intValue"]
+                        elif "doubleValue" in attr["value"]:
+                            resource_attr.value.double_value = attr["value"]["doubleValue"]
+                        elif "boolValue" in attr["value"]:
+                            resource_attr.value.bool_value = attr["value"]["boolValue"]
+
+                # Convert scope spans
+                for scope_span_json in resource_span_json.get("scopeSpans", []):
+                    scope_spans = resource_spans.scope_spans.add()
+
+                    # Convert spans
+                    for span_json in scope_span_json.get("spans", []):
+                        span = scope_spans.spans.add()
+                        span.trace_id = bytes.fromhex(span_json["traceId"])
+                        span.span_id = bytes.fromhex(span_json["spanId"])
+                        if span_json.get("parentSpanId"):
+                            span.parent_span_id = bytes.fromhex(span_json["parentSpanId"])
+                        span.name = span_json["name"]
+                        span.start_time_unix_nano = int(span_json["startTimeUnixNano"])
+                        span.end_time_unix_nano = int(span_json["endTimeUnixNano"])
+
+                        # Convert attributes
+                        for attr in span_json.get("attributes", []):
+                            span_attr = span.attributes.add()
+                            span_attr.key = attr["key"]
+
+                            if "stringValue" in attr["value"]:
+                                span_attr.value.string_value = attr["value"]["stringValue"]
+                            elif "intValue" in attr["value"]:
+                                span_attr.value.int_value = attr["value"]["intValue"]
+                            elif "doubleValue" in attr["value"]:
+                                span_attr.value.double_value = attr["value"]["doubleValue"]
+                            elif "boolValue" in attr["value"]:
+                                span_attr.value.bool_value = attr["value"]["boolValue"]
+
+                        # Convert status
+                        status_code = (
+                            trace_pb2.Status.StatusCode.STATUS_CODE_OK
+                            if span_json["status"]["code"] == 1
+                            else trace_pb2.Status.StatusCode.STATUS_CODE_ERROR
+                        )
+                        span.status.code = status_code
+                        if "message" in span_json["status"]:
+                            span.status.message = span_json["status"]["message"]
+
+            # Send protobuf data
             response = requests.post(
-                self.agent_spy_endpoint, headers={"Content-Type": "application/json"}, json=trace_data, timeout=30
+                self.agent_spy_endpoint,
+                data=request.SerializeToString(),
+                headers={"Content-Type": "application/x-protobuf"},
+                timeout=30,
             )
 
             if response.status_code == 200:

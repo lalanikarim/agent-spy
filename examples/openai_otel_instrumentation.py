@@ -95,11 +95,18 @@ class AgentSpyOTelInstrumentation:
 
         # Initialize OpenAI client
         api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_API_BASE")
+
         if not api_key:
             print("⚠️  Warning: OPENAI_API_KEY not set. Using mock client.")
             self.client = MockOpenAIClient()
         else:
-            self.client = OpenAI(api_key=api_key)
+            if base_url:
+                print(f"🔧 Using OpenAI-compatible API at: {base_url}")
+                self.client = OpenAI(api_key=api_key, base_url=base_url)
+            else:
+                print("🔧 Using standard OpenAI API")
+                self.client = OpenAI(api_key=api_key)
 
         print("✅ OpenTelemetry instrumentation configured")
         print(f"   Endpoint: {self.agent_spy_endpoint}")
@@ -108,7 +115,7 @@ class AgentSpyOTelInstrumentation:
     def call_openai_chat(
         self,
         messages: list[dict[str, str]],
-        model: str = "gpt-4o-mini",
+        model: str = None,
         temperature: float = 0.7,
         max_tokens: int = 1000,
         user_id: str = "anonymous",
@@ -117,7 +124,7 @@ class AgentSpyOTelInstrumentation:
 
         Args:
             messages: List of chat messages
-            model: OpenAI model to use
+            model: OpenAI model to use (defaults to OPENAI_MODEL_NAME env var or qwen2.5:7b)
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             user_id: User identifier for tracking
@@ -125,6 +132,10 @@ class AgentSpyOTelInstrumentation:
         Returns:
             Dict containing the completion response and metadata
         """
+        # Use environment variable or default
+        if model is None:
+            model = os.getenv("OPENAI_MODEL_NAME", "qwen2.5:7b")
+
         with self.tracer.start_as_current_span("openai_chat_completion") as span:
             # Set span attributes following semantic conventions
             span.set_attribute("llm.vendor", "openai")
@@ -176,7 +187,7 @@ class AgentSpyOTelInstrumentation:
                     "success": True,
                     "content": completion.choices[0].message.content,
                     "model": completion.model,
-                    "usage": completion.usage._asdict() if completion.usage else None,
+                    "usage": dict(completion.usage) if completion.usage else None,
                     "duration_ms": duration_ms,
                     "finish_reason": completion.choices[0].finish_reason,
                 }
@@ -219,10 +230,12 @@ class AgentSpyOTelInstrumentation:
                         {"role": "system", "content": "You are a content strategist. Create detailed outlines for topics."},
                         {
                             "role": "user",
-                            "content": f"Create a detailed outline for an article about {topic}. Include 5 main sections with subsections.",
+                            "content": (
+                                f"Create a detailed outline for an article about {topic}. "
+                                "Include 5 main sections with subsections."
+                            ),
                         },
                     ],
-                    model="gpt-4o-mini",
                     user_id="content_generator",
                 )
                 results["outline"] = outline_result
@@ -237,10 +250,12 @@ class AgentSpyOTelInstrumentation:
                         {"role": "system", "content": "You are a technical writer. Write engaging introductions."},
                         {
                             "role": "user",
-                            "content": f"Based on this outline:\n\n{outline_result['content']}\n\nWrite a compelling introduction for an article about {topic}.",
+                            "content": (
+                                f"Based on this outline:\n\n{outline_result['content']}\n\n"
+                                f"Write a compelling introduction for an article about {topic}."
+                            ),
                         },
                     ],
-                    model="gpt-4o-mini",
                     temperature=0.8,
                     user_id="content_generator",
                 )
@@ -256,10 +271,12 @@ class AgentSpyOTelInstrumentation:
                         {"role": "system", "content": "You are a subject matter expert. Explain complex topics clearly."},
                         {
                             "role": "user",
-                            "content": f"Based on this outline:\n\n{outline_result['content']}\n\nWrite 3 key points about {topic} that would be valuable for readers to understand.",
+                            "content": (
+                                f"Based on this outline:\n\n{outline_result['content']}\n\n"
+                                f"Write 3 key points about {topic} that would be valuable for readers to understand."
+                            ),
                         },
                     ],
-                    model="gpt-4o-mini",
                     temperature=0.6,
                     user_id="content_generator",
                 )
@@ -275,10 +292,13 @@ class AgentSpyOTelInstrumentation:
                         {"role": "system", "content": "You are a content editor. Write impactful conclusions."},
                         {
                             "role": "user",
-                            "content": f"Based on this introduction:\n\n{intro_result['content']}\n\nAnd these key points:\n\n{keypoints_result['content']}\n\nWrite a strong conclusion for an article about {topic}.",
+                            "content": (
+                                f"Based on this introduction:\n\n{intro_result['content']}\n\n"
+                                f"And these key points:\n\n{keypoints_result['content']}\n\n"
+                                f"Write a strong conclusion for an article about {topic}."
+                            ),
                         },
                     ],
-                    model="gpt-4o-mini",
                     temperature=0.7,
                     user_id="content_generator",
                 )
@@ -361,7 +381,7 @@ class MockOpenAIClient:
             """Mock chat completion creation."""
             time.sleep(0.5)  # Simulate API delay
 
-            model = kwargs.get("model", "gpt-4o-mini")
+            model = kwargs.get("model", os.getenv("OPENAI_MODEL_NAME", "qwen2.5:7b"))
             messages = kwargs.get("messages", [])
 
             # Generate mock response based on the last user message
@@ -396,22 +416,40 @@ class MockOpenAIClient:
 - Long-term implications"""
 
             elif "introduction" in last_message.lower():
-                content = f"In today's rapidly evolving technological landscape, understanding the fundamentals and implications of {kwargs.get('user', 'this topic')} has become increasingly important. This comprehensive exploration will guide you through the essential concepts, practical applications, and future possibilities that define this fascinating field."
+                content = (
+                    f"In today's rapidly evolving technological landscape, understanding the "
+                    f"fundamentals and implications of {kwargs.get('user', 'this topic')} has "
+                    "become increasingly important. This comprehensive exploration will guide "
+                    "you through the essential concepts, practical applications, and future "
+                    "possibilities that define this fascinating field."
+                )
 
             elif "key points" in last_message.lower():
                 content = f"""Here are three key points about {kwargs.get("user", "this topic")}:
 
-1. **Foundational Understanding**: The core principles provide a solid framework for comprehending how this technology works and its potential applications across various industries.
+1. **Foundational Understanding**: The core principles provide a solid framework for
+   comprehending how this technology works and its potential applications across various industries.
 
-2. **Practical Implementation**: Real-world applications demonstrate the tangible benefits and transformative potential of this technology in solving complex problems.
+2. **Practical Implementation**: Real-world applications demonstrate the tangible benefits and
+   transformative potential of this technology in solving complex problems.
 
-3. **Future Implications**: The ongoing development and refinement of these concepts will continue to shape how we approach challenges and opportunities in the coming years."""
+3. **Future Implications**: The ongoing development and refinement of these concepts will
+   continue to shape how we approach challenges and opportunities in the coming years."""
 
             elif "conclusion" in last_message.lower():
-                content = f"As we've explored throughout this discussion, {kwargs.get('user', 'this topic')} represents a significant advancement in our technological capabilities. The insights we've covered highlight both the immediate opportunities and long-term potential that lie ahead. By understanding these concepts and their applications, we position ourselves to better navigate and contribute to this exciting field."
+                content = (
+                    f"As we've explored throughout this discussion, {kwargs.get('user', 'this topic')} "
+                    "represents a significant advancement in our technological capabilities. The "
+                    "insights we've covered highlight both the immediate opportunities and long-term "
+                    "potential that lie ahead. By understanding these concepts and their applications, "
+                    "we position ourselves to better navigate and contribute to this exciting field."
+                )
 
             else:
-                content = f"This is a mock response about {last_message[:50]}... The content would be generated by OpenAI's API in a real scenario."
+                content = (
+                    f"This is a mock response about {last_message[:50]}... "
+                    "The content would be generated by OpenAI's API in a real scenario."
+                )
 
             # Create mock response object
             class MockUsage:

@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "langchain>=0.3.27",
+#   "langchain-ollama>=0.3.6",
+#   "langgraph>=0.6.5",
+#   "requests>=2.32.4",
+# ]
+# ///
+
 """
 Test LangChain application for Agent Spy integration.
 

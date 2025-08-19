@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "langchain-core>=0.3.0",
+#   "langchain-ollama>=0.3.6",
+#   "langgraph>=0.6.5",
+# ]
+# ///
+
 """LangGraph agent test with LLM and tool nodes for Agent Spy tracing."""
 
 import os
