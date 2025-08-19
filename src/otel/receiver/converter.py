@@ -1,7 +1,7 @@
 """Convert OpenTelemetry spans to Agent Spy runs."""
 
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from src.core.logging import get_logger
 from src.otel.receiver.models import OtlpSpan
@@ -27,15 +27,19 @@ class OtlpToAgentSpyConverter:
     def convert_span(self, span: OtlpSpan, resource: dict[str, Any]) -> RunCreate:
         """Convert OTLP span to Agent Spy run."""
         try:
-            # Generate unique ID for the run (use span ID as reference in extra metadata)
-            run_uuid = uuid4()
+            # Use the original span_id as the run ID to preserve parent-child relationships
+            # Convert span_id to UUID format for Agent Spy compatibility
+            run_uuid = UUID(span.span_id)
             parent_uuid = UUID(span.parent_span_id) if span.parent_span_id else None
 
             # Map span kind to run type
             run_type = map_span_kind_to_run_type(span.kind)
 
             # Map status
-            status = map_status_code_to_run_status(span.status.get("code", 0))
+            status_code = span.status.get("code", 0)
+            print(f"DEBUG: Converter received status code: {status_code}")
+            status = map_status_code_to_run_status(status_code)
+            print(f"DEBUG: Mapped to status: {status}")
 
             # Extract inputs and outputs from attributes
             inputs = extract_inputs_from_attributes(span.attributes) or {}

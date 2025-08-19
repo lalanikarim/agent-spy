@@ -50,15 +50,18 @@ class OllamaOTelInstrumentation:
         self,
         agent_spy_endpoint: str = "http://localhost:8000/v1/traces/",
         ollama_host: str = None,
+        test_id: str = None,
     ):
         """Initialize Ollama OpenTelemetry instrumentation.
 
         Args:
             agent_spy_endpoint: Agent Spy OTLP endpoint URL
             ollama_host: Ollama host URL (auto-detected if None)
+            test_id: Optional test identifier for unique service naming
         """
         self.agent_spy_endpoint = agent_spy_endpoint
         self.ollama_host = ollama_host or self._detect_ollama_host()
+        self.test_id = test_id or f"test-{int(time.time())}"
         self.client = None
         self.tracer = None
         self.available_models = []
@@ -91,36 +94,49 @@ class OllamaOTelInstrumentation:
         """Set up OpenTelemetry instrumentation and Ollama client."""
         print("🔧 Setting up OpenTelemetry instrumentation...")
 
-        # Create resource with service information
+        # Create resource with service information including unique test identifier
         resource = Resource.create(
             {
-                "service.name": "ollama-llm-service",
+                "service.name": f"ollama-llm-service-{self.test_id}",
                 "service.version": "1.0.0",
                 "deployment.environment": "development",
                 "service.instance.id": "ollama-instance-1",
                 "llm.vendor": "ollama",
+                "test.id": self.test_id,
             }
         )
 
-        # Create OTLP exporter pointing to Agent Spy
+        # Create OTLP exporter pointing to Agent Spy with improved configuration
         otlp_exporter = OTLPSpanExporter(
             endpoint=self.agent_spy_endpoint,
-            timeout=10,
-            headers={},
+            timeout=30,  # Increased timeout
+            headers={"Content-Type": "application/json"},  # Explicit content type
         )
 
         # Set up tracer provider with resource
         trace.set_tracer_provider(TracerProvider(resource=resource))
 
-        # Add batch span processor with the OTLP exporter
-        trace.get_tracer_provider().add_span_processor(
-            BatchSpanProcessor(
-                otlp_exporter,
-                max_queue_size=2048,
-                export_timeout_millis=30000,
-                max_export_batch_size=512,
-            )
+        # Add batch span processor with the OTLP exporter - smaller batches for faster export
+        span_processor = BatchSpanProcessor(
+            otlp_exporter,
+            max_queue_size=1000,  # Smaller queue for faster processing
+            export_timeout_millis=60000,  # Longer timeout
+            max_export_batch_size=100,  # Smaller batch size for faster export
         )
+
+        # Add the span processor to the tracer provider
+        trace.get_tracer_provider().add_span_processor(span_processor)
+
+        # Verify the span processor was added
+        provider = trace.get_tracer_provider()
+        if hasattr(provider, "_active_span_processor"):
+            active_processor = provider._active_span_processor
+            if active_processor:
+                print(f"   ✅ Added span processor. Active processor: {type(active_processor).__name__}")
+            else:
+                print("   ❌ No active span processor found")
+        else:
+            print("   ❌ _active_span_processor attribute not found")
 
         # Get tracer instance
         self.tracer = trace.get_tracer(__name__)
@@ -154,6 +170,20 @@ class OllamaOTelInstrumentation:
             print(
                 f"   Available Models: {', '.join(self.available_models[:3])}{'...' if len(self.available_models) > 3 else ''}"
             )
+
+            # Test OTLP endpoint connectivity
+            print("🔍 Testing OTLP endpoint connectivity...")
+            try:
+                import requests
+
+                test_response = requests.get(self.agent_spy_endpoint, timeout=5)
+                print(f"   OTLP endpoint status: {test_response.status_code}")
+                if test_response.status_code == 200:
+                    print("   ✅ OTLP endpoint is accessible")
+                else:
+                    print(f"   ⚠️  OTLP endpoint returned status: {test_response.status_code}")
+            except Exception as e:
+                print(f"   ❌ OTLP endpoint test failed: {e}")
 
         except Exception as e:
             print(f"❌ Failed to connect to Ollama: {e}")
@@ -217,7 +247,9 @@ class OllamaOTelInstrumentation:
         """
         model = model or self._get_best_model()
 
-        with self.tracer.start_as_current_span("ollama_generate") as span:
+        print(f"🔍 Creating span for ollama_generate with tracer: {type(self.tracer).__name__}")
+        with self.tracer.start_as_current_span(f"ollama_generate_{self.test_id}") as span:
+            print(f"   ✅ Span created: {span.name} (ID: {span.get_span_context().span_id})")
             # Set span attributes following semantic conventions
             span.set_attribute("llm.vendor", "ollama")
             span.set_attribute("llm.request.model", model)
@@ -558,7 +590,7 @@ class OllamaOTelInstrumentation:
         Returns:
             Dict containing workflow results
         """
-        with self.tracer.start_as_current_span("creative_writing_workflow") as workflow_span:
+        with self.tracer.start_as_current_span(f"creative_writing_workflow_{self.test_id}") as workflow_span:
             # Set workflow-level attributes
             workflow_span.set_attribute("workflow.name", "creative_writing_pipeline")
             workflow_span.set_attribute("workflow.version", "1.0.0")
@@ -577,7 +609,11 @@ class OllamaOTelInstrumentation:
                     concept_span.set_attribute("step.type", "generation")
 
                     concept_result = self._call_ollama_generate_direct(
-                        prompt=f"Create a compelling story concept about {topic}. Include the main character, setting, and central conflict. Keep it to 2-3 sentences.",
+                        prompt=(
+                            f"Create a compelling story concept about {topic}. "
+                            "Include the main character, setting, and central conflict. "
+                            "Keep it to 2-3 sentences."
+                        ),
                         system_prompt="You are a creative writing assistant. Generate engaging story concepts.",
                         temperature=0.8,
                         max_tokens=200,
@@ -602,7 +638,11 @@ class OllamaOTelInstrumentation:
                             },
                             {
                                 "role": "user",
-                                "content": f"Based on this story concept:\n\n{concept_result['content']}\n\nDevelop the main character in detail. Include their background, personality, motivation, and a unique trait.",
+                                "content": (
+                                    f"Based on this story concept:\n\n{concept_result['content']}\n\n"
+                                    "Develop the main character in detail. Include their background, "
+                                    "personality, motivation, and a unique trait."
+                                ),
                             },
                         ],
                         temperature=0.7,
@@ -621,7 +661,11 @@ class OllamaOTelInstrumentation:
                     opening_span.set_attribute("step.type", "generation")
 
                     opening_result = self._call_ollama_generate_direct(
-                        prompt=f"Write the opening scene of a story with this concept:\n{concept_result['content']}\n\nAnd this main character:\n{character_result['content']}\n\nMake it engaging and set the mood. Write 2-3 paragraphs.",
+                        prompt=(
+                            f"Write the opening scene of a story with this concept:\n{concept_result['content']}\n\n"
+                            f"And this main character:\n{character_result['content']}\n\n"
+                            "Make it engaging and set the mood. Write 2-3 paragraphs."
+                        ),
                         system_prompt="You are a skilled fiction writer. Write vivid, engaging scenes that draw readers in.",
                         temperature=0.8,
                         max_tokens=400,
@@ -646,7 +690,11 @@ class OllamaOTelInstrumentation:
                             },
                             {
                                 "role": "user",
-                                "content": f"Based on this concept and opening:\n\nConcept: {concept_result['content']}\n\nOpening: {opening_result['content']}\n\nCreate a 5-chapter story outline with key events and character development.",
+                                "content": (
+                                    f"Based on this concept and opening:\n\nConcept: {concept_result['content']}\n\n"
+                                    f"Opening: {opening_result['content']}\n\n"
+                                    "Create a 5-chapter story outline with key events and character development."
+                                ),
                             },
                         ],
                         temperature=0.6,
@@ -709,10 +757,49 @@ class OllamaOTelInstrumentation:
                 return results
 
     def flush_traces(self):
-        """Force flush any pending traces."""
+        """Force flush any pending traces with debugging."""
         print("🔄 Flushing traces to Agent Spy...")
-        trace.get_tracer_provider().force_flush(timeout_millis=30000)
-        print("✅ Traces flushed")
+
+        try:
+            # Get the tracer provider
+            provider = trace.get_tracer_provider()
+            print(f"   Tracer provider: {type(provider).__name__}")
+
+            # Check if there are any span processors
+            if hasattr(provider, "_active_span_processor"):
+                active_processor = provider._active_span_processor
+                if active_processor:
+                    print(f"   Active span processor: {type(active_processor).__name__}")
+
+                    # Try to access the underlying processors
+                    if hasattr(active_processor, "_span_processors"):
+                        span_processors = active_processor._span_processors
+                        print(f"   Underlying span processors: {len(span_processors)}")
+
+                        for i, processor in enumerate(span_processors):
+                            print(f"   Processor {i}: {type(processor).__name__}")
+                            if hasattr(processor, "_span_exporter"):
+                                exporter = processor._span_exporter
+                                print(f"     Exporter: {type(exporter).__name__}")
+                                if hasattr(exporter, "endpoint"):
+                                    print(f"     Endpoint: {exporter.endpoint}")
+                    else:
+                        print("   No underlying span processors found")
+                else:
+                    print("   No active span processor")
+            else:
+                print("   _active_span_processor attribute not found")
+
+            # Force flush with longer timeout
+            result = provider.force_flush(timeout_millis=60000)
+            print(f"   Flush result: {result}")
+            print("✅ Traces flushed successfully")
+
+        except Exception as e:
+            print(f"❌ Error during trace flush: {e}")
+            import traceback
+
+            traceback.print_exc()
 
 
 async def main():
@@ -721,8 +808,12 @@ async def main():
     print("=" * 70)
 
     try:
+        # Generate unique test identifier
+        test_id = f"test-{int(time.time())}"
+        print(f"🧪 Test ID: {test_id}")
+
         # Initialize instrumentation
-        instrumentation = OllamaOTelInstrumentation()
+        instrumentation = OllamaOTelInstrumentation(test_id=test_id)
 
         # Test simple generation
         print("\n🤖 Testing simple text generation...")
@@ -793,7 +884,7 @@ async def main():
 
         print("\n🎯 Demo completed!")
         print("   Check Agent Spy dashboard at http://localhost:8000 to view traces")
-        print("   Look for traces from service: 'ollama-llm-service'")
+        print(f"   Look for traces from service: 'ollama-llm-service-{test_id}'")
         print("   Observe the hierarchical workflow with parent-child relationships")
 
         return summary.get("success", False)

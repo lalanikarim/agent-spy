@@ -97,6 +97,27 @@ class OtlpHttpServer:
                                             if "endTimeUnixNano" in span_json:
                                                 span.end_time_unix_nano = int(span_json["endTimeUnixNano"])
 
+                                            # Handle status
+                                            if "status" in span_json:
+                                                status_json = span_json["status"]
+                                                print(f"DEBUG: Found status in JSON: {status_json}")
+                                                if "code" in status_json:
+                                                    # Use protobuf enum for status code
+                                                    from opentelemetry.proto.trace.v1 import trace_pb2
+
+                                                    if status_json["code"] == 1:
+                                                        span.status.code = trace_pb2.Status.StatusCode.STATUS_CODE_OK
+                                                    elif status_json["code"] == 2:
+                                                        span.status.code = trace_pb2.Status.StatusCode.STATUS_CODE_ERROR
+                                                    else:
+                                                        span.status.code = trace_pb2.Status.StatusCode.STATUS_CODE_UNSET
+                                                    print(f"DEBUG: Set protobuf status code to {span.status.code}")
+                                                if "message" in status_json:
+                                                    span.status.message = status_json["message"]
+                                                    print(f"DEBUG: Set protobuf status message to {span.status.message}")
+                                            else:
+                                                print("DEBUG: No status found in JSON")
+
                                             # Handle attributes
                                             if "attributes" in span_json:
                                                 for attr in span_json["attributes"]:
