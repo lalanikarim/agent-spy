@@ -41,6 +41,7 @@ services:
       PORT: 8000
       LOG_LEVEL: DEBUG
       PYTHONPATH: /workspace
+      CORS_ORIGINS: http://localhost:3001,http://localhost:3000,http://localhost:5173
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
       DATABASE_HOST: ${DATABASE_HOST:-postgresql}
@@ -75,9 +76,10 @@ services:
       VITE_BACKEND_PORT: 8000
       VITE_FRONTEND_PORT: 3000
       VITE_BACKEND_HOST: localhost
+      VITE_WS_URL: ws://localhost:8000/ws
       NODE_ENV: development
     ports:
-      - "3000:3000"
+      - "3001:3000"
       - "5173:5173"
     depends_on:
       - backend
