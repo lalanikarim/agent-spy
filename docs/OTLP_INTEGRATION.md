@@ -66,7 +66,7 @@ graph TB
 
 ### OTLP HTTP Receiver
 
-**Endpoint**: `POST /v1/traces/`
+**Endpoint**: `POST /v1/traces/` (shares main API port 8000)
 
 **Features**:
 
@@ -75,6 +75,7 @@ graph TB
 - Batch span processing
 - Real-time WebSocket broadcasting
 - Incremental trace updates
+- Configurable path via `OTLP_HTTP_PATH`
 
 **Example Request**:
 
@@ -94,6 +95,8 @@ curl -X POST http://localhost:8000/v1/traces/ \
 - Async processing
 - Batch export support
 - Real-time WebSocket broadcasting
+- Dedicated port (default: 4317)
+- Configurable host and port via `OTLP_GRPC_HOST` and `OTLP_GRPC_PORT`
 
 **Example Client**:
 
@@ -278,12 +281,13 @@ async def send_otlp_grpc():
 
 ### Environment Variables
 
-| Variable            | Default | Description               |
-| ------------------- | ------- | ------------------------- |
-| `OTLP_HTTP_ENABLED` | `true`  | Enable OTLP HTTP receiver |
-| `OTLP_GRPC_ENABLED` | `true`  | Enable OTLP gRPC receiver |
-| `OTLP_HTTP_PORT`    | `8000`  | HTTP receiver port        |
-| `OTLP_GRPC_PORT`    | `4317`  | gRPC receiver port        |
+| Variable            | Default      | Description                               |
+| ------------------- | ------------ | ----------------------------------------- |
+| `OTLP_HTTP_ENABLED` | `true`       | Enable OTLP HTTP receiver                 |
+| `OTLP_HTTP_PATH`    | `/v1/traces` | HTTP receiver path (shares main API port) |
+| `OTLP_GRPC_ENABLED` | `true`       | Enable OTLP gRPC receiver                 |
+| `OTLP_GRPC_HOST`    | `0.0.0.0`    | gRPC receiver host                        |
+| `OTLP_GRPC_PORT`    | `4317`       | gRPC receiver port                        |
 
 ### Docker Configuration
 
@@ -291,11 +295,14 @@ async def send_otlp_grpc():
 services:
   agent-spy:
     ports:
-      - "8000:8000" # OTLP HTTP
-      - "4317:4317" # OTLP gRPC
+      - "8000:8000" # Main API + OTLP HTTP (shared port)
+      - "4317:4317" # OTLP gRPC (dedicated port)
     environment:
       - OTLP_HTTP_ENABLED=true
+      - OTLP_HTTP_PATH=/v1/traces
       - OTLP_GRPC_ENABLED=true
+      - OTLP_GRPC_HOST=0.0.0.0
+      - OTLP_GRPC_PORT=4317
 ```
 
 ## Performance Considerations

@@ -44,12 +44,14 @@ While Agent Spy aims to provide a powerful open-source alternative for AI observ
 - **High Performance**: Optimized for handling thousands of concurrent traces
 - **Scalable Storage**: SQLite for development; PostgreSQL supported
 - **API-First Design**: RESTful API for integration with any agent framework
-- **Comprehensive Testing**: Unit, integration, and end-to-end test coverage (53% coverage, 47 tests passing, 2 skipped)
+- **Comprehensive Testing**: Unit, integration, and end-to-end test coverage (51% coverage, 65 tests passing, 2 skipped)
 - **Containerized Deployment**: Docker Compose setup for easy deployment
+- **OTLP Integration**: 9 comprehensive integration tests for OpenTelemetry Protocol
 
 ### 🔌 **Framework Compatibility**
 
 - **LangSmith API Specification Compatible**: Self-hosted alternative for AI agent observability
+- **OpenTelemetry Protocol (OTLP) Support**: Native OTLP HTTP and gRPC receivers for industry-standard tracing
 - **LangChain Support**: Full compatibility with all LangChain components
 - **LangGraph Support**: Multi-node agent workflows with complex hierarchies
 - **Custom Agents**: REST API for any framework to send trace data
@@ -101,6 +103,9 @@ The server will be running at `http://localhost:8000` with the API documentation
 
    # Test with a sophisticated 7-step pipeline
    uv run python examples/test_complex_langgraph_workflow.py
+
+   # Test OTLP integration with HTTP receiver
+   uv run python examples/nested_workflow_otlp_grpc.py
    ```
 
 ### Docker Deployment
@@ -115,7 +120,7 @@ For development, research, or testing environments using containerized deploymen
    cp env.example .env
    ```
 
-2. **Start Agent Spy (Development)**
+2. **Start Agent Spy (Production)**
 
    ```bash
    # Using the convenience script
@@ -140,12 +145,16 @@ For development, research, or testing environments using containerized deploymen
 - **Web Dashboard**: http://localhost:3000
 - **API Documentation**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/health
+- **OTLP HTTP Endpoint**: http://localhost:8000/v1/traces/ (shares main API port)
+- **OTLP gRPC Endpoint**: localhost:4317 (dedicated port)
 
 ## 📖 Usage
 
 ### Agent Integration
 
 To send traces from your agents to Agent Spy, configure these environment variables in your agent application:
+
+#### LangSmith API Compatibility
 
 ```bash
 # Enable tracing (compatible with LangChain SDK)
@@ -161,7 +170,24 @@ LANGSMITH_API_KEY=your-api-key
 LANGSMITH_PROJECT=your-project-name
 ```
 
+#### OpenTelemetry Protocol (OTLP)
+
+```bash
+# OTLP HTTP endpoint (shares main API port)
+OTLP_ENDPOINT=http://localhost:8000/v1/traces/
+
+# OTLP gRPC endpoint (dedicated port)
+OTLP_GRPC_ENDPOINT=localhost:4317
+
+# Service name for OTLP traces
+OTEL_SERVICE_NAME=your-agent-service
+```
+
 ### Basic Trace Ingestion
+
+Agent Spy accepts traces through multiple protocols:
+
+#### LangSmith API Specification (REST)
 
 Agent Spy accepts traces through a REST API compatible with the LangSmith API specification:
 
@@ -186,6 +212,35 @@ response = requests.post(
     "http://localhost:8000/api/v1/runs/batch",
     json={"post": [trace_data], "patch": []}
 )
+```
+
+#### OpenTelemetry Protocol (OTLP)
+
+Agent Spy also supports the OpenTelemetry Protocol for industry-standard tracing:
+
+```python
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+# Configure OTLP exporter
+otlp_exporter = OTLPSpanExporter(
+    endpoint="http://localhost:8000/v1/traces/"
+)
+
+# Set up tracing
+provider = TracerProvider()
+processor = SimpleSpanProcessor(otlp_exporter)
+provider.add_span_processor(processor)
+trace.set_tracer_provider(provider)
+
+# Create spans
+tracer = trace.get_tracer(__name__)
+with tracer.start_as_current_span("agent-operation") as span:
+    span.set_attribute("input.prompt", "Analyze market trends")
+    # Your agent logic here
+    span.set_attribute("output.response", "Market analysis complete")
 ```
 
 ### Dashboard Access
@@ -235,6 +290,17 @@ Agent Spy uses intelligent pattern-based detection to automatically mark runs as
 
 ## 🆕 Recent Improvements
 
+### OpenTelemetry Protocol (OTLP) Integration
+
+- **OTLP HTTP Receiver**: Accepts traces via HTTP POST to `/v1/traces/`
+- **OTLP gRPC Receiver**: Accepts traces via gRPC Export service
+- **Real-time WebSocket Updates**: Live notifications for OTLP trace events
+- **Span Conversion**: Automatic conversion from OTLP spans to Agent Spy runs
+- **Hierarchical Support**: Full parent-child relationship preservation
+- **Status Mapping**: OTLP status codes mapped to Agent Spy status
+- **Attribute Preservation**: All OTLP attributes preserved in trace metadata
+- **Comprehensive Testing**: 9 integration tests covering all major OTLP scenarios
+
 ### WebSocket Real-Time Updates
 
 - **Live Dashboard Updates**: See traces appear instantly without manual refresh
@@ -269,13 +335,14 @@ Agent Spy uses intelligent pattern-based detection to automatically mark runs as
 
 - **Complex Multi-Step Workflow**: 7-step linear pipeline with deep trace hierarchies
 - **Dual Chain Agent**: Multiple LLM chains with specialized analysis nodes
+- **OTLP Integration Examples**: Complete OTLP workflow examples with HTTP and gRPC
 - **Comprehensive Testing**: Examples demonstrate various trace patterns and use cases
 
 ## 🔧 API Reference
 
 ### Trace Ingestion
 
-#### Batch Ingest
+#### LangSmith API (Batch Ingest)
 
 ```http
 POST /api/v1/runs/batch
@@ -287,13 +354,33 @@ Content-Type: application/json
 }
 ```
 
-#### Individual Operations
+#### LangSmith API (Individual Operations)
 
 ```http
 POST /api/v1/runs              # Create trace
 PATCH /api/v1/runs/{id}        # Update trace
 GET /api/v1/runs/{id}          # Get trace details
 ```
+
+#### OpenTelemetry Protocol (OTLP)
+
+```http
+POST /v1/traces/
+Content-Type: application/x-protobuf
+
+[OTLP protobuf trace data]
+```
+
+**OTLP Features:**
+
+- HTTP receiver (shares main API port 8000)
+- gRPC receiver (dedicated port 4317)
+- Real-time WebSocket notifications
+- Automatic span-to-run conversion
+- Hierarchical trace support
+- Status code mapping
+- Attribute preservation
+- Configurable paths and ports
 
 ### Dashboard API
 
@@ -376,12 +463,14 @@ uv run bandit -r src/
 
 ### Current Benchmarks
 
-- **Test Coverage**: 53% (47 tests passing, 2 skipped)
+- **Test Coverage**: 51% (65 tests passing, 2 skipped)
 - **Code Quality**: All linting and type checks passing
 - **Response Time**: Sub-second API responses for typical queries
 - **Memory Usage**: Optimized for concurrent trace processing
 - **Frontend Components**: 12+ React components with TypeScript
-- **Backend Files**: 22 Python files with comprehensive API coverage
+- **Backend Files**: 25+ Python files with comprehensive API coverage
+- **OTLP Integration**: 9 comprehensive integration tests
+- **Documentation**: 13 well-organized guides with minimal redundancy
 
 ### Optimization Features
 
@@ -431,6 +520,7 @@ agent-spy/
 - **SQLAlchemy 2.0** with async support for database operations
 - **Pydantic** for data validation and serialization
 - **uv** for fast dependency management
+- **OpenTelemetry** for industry-standard tracing support
 
 **Frontend**
 
@@ -492,6 +582,7 @@ agent-spy/
 ### Phase 3: Advanced Features 🚧
 
 - [x] PostgreSQL support
+- [x] OpenTelemetry Protocol (OTLP) integration
 - [ ] Authentication and authorization
 
 ### Phase 4: Integrations 📋
@@ -522,7 +613,7 @@ Built with modern Python tools and best practices:
 - **Tailwind CSS** - Utility-first CSS framework
 - **TanStack Query** - Data fetching and caching
 
-**Note**: This project is not affiliated with LangChain AI or the LangSmith platform. The API compatibility is implemented independently based on public API specifications.
+**Note**: This project is not affiliated with LangChain AI or the LangSmith platform. The API compatibility is implemented independently based on public API specifications. OpenTelemetry Protocol support provides industry-standard tracing capabilities.
 
 ---
 
