@@ -85,6 +85,19 @@ class Settings(BaseSettings):
     websocket_max_connections: int = Field(default=100, description="Maximum WebSocket connections")
     websocket_heartbeat_interval: int = Field(default=30, description="WebSocket heartbeat interval in seconds")
 
+    # OpenTelemetry Settings
+    otlp_grpc_enabled: bool = Field(default=True, description="Enable OTLP gRPC receiver")
+    otlp_grpc_host: str = Field(default="0.0.0.0", description="OTLP gRPC server host")  # nosec B104
+    otlp_grpc_port: int = Field(default=4317, description="OTLP gRPC server port")
+    otlp_http_enabled: bool = Field(default=True, description="Enable OTLP HTTP receiver")
+    otlp_http_path: str = Field(default="/v1/traces", description="OTLP HTTP endpoint path")
+
+    # OTLP Forwarder Settings
+    otlp_forwarder_enabled: bool = Field(default=False, description="Enable OTLP forwarder")
+    otlp_forwarder_batch_size: int = Field(default=100, description="OTLP forwarder batch size")
+    otlp_forwarder_batch_timeout: int = Field(default=5, description="OTLP forwarder batch timeout in seconds")
+    otlp_forwarder_endpoints: str = Field(default="", description="Comma-separated OTLP forwarder endpoints")
+
     # Logging Settings
     log_level: str = Field(default="INFO", description="Logging level")
     log_format: str = Field(default="json", description="Log format (json or text)")
@@ -167,6 +180,35 @@ class Settings(BaseSettings):
             # Default SQLite URL
             return self.database_url
 
+    def get_otlp_endpoints(self) -> list[dict[str, str]]:
+        """Parse OTLP forwarder endpoints from environment variable."""
+        if not self.otlp_forwarder_endpoints:
+            return []
+
+        endpoints = []
+        for endpoint_str in self.otlp_forwarder_endpoints.split(","):
+            endpoint_str = endpoint_str.strip()
+            if not endpoint_str:
+                continue
+
+            # Parse endpoint format: name:url
+            if ":" in endpoint_str:
+                name, url = endpoint_str.split(":", 1)
+                endpoints.append({
+                    "name": name.strip(),
+                    "url": url.strip(),
+                    "enabled": True
+                })
+            else:
+                # If no name provided, use URL as name
+                endpoints.append({
+                    "name": endpoint_str,
+                    "url": endpoint_str,
+                    "enabled": True
+                })
+
+        return endpoints
+
     @classmethod
     def load_env_file_priority(cls) -> dict[str, str]:
         """Load environment variables with .env file taking priority over existing env vars."""
@@ -197,7 +239,7 @@ def get_settings() -> Settings:
     if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING"):
         # In test environment, prioritize environment variables over .env file
         return Settings(_env_file=None)
-    
+
     # Use custom environment loading to prioritize .env file
     env_vars = Settings.load_env_file_priority()
 

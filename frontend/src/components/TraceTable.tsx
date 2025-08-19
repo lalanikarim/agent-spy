@@ -20,7 +20,7 @@ import {
 import type { ColumnsType, TableProps } from "antd/es/table";
 import React, { useMemo, useState } from "react";
 import { useTheme } from "../hooks/useThemeStyles";
-import { useRootTraces } from "../hooks/useTraces";
+import { useRootTraces, useRealTimeUpdates } from "../hooks/useTraces";
 import type { PaginationParams, TraceFilters, TraceRun } from "../types/traces";
 import { formatters } from "../utils/formatters";
 
@@ -51,6 +51,9 @@ const TraceTable: React.FC<TraceTableProps> = ({
     offset: 0,
   });
   const [searchText, setSearchText] = useState("");
+
+  // Real-time updates for elapsed time
+  useRealTimeUpdates(2000); // Update every 2 seconds
 
   // Fetch root traces
   const { data, isLoading, error, refetch } = useRootTraces(

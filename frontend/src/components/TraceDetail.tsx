@@ -26,7 +26,7 @@ import {
 } from "antd";
 import type { DataNode } from "antd/es/tree";
 import React from "react";
-import { useTraceHierarchy } from "../hooks/useTraces";
+import { useTraceHierarchy, useRealTimeUpdates } from "../hooks/useTraces";
 import type { RunHierarchyNode } from "../types/traces";
 import { formatters } from "../utils/formatters";
 import { SimpleTimeline } from "./SimpleTimeline";
@@ -62,6 +62,9 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
   refreshLoading = false,
   disabled = false,
 }) => {
+  // Real-time updates for elapsed time
+  useRealTimeUpdates(2000); // Update every 2 seconds
+
   // Fetch trace hierarchy
   const { data, isLoading, error, refetch } = useTraceHierarchy(traceId, {
     enabled: !disabled,

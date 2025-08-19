@@ -1,5 +1,6 @@
 """Main FastAPI application for Agent Spy."""
 
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -7,10 +8,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.api import health, runs, websocket
+from src.api import debug, health, runs, websocket
 from src.core.config import get_settings
 from src.core.database import close_database, init_database
 from src.core.logging import setup_logging
+from src.otel.receiver import OtlpGrpcServer, OtlpHttpServer
 
 # Get settings
 settings = get_settings()
@@ -30,10 +32,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Initialize database connection
     await init_database()
 
+    # Initialize OTLP servers
+    otlp_grpc_server = None
+    if settings.otlp_grpc_enabled:
+        try:
+            otlp_grpc_server = OtlpGrpcServer(host=settings.otlp_grpc_host, port=settings.otlp_grpc_port)
+            # Start gRPC server in background
+            asyncio.create_task(otlp_grpc_server.start())
+            logger.info(f"OTLP gRPC server configured on {settings.otlp_grpc_host}:{settings.otlp_grpc_port}")
+        except Exception as e:
+            logger.error(f"Failed to start OTLP gRPC server: {e}")
+
     yield
 
     # Shutdown
     logger.info("Shutting down application")
+
+    # Stop OTLP gRPC server
+    if otlp_grpc_server:
+        try:
+            await otlp_grpc_server.stop()
+        except Exception as e:
+            logger.error(f"Error stopping OTLP gRPC server: {e}")
+
     # Close database connections
     await close_database()
 
@@ -103,6 +124,17 @@ def create_app() -> FastAPI:
     app.include_router(health.router, tags=["health"])
     app.include_router(runs.router, prefix=settings.langsmith_endpoint_base, tags=["runs"])
     app.include_router(websocket.router, tags=["websocket"])
+    app.include_router(debug.router, tags=["debug"])
+
+    # Include OTLP HTTP server
+    if settings.otlp_http_enabled:
+        try:
+            otlp_http_server = OtlpHttpServer(path=settings.otlp_http_path)
+            # Note: RunRepository will be set with proper session in the request handlers
+            app.include_router(otlp_http_server.router)
+            logger.info(f"OTLP HTTP server configured at {settings.otlp_http_path}")
+        except Exception as e:
+            logger.error(f"Failed to configure OTLP HTTP server: {e}")
 
     return app
 

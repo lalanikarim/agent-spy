@@ -15,10 +15,13 @@ Agent Spy is a powerful, self-hosted observability platform for AI agents and mu
 - **Real-time Agent Tracing**: Track agent executions with live WebSocket updates
 - **Interactive Dashboard**: Clean, intuitive web interface for trace exploration
 - **LangSmith Compatibility**: Drop-in replacement for LangSmith tracing
+- **OpenTelemetry Protocol (OTLP) Support**: Native OTLP HTTP and gRPC receivers for industry-standard tracing
 - **Smart Completion Detection**: Universal pattern-based detection for accurate run status
 - **Production Ready**: High-performance, scalable architecture with Docker support
 - **Advanced Theming**: Comprehensive theme system with dark/light mode support
 - **Real-time Notifications**: Live updates and status notifications
+- **Live Elapsed Time Updates**: Real-time duration tracking for running traces
+- **Incremental Trace Sending**: Support for sending running and completed trace states
 
 ## 📁 Current Folder/File Structure
 
@@ -55,6 +58,8 @@ agent-spy/
 │   └── TROUBLESHOOTING.md     # Troubleshooting guide
 ├── examples/                   # Usage examples
 │   ├── README.md              # Examples documentation
+│   ├── nested_workflow_otlp_grpc.py      # OTLP gRPC nested workflow example
+│   ├── nested_workflow_otlp_grpc_real.py # Real OTLP gRPC workflow example
 │   ├── test_complex_langgraph_workflow.py
 │   ├── test_dual_chain_agent.py
 │   ├── test_langchain_app.py
@@ -137,6 +142,13 @@ agent-spy/
 │   │   ├── base.py           # Base model classes
 │   │   ├── feedback.py       # Feedback model
 │   │   └── runs.py           # Run/trace model
+│   ├── otel/                 # OpenTelemetry integration
+│   │   ├── receiver/         # OTLP receivers
+│   │   │   ├── http_server.py # OTLP HTTP receiver
+│   │   │   ├── grpc_server.py # OTLP gRPC receiver
+│   │   │   └── converter.py   # OTLP span converter
+│   │   └── utils/            # OTLP utilities
+│   │       └── mapping.py    # OTLP mapping utilities
 │   ├── repositories/         # Data access layer
 │   │   ├── feedback.py       # Feedback repository
 │   │   └── runs.py           # Run repository
@@ -187,6 +199,7 @@ graph TB
         A1[LangChain App]
         A2[LangGraph Agent]
         A3[Custom Agent]
+        A4[OTLP Applications]
     end
 
     subgraph "Agent Spy Platform"
@@ -203,6 +216,8 @@ graph TB
             B3[Dashboard API]
             B4[Health Monitoring]
             B5[WebSocket Server]
+            B6[OTLP HTTP Receiver]
+            B7[OTLP gRPC Receiver]
         end
 
         subgraph "Data Layer"
@@ -215,6 +230,8 @@ graph TB
     A1 --> B2
     A2 --> B2
     A3 --> B2
+    A4 --> B6
+    A4 --> B7
 
     F1 --> B3
     F2 --> B3
@@ -225,6 +242,8 @@ graph TB
     B2 --> D2
     B3 --> D2
     B5 --> D2
+    B6 --> D2
+    B7 --> D2
     D2 --> D1
 ```
 
@@ -281,12 +300,14 @@ graph LR
 ```mermaid
 sequenceDiagram
     participant Agent as AI Agent
+    participant OTLP as OTLP Receiver
     participant API as FastAPI Server
     participant Repo as RunRepository
     participant DB as Database
     participant WS as WebSocket Server
     participant UI as React Dashboard
 
+    Note over Agent,OTLP: LangSmith Protocol
     Agent->>API: POST /api/v1/runs/batch
     API->>API: Validate request data
     API->>Repo: create_batch(runs)
@@ -296,6 +317,17 @@ sequenceDiagram
     API->>WS: Broadcast trace update
     WS->>UI: Real-time notification
     API->>Agent: BatchIngestResponse
+
+    Note over Agent,OTLP: OpenTelemetry Protocol
+    Agent->>OTLP: POST /v1/traces/ (HTTP) or gRPC Export
+    OTLP->>OTLP: Convert OTLP spans to runs
+    OTLP->>Repo: create_batch(runs)
+    Repo->>DB: INSERT/UPDATE runs
+    DB->>Repo: Confirm operations
+    Repo->>OTLP: Return results
+    OTLP->>WS: Broadcast trace.created/updated/completed
+    WS->>UI: Real-time notification
+    OTLP->>Agent: Success response
 ```
 
 ### Dashboard Query Flow
@@ -400,6 +432,9 @@ flowchart TD
 
     H --> I[Show Notification]
     I --> J[Refresh Data]
+    J --> K[Update Elapsed Time]
+    K --> L[Periodic Re-render]
+    L --> K
 ```
 
 ### 4. Multi-step Workflow Processing
@@ -465,6 +500,7 @@ flowchart TD
 
 - Core trace ingestion and storage
 - REST API with LangSmith compatibility
+- **OpenTelemetry Protocol (OTLP) support** with HTTP and gRPC receivers
 - React dashboard with real-time updates
 - Docker containerization
 - Smart completion detection
@@ -473,6 +509,8 @@ flowchart TD
 - Comprehensive examples and testing
 - Advanced theme system with dark/light mode
 - Real-time notifications and status updates
+- **Live elapsed time updates** for running traces (2-second intervals)
+- **Incremental trace sending** support for running and completed states
 - Responsive UI components
 - TypeScript type safety throughout frontend
 
@@ -482,10 +520,11 @@ flowchart TD
 - **Code Quality**: All linting and type checks passing
 - **API Endpoints**: 15+ endpoints implemented
 - **Frontend Components**: 12+ React components (including UI components)
-- **Backend Files**: 22 Python files
+- **Backend Files**: 25 Python files (including OTLP integration)
 - **Frontend Files**: 33 TypeScript/TSX files
 - **Documentation**: 13+ comprehensive guides
 - **Test Files**: 12 Python test files
+- **OTLP Support**: HTTP and gRPC receivers with real-time updates
 
 ### 🚧 Known Issues (To Fix Later)
 
@@ -606,6 +645,7 @@ export const useThemeStyles = () => {
 
 - **Main Application**: `src/main.py`
 - **API Routes**: `src/api/runs.py`, `src/api/health.py`, `src/api/websocket.py`
+- **OTLP Integration**: `src/otel/receiver/http_server.py`, `src/otel/receiver/grpc_server.py`
 - **Database Models**: `src/models/runs.py`, `src/models/feedback.py`
 - **Data Access**: `src/repositories/runs.py`, `src/repositories/feedback.py`
 - **Configuration**: `src/core/config.py`
@@ -615,6 +655,7 @@ export const useThemeStyles = () => {
 - **Main Application**: `frontend/src/App.tsx`
 - **Dashboard**: `frontend/src/components/Dashboard.tsx`
 - **Trace Management**: `frontend/src/components/TraceTable.tsx`, `frontend/src/components/TraceDetail.tsx`
+- **Real-time Updates**: `frontend/src/hooks/useTraces.ts`, `frontend/src/hooks/useWebSocket.ts`
 - **Theme System**: `frontend/src/contexts/ThemeContext.tsx`, `frontend/src/theme/`
 - **API Client**: `frontend/src/api/client.ts`
 - **Types**: `frontend/src/types/traces.ts`
@@ -674,6 +715,7 @@ uv run pytest tests/e2e/
 
 - **API_REFERENCE.md**: Comprehensive API documentation
 - **BACKEND_API.md**: Backend-specific documentation
+- **OTLP_INTEGRATION.md**: OpenTelemetry Protocol integration guide
 
 ### Development Documentation
 
@@ -739,8 +781,10 @@ uv run pytest tests/e2e/
 1. **Adding New API Endpoints**: See `src/api/runs.py` for patterns
 2. **Creating New Models**: See `src/models/runs.py` for structure
 3. **Adding Frontend Components**: See `frontend/src/components/` for patterns
-4. **Database Changes**: Update models and run migrations
-5. **Configuration Changes**: Modify `src/core/config.py`
+4. **OTLP Integration**: See `src/otel/receiver/` for OTLP patterns
+5. **Real-time Updates**: See `frontend/src/hooks/useTraces.ts` for patterns
+6. **Database Changes**: Update models and run migrations
+7. **Configuration Changes**: Modify `src/core/config.py`
 
 ### Important Files
 
@@ -748,7 +792,9 @@ uv run pytest tests/e2e/
 - **Configuration**: `src/core/config.py`
 - **Database Models**: `src/models/`
 - **API Routes**: `src/api/`
+- **OTLP Integration**: `src/otel/receiver/`
 - **Frontend App**: `frontend/src/App.tsx`
+- **Real-time Hooks**: `frontend/src/hooks/useTraces.ts`
 - **Package Config**: `pyproject.toml`, `frontend/package.json`
 
 ### Development Commands
@@ -786,7 +832,7 @@ uv run pytest tests/integration/
 
 ---
 
-**Last Updated**: August 18, 2025
+**Last Updated**: August 19, 2025
 **Version**: 0.1.0
 **Maintainer**: Development Team
 
