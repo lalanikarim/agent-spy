@@ -88,6 +88,8 @@ class OtlpHttpServer:
                                                 span.trace_id = span_json["traceId"].encode()
                                             if "spanId" in span_json:
                                                 span.span_id = span_json["spanId"].encode()
+                                            if "parentSpanId" in span_json:
+                                                span.parent_span_id = span_json["parentSpanId"].encode()
                                             if "name" in span_json:
                                                 span.name = span_json["name"]
                                             if "startTimeUnixNano" in span_json:
