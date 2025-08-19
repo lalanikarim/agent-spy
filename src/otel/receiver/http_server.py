@@ -47,10 +47,67 @@ class OtlpHttpServer:
                     export_request = trace_service_pb2.ExportTraceServiceRequest()
                     export_request.ParseFromString(body)
                 elif "application/json" in content_type:
-                    # Parse JSON message (if supported)
+                    # Parse JSON message
                     body = await request.json()
-                    # TODO: Implement JSON parsing for OTLP
-                    raise HTTPException(status_code=400, detail="JSON format not yet supported for OTLP HTTP")
+                    # Convert JSON to protobuf format
+                    export_request = trace_service_pb2.ExportTraceServiceRequest()
+
+                    # Parse the JSON structure and populate the protobuf message
+                    if "resourceSpans" in body:
+                        for resource_span_json in body["resourceSpans"]:
+                            resource_spans = export_request.resource_spans.add()
+
+                            # Handle resource
+                            if "resource" in resource_span_json:
+                                resource_json = resource_span_json["resource"]
+                                if "attributes" in resource_json:
+                                    for attr in resource_json["attributes"]:
+                                        key_value = resource_spans.resource.attributes.add()
+                                        key_value.key = attr.get("key", "")
+                                        if "stringValue" in attr["value"]:
+                                            key_value.value.string_value = attr["value"]["stringValue"]
+                                        elif "intValue" in attr["value"]:
+                                            key_value.value.int_value = attr["value"]["intValue"]
+                                        elif "doubleValue" in attr["value"]:
+                                            key_value.value.double_value = attr["value"]["doubleValue"]
+                                        elif "boolValue" in attr["value"]:
+                                            key_value.value.bool_value = attr["value"]["boolValue"]
+
+                            # Handle scope spans
+                            if "scopeSpans" in resource_span_json:
+                                for scope_span_json in resource_span_json["scopeSpans"]:
+                                    scope_spans = resource_spans.scope_spans.add()
+
+                                    # Handle spans
+                                    if "spans" in scope_span_json:
+                                        for span_json in scope_span_json["spans"]:
+                                            span = scope_spans.spans.add()
+
+                                            # Basic span fields
+                                            if "traceId" in span_json:
+                                                span.trace_id = span_json["traceId"].encode()
+                                            if "spanId" in span_json:
+                                                span.span_id = span_json["spanId"].encode()
+                                            if "name" in span_json:
+                                                span.name = span_json["name"]
+                                            if "startTimeUnixNano" in span_json:
+                                                span.start_time_unix_nano = int(span_json["startTimeUnixNano"])
+                                            if "endTimeUnixNano" in span_json:
+                                                span.end_time_unix_nano = int(span_json["endTimeUnixNano"])
+
+                                            # Handle attributes
+                                            if "attributes" in span_json:
+                                                for attr in span_json["attributes"]:
+                                                    key_value = span.attributes.add()
+                                                    key_value.key = attr.get("key", "")
+                                                    if "stringValue" in attr["value"]:
+                                                        key_value.value.string_value = attr["value"]["stringValue"]
+                                                    elif "intValue" in attr["value"]:
+                                                        key_value.value.int_value = attr["value"]["intValue"]
+                                                    elif "doubleValue" in attr["value"]:
+                                                        key_value.value.double_value = attr["value"]["doubleValue"]
+                                                    elif "boolValue" in attr["value"]:
+                                                        key_value.value.bool_value = attr["value"]["boolValue"]
                 else:
                     raise HTTPException(status_code=400, detail="Unsupported content type. Use application/x-protobuf")
 
@@ -84,8 +141,8 @@ class OtlpHttpServer:
                         async with get_db_session() as session:
                             run_repository = RunRepository(session)
                             for run_create in runs_to_create:
-                                await run_repository.create(run_create)
-                            await session.commit()
+                                await run_repository.create(run_create, disable_events=True)
+                            # The context manager will handle commit automatically
                         logger.info(f"Successfully created {len(runs_to_create)} runs from {total_spans} spans via HTTP")
                     except Exception as e:
                         logger.error(f"Failed to create runs via HTTP: {e}")

@@ -1,7 +1,7 @@
 """Repository for run data access."""
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -12,10 +12,7 @@ from src.core.logging import get_logger
 from src.models.runs import Run
 from src.schemas.runs import RunCreate, RunUpdate
 from src.services.event_service import (
-    emit_trace_completed_async,
-    emit_trace_created_async,
-    emit_trace_failed_async,
-    emit_trace_updated_async,
+    EventService,
 )
 
 logger = get_logger(__name__)
@@ -28,7 +25,7 @@ class RunRepository:
         """Initialize the repository with a database session."""
         self.session = session
 
-    async def create(self, run_data: RunCreate) -> Run:
+    async def create(self, run_data: RunCreate, disable_events: bool = False) -> Run:
         """Create a new run."""
         logger.debug(f"Creating run: {run_data.id}")
 
@@ -70,8 +67,12 @@ class RunRepository:
         self.session.add(run)
         await self.session.flush()  # Get the ID without committing
 
-        # Emit WebSocket event for new trace
-        asyncio.create_task(emit_trace_created_async(run))
+        # Emit WebSocket event for new trace (fire and forget)
+        if not disable_events:
+            try:
+                asyncio.create_task(EventService.emit_trace_created(run))
+            except Exception as e:
+                logger.warning(f"Failed to emit trace.created event for run {run.id}: {e}")
 
         logger.info(f"Created run: {run.id}")
         return run
@@ -136,15 +137,24 @@ class RunRepository:
 
         await self.session.flush()
 
-        # Emit WebSocket events based on changes
+        # Emit WebSocket events based on changes (fire and forget)
         if changes:
-            asyncio.create_task(emit_trace_updated_async(run, changes))
+            try:
+                asyncio.create_task(EventService.emit_trace_updated(run, changes))
+            except Exception as e:
+                logger.warning(f"Failed to emit trace.updated event for run {run.id}: {e}")
 
         if status_changed:
             if run.status == "completed":
-                asyncio.create_task(emit_trace_completed_async(run))
+                try:
+                    asyncio.create_task(EventService.emit_trace_completed(run))
+                except Exception as e:
+                    logger.warning(f"Failed to emit trace.completed event for run {run.id}: {e}")
             elif run.status == "failed":
-                asyncio.create_task(emit_trace_failed_async(run, run.error))
+                try:
+                    asyncio.create_task(EventService.emit_trace_failed(run, run.error))
+                except Exception as e:
+                    logger.warning(f"Failed to emit trace.failed event for run {run.id}: {e}")
 
         logger.info(f"Updated run: {run_id}")
         return run
@@ -447,7 +457,7 @@ class RunRepository:
         # Recent activity (last 24 hours)
         from datetime import timedelta
 
-        twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
+        twenty_four_hours_ago = datetime.now(UTC) - timedelta(hours=24)
         recent_stmt = select(func.count(Run.id)).where(Run.start_time >= twenty_four_hours_ago)
         recent_result = await self.session.execute(recent_stmt)
         recent_runs = recent_result.scalar() or 0
@@ -494,7 +504,7 @@ class RunRepository:
         logger.debug(f"Checking for stale runs with timeout: {timeout_minutes} minutes")
 
         # Calculate the cutoff time
-        cutoff_time = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+        cutoff_time = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
 
         # Find running traces that started before the cutoff time
         stmt = select(Run).where(and_(Run.status == "running", Run.start_time < cutoff_time))
@@ -513,7 +523,7 @@ class RunRepository:
             .values(
                 status="failed",
                 error="Trace timed out after 30 minutes - likely process terminated unexpectedly",
-                end_time=datetime.utcnow(),
+                end_time=datetime.now(UTC),
             )
         )
 

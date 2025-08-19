@@ -1,7 +1,7 @@
 """Runs/traces endpoints for LangSmith compatibility and dashboard."""
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -552,7 +552,7 @@ async def get_dashboard_summary(db: AsyncSession = Depends(get_db)) -> Dashboard
         # Get recent projects (projects with activity in last 7 days)
         from datetime import timedelta
 
-        seven_days_ago = datetime.now() - timedelta(days=7)
+        seven_days_ago = datetime.now(UTC) - timedelta(days=7)
 
         recent_runs = await run_repo.list_runs(
             start_time_gte=seven_days_ago,
@@ -586,7 +586,7 @@ async def get_dashboard_summary(db: AsyncSession = Depends(get_db)) -> Dashboard
         return DashboardSummary(
             stats=stats,
             recent_projects=recent_projects[:10],  # Top 10 most recent
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
         )
     except Exception as e:
         logger.error(f"Failed to get dashboard summary: {e}")
@@ -618,7 +618,7 @@ async def cleanup_stale_runs(
             "message": "Cleanup completed successfully",
             "stale_runs_marked": stale_count,
             "timeout_minutes": timeout_minutes,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:
