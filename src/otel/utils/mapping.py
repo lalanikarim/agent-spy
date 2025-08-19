@@ -7,12 +7,12 @@ from typing import Any
 def map_span_kind_to_run_type(kind: int) -> str:
     """Map OTLP SpanKind to Agent Spy run_type."""
     mapping = {
-        0: "internal",      # SPAN_KIND_UNSPECIFIED
-        1: "internal",      # SPAN_KIND_INTERNAL
-        2: "server",        # SPAN_KIND_SERVER
-        3: "client",        # SPAN_KIND_CLIENT
-        4: "producer",      # SPAN_KIND_PRODUCER
-        5: "consumer",      # SPAN_KIND_CONSUMER
+        0: "internal",  # SPAN_KIND_UNSPECIFIED
+        1: "internal",  # SPAN_KIND_INTERNAL
+        2: "server",  # SPAN_KIND_SERVER
+        3: "client",  # SPAN_KIND_CLIENT
+        4: "producer",  # SPAN_KIND_PRODUCER
+        5: "consumer",  # SPAN_KIND_CONSUMER
     }
     return mapping.get(kind, "custom")
 
@@ -20,19 +20,19 @@ def map_span_kind_to_run_type(kind: int) -> str:
 def map_run_type_to_span_kind(run_type: str) -> int:
     """Map Agent Spy run_type to OTLP SpanKind."""
     mapping = {
-        "chain": 1,         # INTERNAL
-        "llm": 3,           # CLIENT
-        "tool": 3,          # CLIENT
-        "retrieval": 3,     # CLIENT
-        "prompt": 1,        # INTERNAL
-        "parser": 1,        # INTERNAL
-        "embedding": 3,     # CLIENT
-        "server": 2,        # SERVER
-        "client": 3,        # CLIENT
-        "internal": 1,      # INTERNAL
-        "producer": 4,      # PRODUCER
-        "consumer": 5,      # CONSUMER
-        "custom": 0,        # UNSPECIFIED
+        "chain": 1,  # INTERNAL
+        "llm": 3,  # CLIENT
+        "tool": 3,  # CLIENT
+        "retrieval": 3,  # CLIENT
+        "prompt": 1,  # INTERNAL
+        "parser": 1,  # INTERNAL
+        "embedding": 3,  # CLIENT
+        "server": 2,  # SERVER
+        "client": 3,  # CLIENT
+        "internal": 1,  # INTERNAL
+        "producer": 4,  # PRODUCER
+        "consumer": 5,  # CONSUMER
+        "custom": 0,  # UNSPECIFIED
     }
     return mapping.get(run_type, 0)
 
@@ -125,13 +125,22 @@ def unix_nanos_to_datetime(nanos: int) -> datetime:
 def uuid_to_bytes(uuid_str: str) -> bytes:
     """Convert UUID string to bytes for OTLP."""
     import uuid
+
     return uuid.UUID(uuid_str).bytes
 
 
 def bytes_to_uuid(uuid_bytes: bytes) -> str:
     """Convert bytes to UUID string."""
     import uuid
-    return str(uuid.UUID(bytes=uuid_bytes))
+
+    if len(uuid_bytes) == 16:
+        return str(uuid.UUID(bytes=uuid_bytes))
+    else:
+        # For non-16-byte IDs, convert to hex and pad/truncate to UUID format
+        hex_str = uuid_bytes.hex()
+        if len(hex_str) != 32:
+            hex_str = hex_str.ljust(32, "0")[:32]
+        return f"{hex_str[:8]}-{hex_str[8:12]}-{hex_str[12:16]}-{hex_str[16:20]}-{hex_str[20:32]}"
 
 
 def bytes_to_hex_string(byte_data: bytes) -> str:
@@ -143,7 +152,7 @@ def extract_resource_attributes(resource_proto) -> dict[str, Any]:
     """Extract attributes from OTLP resource protobuf."""
     attributes = {}
 
-    if hasattr(resource_proto, 'attributes'):
+    if hasattr(resource_proto, "attributes"):
         for attr in resource_proto.attributes:
             if attr.key:
                 value = _convert_proto_attribute_value(attr.value)

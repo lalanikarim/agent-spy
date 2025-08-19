@@ -73,13 +73,17 @@ def setup_logging(settings: Settings) -> logging.Logger:
 
     # Create logger
     logger = logging.getLogger("agentspy")
-    logger.setLevel(getattr(logging, settings.log_level.upper()))
+    # Strip quotes from log level if present
+    log_level = settings.log_level.strip("\"'")
+    logger.setLevel(getattr(logging, log_level.upper()))
 
     # Clear any existing handlers
     logger.handlers.clear()
 
     # Create handler
-    handler = logging.FileHandler(settings.log_file) if settings.log_file else logging.StreamHandler(sys.stdout)
+    # Strip quotes from log file path if present
+    log_file = settings.log_file.strip("\"'") if settings.log_file else None
+    handler = logging.FileHandler(log_file) if log_file else logging.StreamHandler(sys.stdout)
 
     # Set formatter based on format preference
     if settings.log_format.lower() == "json":

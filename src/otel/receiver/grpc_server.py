@@ -7,14 +7,16 @@ from typing import Any
 import grpc
 from opentelemetry.proto.collector.trace.v1 import trace_service_pb2, trace_service_pb2_grpc
 
+from src.core.database import get_db_session
 from src.core.logging import get_logger
 from src.otel.receiver.converter import OtlpToAgentSpyConverter
 from src.otel.receiver.models import OtlpSpan
 from src.otel.utils.mapping import (
-    bytes_to_hex_string,
+    bytes_to_uuid,
     extract_resource_attributes,
     unix_nanos_to_datetime,
 )
+from src.repositories.runs import RunRepository
 
 logger = get_logger(__name__)
 
@@ -58,7 +60,11 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
             # Batch create runs
             if runs_to_create:
                 try:
-                    await self.run_repository.create_batch(runs_to_create)
+                    async with get_db_session() as session:
+                        run_repository = RunRepository(session)
+                        for run_create in runs_to_create:
+                            await run_repository.create(run_create, disable_events=True)
+                        # The context manager will handle commit automatically
                     logger.info(f"Successfully created {len(runs_to_create)} runs from {total_spans} spans")
                 except Exception as e:
                     logger.error(f"Failed to create runs: {e}")
@@ -77,9 +83,9 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
     def _convert_proto_span(self, span_proto) -> OtlpSpan:
         """Convert protobuf span to OtlpSpan model."""
         # Convert trace and span IDs
-        trace_id = bytes_to_hex_string(span_proto.trace_id)
-        span_id = bytes_to_hex_string(span_proto.span_id)
-        parent_span_id = bytes_to_hex_string(span_proto.parent_span_id) if span_proto.parent_span_id else None
+        trace_id = bytes_to_uuid(span_proto.trace_id)
+        span_id = bytes_to_uuid(span_proto.span_id)
+        parent_span_id = bytes_to_uuid(span_proto.parent_span_id) if span_proto.parent_span_id else None
 
         # Convert timestamps
         start_time = unix_nanos_to_datetime(span_proto.start_time_unix_nano)
@@ -99,7 +105,7 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
             event: dict[str, Any] = {
                 "name": event_proto.name,
                 "time": unix_nanos_to_datetime(event_proto.time_unix_nano),
-                "attributes": {}
+                "attributes": {},
             }
             for attr in event_proto.attributes:
                 if attr.key:
@@ -112,9 +118,9 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
         links = []
         for link_proto in span_proto.links:
             link: dict[str, Any] = {
-                "trace_id": bytes_to_hex_string(link_proto.trace_id),
-                "span_id": bytes_to_hex_string(link_proto.span_id),
-                "attributes": {}
+                "trace_id": bytes_to_uuid(link_proto.trace_id),
+                "span_id": bytes_to_uuid(link_proto.span_id),
+                "attributes": {},
             }
             for attr in link_proto.attributes:
                 if attr.key:
@@ -124,10 +130,7 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
             links.append(link)
 
         # Convert status
-        status = {
-            "code": span_proto.status.code,
-            "message": span_proto.status.message if span_proto.status.message else None
-        }
+        status = {"code": span_proto.status.code, "message": span_proto.status.message if span_proto.status.message else None}
 
         # Create resource dict (will be populated from resource_spans)
         resource = {}
@@ -144,7 +147,7 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
             events=events,
             links=links,
             status=status,
-            resource=resource
+            resource=resource,
         )
 
     def _convert_attribute_value(self, value_proto) -> Any | None:
@@ -197,24 +200,22 @@ class OtlpGrpcServer:
         self.run_repository = None
         self._shutdown_event = asyncio.Event()
 
-    async def start(self, run_repository):
+    async def start(self):
         """Start the gRPC server."""
         try:
-            self.run_repository = run_repository
-
             # Create gRPC server
             self.server = grpc.aio.server(
                 futures.ThreadPoolExecutor(max_workers=10),
                 options=[
-                    ('grpc.max_send_message_length', 50 * 1024 * 1024),  # 50MB
-                    ('grpc.max_receive_message_length', 50 * 1024 * 1024),  # 50MB
-                ]
+                    ("grpc.max_send_message_length", 50 * 1024 * 1024),  # 50MB
+                    ("grpc.max_receive_message_length", 50 * 1024 * 1024),  # 50MB
+                ],
             )
 
             # Register the trace service
             trace_service_pb2_grpc.add_TraceServiceServicer_to_server(
-                OtlpTraceService(self.converter, self.run_repository),
-                self.server
+                OtlpTraceService(self.converter, None),  # Repository will be created per request
+                self.server,
             )
 
             # Add insecure port

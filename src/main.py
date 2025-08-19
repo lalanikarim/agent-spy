@@ -13,7 +13,6 @@ from src.core.config import get_settings
 from src.core.database import close_database, init_database
 from src.core.logging import setup_logging
 from src.otel.receiver import OtlpGrpcServer, OtlpHttpServer
-from src.repositories.runs import RunRepository
 
 # Get settings
 settings = get_settings()
@@ -37,13 +36,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     otlp_grpc_server = None
     if settings.otlp_grpc_enabled:
         try:
-            run_repository = RunRepository()
-            otlp_grpc_server = OtlpGrpcServer(
-                host=settings.otlp_grpc_host,
-                port=settings.otlp_grpc_port
-            )
+            otlp_grpc_server = OtlpGrpcServer(host=settings.otlp_grpc_host, port=settings.otlp_grpc_port)
             # Start gRPC server in background
-            asyncio.create_task(otlp_grpc_server.start(run_repository))
+            asyncio.create_task(otlp_grpc_server.start())
             logger.info(f"OTLP gRPC server configured on {settings.otlp_grpc_host}:{settings.otlp_grpc_port}")
         except Exception as e:
             logger.error(f"Failed to start OTLP gRPC server: {e}")
