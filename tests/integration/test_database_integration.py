@@ -178,7 +178,7 @@ class TestCrossDatabaseCompatibility:
             inputs={"parent": "data"},
             project_name="hierarchy-test",
         )
-        parent_run = await repository.create(parent_data)
+        await repository.create(parent_data)
 
         # Create child runs
         child_runs = []

@@ -10,9 +10,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-agentspy}
       POSTGRES_USER: ${POSTGRES_USER:-agentspy_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentspy_password}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${DATABASE_PORT:-5432}:${POSTGRES_PORT}"
     volumes:
       - postgresql_data:/var/lib/postgresql/data
       - ./init-postgresql.sql:/docker-entrypoint-initdb.d/init-postgresql.sql:ro
@@ -45,7 +46,7 @@ services:
 
       # Database Settings
       DATABASE_TYPE: ${DATABASE_TYPE:-sqlite}
-      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/data/agentspy.db}
+      # DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/data/agentspy.db}
       DATABASE_ECHO: ${DATABASE_ECHO:-false}
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
@@ -102,14 +103,15 @@ services:
     build:
       context: ../frontend
       dockerfile: ../docker/frontend/Dockerfile
+      args:
+        - VITE_API_BASE_URL=/api/v1
+        - VITE_WS_URL=ws://localhost:${FRONTEND_EXTERNAL_PORT:-3000}/ws
     container_name: agentspy-frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "${FRONTEND_EXTERNAL_PORT:-3000}:80"
     depends_on:
       - backend
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8000/api/v1
     healthcheck:
       test:
         [
