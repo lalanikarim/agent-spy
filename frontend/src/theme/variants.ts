@@ -561,7 +561,7 @@ export const getVariant = (
   variant: string
 ) => {
   const variants = createThemeVariants(theme);
-  return variants[component as keyof typeof variants]?.[variant as any] || {};
+  return (variants as any)[component]?.[variant] || {};
 };
 
 /**
@@ -573,12 +573,12 @@ export const mergeVariants = (
   variants: string[]
 ) => {
   const allVariants = createThemeVariants(theme);
-  const componentVariants = allVariants[component as keyof typeof allVariants];
+  const componentVariants = (allVariants as any)[component];
 
   if (!componentVariants) return {};
 
   return variants.reduce((merged, variant) => {
-    const variantStyles = componentVariants[variant as any];
+    const variantStyles = componentVariants[variant];
     return { ...merged, ...variantStyles };
   }, {});
 };

@@ -1,6 +1,11 @@
-import React, { useEffect, useRef } from "react";
+import {
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  InfoCircleOutlined,
+} from "@ant-design/icons";
 import { notification } from "antd";
-import { CheckCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import React, { useEffect } from "react";
 
 interface RealTimeNotificationsProps {
   isConnected: boolean;
@@ -17,7 +22,7 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
   isConnected,
   subscribedEvents,
 }) => {
-  const notificationRef = useRef<{ [key: string]: string }>({});
+  // const notificationRef = useRef<{ [key: string]: string }>({});
 
   useEffect(() => {
     // Listen for WebSocket messages from the global WebSocket hook
@@ -26,7 +31,10 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
         const message: WebSocketMessage = JSON.parse(event.data);
         handleNotification(message);
       } catch (error) {
-        console.error("Failed to parse WebSocket message for notifications:", error);
+        console.error(
+          "Failed to parse WebSocket message for notifications:",
+          error
+        );
       }
     };
 
@@ -34,7 +42,10 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
     window.addEventListener("websocket-message", handleWebSocketMessage as any);
 
     return () => {
-      window.removeEventListener("websocket-message", handleWebSocketMessage as any);
+      window.removeEventListener(
+        "websocket-message",
+        handleWebSocketMessage as any
+      );
     };
   }, [subscribedEvents]);
 
@@ -69,7 +80,9 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
       message: "New Trace Created",
       description: (
         <div>
-          <div><strong>{data.name}</strong></div>
+          <div>
+            <strong>{data.name}</strong>
+          </div>
           <div>Type: {data.run_type}</div>
           <div>Project: {data.project_name}</div>
         </div>
@@ -91,7 +104,9 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
       message: "Trace Completed",
       description: (
         <div>
-          <div><strong>{data.name}</strong></div>
+          <div>
+            <strong>{data.name}</strong>
+          </div>
           <div>Duration: {formatDuration(data.duration_ms)}</div>
           <div>Project: {data.project_name}</div>
         </div>
@@ -112,7 +127,9 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
       message: "Trace Failed",
       description: (
         <div>
-          <div><strong>{data.name}</strong></div>
+          <div>
+            <strong>{data.name}</strong>
+          </div>
           <div>Error: {data.error || "Unknown error"}</div>
           <div>Project: {data.project_name}</div>
         </div>
@@ -129,14 +146,16 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
   const showTraceStatusChangedNotification = (data: any) => {
     const key = `trace-status-${data.id}`;
     const status = data.status;
-    
+
     if (status === "completed") {
       notification.success({
         key,
         message: "Trace Status Changed",
         description: (
           <div>
-            <div><strong>{data.name}</strong> is now completed</div>
+            <div>
+              <strong>{data.name}</strong> is now completed
+            </div>
             <div>Project: {data.project_name}</div>
           </div>
         ),
@@ -150,7 +169,9 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
         message: "Trace Status Changed",
         description: (
           <div>
-            <div><strong>{data.name}</strong> has failed</div>
+            <div>
+              <strong>{data.name}</strong> has failed
+            </div>
             <div>Project: {data.project_name}</div>
           </div>
         ),
@@ -163,7 +184,7 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
 
   const formatDuration = (durationMs: number | null): string => {
     if (!durationMs) return "Unknown";
-    
+
     if (durationMs < 1000) {
       return `${durationMs}ms`;
     } else if (durationMs < 60000) {

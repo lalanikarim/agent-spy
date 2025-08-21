@@ -59,14 +59,14 @@ const ThemeCard: React.FC<ThemeCardProps> = ({
   const handleMouseEnter = (e: React.MouseEvent) => {
     if (hover && variant === "interactive") {
       // Only apply shadow hover effect, keep background subtle
-      e.currentTarget.style.boxShadow = styles.card.hover.boxShadow;
+      (e.currentTarget as HTMLElement).style.boxShadow = styles.card.hover.boxShadow;
     }
   };
 
   const handleMouseLeave = (e: React.MouseEvent) => {
     if (hover && variant === "interactive") {
       // Restore original shadow
-      e.currentTarget.style.boxShadow = styles.card.base.boxShadow;
+      (e.currentTarget as HTMLElement).style.boxShadow = styles.card.base.boxShadow;
     }
   };
 
