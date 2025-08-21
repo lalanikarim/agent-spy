@@ -133,7 +133,9 @@ def main():
     """Main function to demonstrate tracing."""
     # Set up LangSmith configuration
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ["LANGCHAIN_ENDPOINT"] = "http://localhost:8000/api/v1"
+    # Read endpoint from environment variable, fallback to default if not set
+    if "LANGCHAIN_ENDPOINT" not in os.environ:
+        os.environ["LANGCHAIN_ENDPOINT"] = "http://localhost:8000/api/v1"
     os.environ["LANGCHAIN_API_KEY"] = "test-key"
     os.environ["LANGCHAIN_PROJECT"] = "simple-tracing-example"
 
