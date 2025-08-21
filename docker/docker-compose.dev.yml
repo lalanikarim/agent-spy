@@ -85,8 +85,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
       LOG_FORMAT: ${LOG_FORMAT:-text}
     ports:
-      - "${BACKEND_EXTERNAL_PORT:-8000}:${PORT:-8000}" # Main API
-      - "${OTLP_GRPC_EXTERNAL_PORT:-4317}:${OTLP_GRPC_PORT:-4317}" # OTLP gRPC
+      - "${BACKEND_PORT:-8000}:8000" # Main API
+      - "${BACKEND_OTLP_GRPC_PORT:-4317}:4317" # OTLP gRPC
     volumes:
       # Mount source code for development
       - ../src:/app/src:ro
@@ -117,8 +117,7 @@ services:
     restart: unless-stopped
     command: npm run dev -- --host 0.0.0.0 --port ${FRONTEND_INTERNAL_PORT:-3000}
     ports:
-      - "${FRONTEND_EXTERNAL_PORT:-3000}:${FRONTEND_INTERNAL_PORT:-3000}"
-      - "5173:5173"
+      - "${FRONTEND_PORT:-3000}:3000"
     volumes:
       # Mount source code for hot reloading
       - ../frontend/src:/app/src:ro
@@ -131,24 +130,15 @@ services:
     depends_on:
       - backend
     environment:
-      - VITE_API_BASE_URL=http://localhost:${BACKEND_EXTERNAL_PORT:-8000}${API_PREFIX:-/api/v1}
-      - VITE_BACKEND_HOST=${VITE_BACKEND_HOST:-localhost}
-      - VITE_BACKEND_PORT=${VITE_BACKEND_PORT:-8000}
-      - VITE_FRONTEND_PORT=${VITE_FRONTEND_PORT:-3000}
-      - VITE_WS_URL=ws://localhost:${BACKEND_EXTERNAL_PORT:-8000}/ws
-      - NODE_ENV=${NODE_ENV:-development}
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-f",
-          "http://localhost:${FRONTEND_INTERNAL_PORT:-3000}/",
-        ]
-      interval: ${HEALTHCHECK_INTERVAL:-30s}
-      timeout: ${HEALTHCHECK_TIMEOUT:-10s}
-      retries: ${HEALTHCHECK_RETRIES:-3}
-      start_period: ${HEALTHCHECK_START_PERIOD:-40s}
+      - API_URL_BASE=${API_URL_BASE:-http://localhost:8000/api/v1}
+      - VITE_API_BASE_URL=${API_URL_BASE:-http://localhost:8000/api/v1}
+      - BACKEND_HOST=${BACKEND_HOST:-localhost}
+      - VITE_BACKEND_HOST=${BACKEND_HOST:-localhost}
+      - BACKEND_PORT=${BACKEND_PORT:-8000}
+      - VITE_BACKEND_PORT=${BACKEND_PORT:-8000}
+      - FRONTEND_PORT=${FRONTEND_PORT:-3000}
+      - VITE_FRONTEND_PORT=${FRONTEND_PORT:-3000}
+      - NODE_ENV=development
     networks:
       - agentspy-dev-network
 
