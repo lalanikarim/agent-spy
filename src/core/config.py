@@ -94,9 +94,12 @@ class Settings(BaseSettings):
 
     # OTLP Forwarder Settings
     otlp_forwarder_enabled: bool = Field(default=False, description="Enable OTLP forwarder")
-    otlp_forwarder_batch_size: int = Field(default=100, description="OTLP forwarder batch size")
-    otlp_forwarder_batch_timeout: int = Field(default=5, description="OTLP forwarder batch timeout in seconds")
-    otlp_forwarder_endpoints: str = Field(default="", description="Comma-separated OTLP forwarder endpoints")
+    otlp_forwarder_endpoint: str = Field(default="", description="OTLP forwarder endpoint URL")
+    otlp_forwarder_protocol: str = Field(default="grpc", description="OTLP forwarder protocol (http or grpc)")
+    otlp_forwarder_service_name: str = Field(default="agent-spy-forwarder", description="Service name for forwarded traces")
+    otlp_forwarder_timeout: int = Field(default=30, description="OTLP forwarder timeout in seconds")
+    otlp_forwarder_retry_count: int = Field(default=3, description="OTLP forwarder retry count")
+    otlp_forwarder_headers: dict[str, str] | None = Field(default=None, description="OTLP forwarder headers")
 
     # Logging Settings
     log_level: str = Field(default="INFO", description="Logging level")
@@ -150,6 +153,15 @@ class Settings(BaseSettings):
             raise ValueError(f"SSL mode must be one of {allowed}")
         return v.lower()
 
+    @field_validator("otlp_forwarder_protocol")
+    @classmethod
+    def validate_otlp_protocol(cls, v: str) -> str:
+        """Validate OTLP protocol value."""
+        allowed = ["http", "grpc"]
+        if v.lower() not in allowed:
+            raise ValueError(f"OTLP protocol must be one of {allowed}")
+        return v.lower()
+
     @property
     def is_development(self) -> bool:
         """Check if running in development mode."""
@@ -180,41 +192,12 @@ class Settings(BaseSettings):
             # Default SQLite URL
             return self.database_url
 
-    def get_otlp_endpoints(self) -> list[dict[str, str]]:
-        """Parse OTLP forwarder endpoints from environment variable."""
-        if not self.otlp_forwarder_endpoints:
-            return []
-
-        endpoints = []
-        for endpoint_str in self.otlp_forwarder_endpoints.split(","):
-            endpoint_str = endpoint_str.strip()
-            if not endpoint_str:
-                continue
-
-            # Parse endpoint format: name:url
-            if ":" in endpoint_str:
-                name, url = endpoint_str.split(":", 1)
-                endpoints.append({
-                    "name": name.strip(),
-                    "url": url.strip(),
-                    "enabled": True
-                })
-            else:
-                # If no name provided, use URL as name
-                endpoints.append({
-                    "name": endpoint_str,
-                    "url": endpoint_str,
-                    "enabled": True
-                })
-
-        return endpoints
-
     @classmethod
     def load_env_file_priority(cls) -> dict[str, str]:
-        """Load environment variables with .env file taking priority over existing env vars."""
+        """Load environment variables with environment variables taking priority over .env file."""
         env_vars = {}
 
-        # First, load from .env file
+        # First, load from .env file as defaults
         env_file = Path(".env")
         if env_file.exists():
             with open(env_file, encoding="utf-8") as f:
@@ -224,10 +207,9 @@ class Settings(BaseSettings):
                         key, value = line.split("=", 1)
                         env_vars[key] = value
 
-        # Then, only add environment variables that are NOT already in .env file
+        # Then, override with environment variables (environment variables take priority)
         for key, value in os.environ.items():
-            if key not in env_vars:
-                env_vars[key] = value
+            env_vars[key] = value
 
         return env_vars
 

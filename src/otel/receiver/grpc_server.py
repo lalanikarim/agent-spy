@@ -231,9 +231,14 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
 class OtlpGrpcServer:
     """OTLP gRPC server for receiving traces."""
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 4317):  # nosec B104
-        self.host = host
-        self.port = port
+    def __init__(self, host: str = None, port: int = None):
+        # Use provided values or get from centralized settings
+        from src.core.config import get_settings
+
+        settings = get_settings()
+
+        self.host = host or settings.otlp_grpc_host
+        self.port = port or settings.otlp_grpc_port
         self.server = None
         self.converter = OtlpToAgentSpyConverter()
         self.run_repository = None

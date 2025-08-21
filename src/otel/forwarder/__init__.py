@@ -1,4 +1,6 @@
-"""OpenTelemetry forwarder components."""
+"""OTLP Forwarder Module."""
 
-# TODO: Implement forwarder components in Phase 2
-__all__ = []
+from .config import OtlpForwarderConfig
+from .service import OtlpForwarderService
+
+__all__ = ["OtlpForwarderConfig", "OtlpForwarderService"]

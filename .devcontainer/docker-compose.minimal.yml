@@ -28,6 +28,22 @@ services:
     networks:
       - agentspy-minimal-network
 
+  # Jaeger for OTLP testing
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.9.0
+    container_name: agentspy-minimal-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "5778:5778" # Admin port
+      - "9411:9411" # Zipkin compatible endpoint
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - agentspy-minimal-network
+
   backend:
     build:
       context: ..
@@ -51,7 +67,7 @@ services:
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
       DATABASE_HOST: ${DATABASE_HOST:-postgresql}
-      DATABASE_PORT: ${POSTGRES_PORT:-5432}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
       DATABASE_NAME: ${DATABASE_NAME:-agentspy_minimal}
       DATABASE_USER: ${DATABASE_USER:-agentspy_user}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
@@ -67,12 +83,20 @@ services:
       CORS_ORIGINS: "*"
       CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
 
-      # OTLP Settings
+      # OTLP Settings - Disable gRPC to avoid port conflict with Jaeger
       OTLP_HTTP_ENABLED: ${OTLP_HTTP_ENABLED:-true}
       OTLP_HTTP_PATH: ${OTLP_HTTP_PATH:-/v1/traces}
-      OTLP_GRPC_ENABLED: ${OTLP_GRPC_ENABLED:-true}
-      OTLP_GRPC_HOST: ${OTLP_GRPC_HOST:-0.0.0.0}
-      OTLP_GRPC_PORT: ${OTLP_GRPC_PORT:-4317}
+      OTLP_GRPC_ENABLED: ${OTLP_GRPC_ENABLED:-false} # Disabled to avoid port conflict
+      BACKEND_OTLP_GRPC_HOST: ${BACKEND_OTLP_GRPC_HOST:-0.0.0.0}
+      BACKEND_OTLP_GRPC_PORT: ${BACKEND_OTLP_GRPC_PORT:-4317}
+
+      # OTLP Forwarder Settings for testing
+      OTLP_FORWARDER_ENABLED: ${OTLP_FORWARDER_ENABLED:-true}
+      OTLP_FORWARDER_ENDPOINT: ${OTLP_FORWARDER_ENDPOINT:-jaeger:4317}
+      OTLP_FORWARDER_PROTOCOL: ${OTLP_FORWARDER_PROTOCOL:-grpc}
+      OTLP_FORWARDER_SERVICE_NAME: ${OTLP_FORWARDER_SERVICE_NAME:-agent-spy-forwarder}
+      OTLP_FORWARDER_TIMEOUT: ${OTLP_FORWARDER_TIMEOUT:-30}
+      OTLP_FORWARDER_RETRY_COUNT: ${OTLP_FORWARDER_RETRY_COUNT:-3}
 
       # Performance Settings
       MAX_TRACE_SIZE_MB: ${MAX_TRACE_SIZE_MB:-10}
@@ -86,10 +110,12 @@ services:
       PYTHONPATH: /workspace
     ports:
       - "${BACKEND_EXTERNAL_PORT:-8000}:8000" # Main API
-      - "${OTLP_GRPC_PORT:-4317}:4317" # OTLP gRPC
+      # Note: OTLP gRPC port (4317) is disabled to avoid conflict with Jaeger
     depends_on:
       postgresql:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

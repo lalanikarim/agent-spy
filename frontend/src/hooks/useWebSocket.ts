@@ -1,5 +1,5 @@
-import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface WebSocketMessage {
   type: string;
@@ -35,7 +35,7 @@ export const useWebSocket = () => {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         isConnected: true,
         connectionError: null,
@@ -54,22 +54,27 @@ export const useWebSocket = () => {
     };
 
     ws.onclose = (event) => {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         isConnected: false,
       }));
       console.log("🔌 WebSocket disconnected", event.code, event.reason);
 
       // Attempt reconnection if not a normal closure
-      if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
+      if (
+        event.code !== 1000 &&
+        reconnectAttemptsRef.current < maxReconnectAttempts
+      ) {
         reconnectAttemptsRef.current++;
-        console.log(`🔄 Attempting reconnection ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
-        
+        console.log(
+          `🔄 Attempting reconnection ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`
+        );
+
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
         }, reconnectDelay);
       } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           connectionError: "Failed to reconnect after multiple attempts",
         }));
@@ -77,7 +82,7 @@ export const useWebSocket = () => {
     };
 
     ws.onerror = (error) => {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         connectionError: "WebSocket connection error",
       }));
@@ -92,12 +97,12 @@ export const useWebSocket = () => {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     if (wsRef.current) {
       wsRef.current.close(1000, "User initiated disconnect");
       wsRef.current = null;
     }
-    
+
     setState({
       isConnected: false,
       connectionError: null,
@@ -105,73 +110,82 @@ export const useWebSocket = () => {
     });
   }, []);
 
-  const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
-    console.log("📨 WebSocket message received:", message.type);
-    
-    switch (message.type) {
-      case "connection.established":
-        console.log("🔌 WebSocket connection established:", message.data);
-        break;
-        
-      case "subscription.confirmed":
-        setState(prev => ({
-          ...prev,
-          subscribedEvents: message.data.subscribed_events || [],
-        }));
-        console.log("✅ Event subscription confirmed:", message.data.subscribed_events);
-        break;
-        
-      case "unsubscription.confirmed":
-        setState(prev => ({
-          ...prev,
-          subscribedEvents: message.data.subscribed_events || [],
-        }));
-        console.log("✅ Event unsubscription confirmed:", message.data.subscribed_events);
-        break;
-        
-      case "trace.created":
-        console.log("🆕 Trace created:", message.data);
-        queryClient.invalidateQueries({ queryKey: ["rootTraces"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
-        break;
-        
-      case "trace.updated":
-        console.log("🔄 Trace updated:", message.data);
-        queryClient.invalidateQueries({ queryKey: ["rootTraces"] });
-        queryClient.invalidateQueries({ queryKey: ["traceHierarchy"] });
-        break;
-        
-      case "trace.completed":
-        console.log("✅ Trace completed:", message.data);
-        queryClient.invalidateQueries({ queryKey: ["rootTraces"] });
-        queryClient.invalidateQueries({ queryKey: ["traceHierarchy"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
-        break;
-        
-      case "trace.failed":
-        console.log("❌ Trace failed:", message.data);
-        queryClient.invalidateQueries({ queryKey: ["rootTraces"] });
-        queryClient.invalidateQueries({ queryKey: ["traceHierarchy"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
-        break;
-        
-      case "stats.updated":
-        console.log("📊 Stats updated:", message.data);
-        queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
-        break;
-        
-      case "pong":
-        console.log("🏓 Pong received:", message.data);
-        break;
-        
-      case "error":
-        console.error("❌ WebSocket error message:", message.data);
-        break;
-        
-      default:
-        console.warn("⚠️ Unknown WebSocket message type:", message.type);
-    }
-  }, [queryClient]);
+  const handleWebSocketMessage = useCallback(
+    (message: WebSocketMessage) => {
+      console.log("📨 WebSocket message received:", message.type);
+
+      switch (message.type) {
+        case "connection.established":
+          console.log("🔌 WebSocket connection established:", message.data);
+          break;
+
+        case "subscription.confirmed":
+          setState((prev) => ({
+            ...prev,
+            subscribedEvents: message.data.subscribed_events || [],
+          }));
+          console.log(
+            "✅ Event subscription confirmed:",
+            message.data.subscribed_events
+          );
+          break;
+
+        case "unsubscription.confirmed":
+          setState((prev) => ({
+            ...prev,
+            subscribedEvents: message.data.subscribed_events || [],
+          }));
+          console.log(
+            "✅ Event unsubscription confirmed:",
+            message.data.subscribed_events
+          );
+          break;
+
+        case "trace.created":
+          console.log("🆕 Trace created:", message.data);
+          queryClient.invalidateQueries({ queryKey: ["rootTraces"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+          break;
+
+        case "trace.updated":
+          console.log("🔄 Trace updated:", message.data);
+          queryClient.invalidateQueries({ queryKey: ["rootTraces"] });
+          queryClient.invalidateQueries({ queryKey: ["traceHierarchy"] });
+          break;
+
+        case "trace.completed":
+          console.log("✅ Trace completed:", message.data);
+          queryClient.invalidateQueries({ queryKey: ["rootTraces"] });
+          queryClient.invalidateQueries({ queryKey: ["traceHierarchy"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+          break;
+
+        case "trace.failed":
+          console.log("❌ Trace failed:", message.data);
+          queryClient.invalidateQueries({ queryKey: ["rootTraces"] });
+          queryClient.invalidateQueries({ queryKey: ["traceHierarchy"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+          break;
+
+        case "stats.updated":
+          console.log("📊 Stats updated:", message.data);
+          queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+          break;
+
+        case "pong":
+          console.log("🏓 Pong received:", message.data);
+          break;
+
+        case "error":
+          console.error("❌ WebSocket error message:", message.data);
+          break;
+
+        default:
+          console.warn("⚠️ Unknown WebSocket message type:", message.type);
+      }
+    },
+    [queryClient]
+  );
 
   const subscribe = useCallback((events: string[]) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -210,7 +224,7 @@ export const useWebSocket = () => {
   // Auto-connect on mount
   useEffect(() => {
     connect();
-    
+
     return () => {
       disconnect();
     };

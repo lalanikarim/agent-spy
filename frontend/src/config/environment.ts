@@ -22,10 +22,10 @@ interface EnvironmentConfig {
 export const config: EnvironmentConfig = {
   // Use environment variables first, then fall back to defaults
   apiBaseUrl:
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api/v1",
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
   isDevelopment: import.meta.env.DEV || false,
   backendPort: import.meta.env.VITE_BACKEND_PORT || "8000",
-  frontendPort: import.meta.env.VITE_FRONTEND_PORT || "3001",
+  frontendPort: import.meta.env.VITE_FRONTEND_PORT || "3000",
   environment: import.meta.env.MODE || "development",
 };
 
