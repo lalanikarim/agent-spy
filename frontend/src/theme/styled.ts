@@ -23,7 +23,7 @@ export interface StyledComponentProps {
  * Create a theme-aware styled component
  */
 export const createStyledComponent = (
-  element: keyof JSX.IntrinsicElements,
+  element: keyof React.JSX.IntrinsicElements,
   styles: ThemeStyles | ((theme: Theme) => ThemeStyles)
 ) => {
   const StyledComponent: React.FC<StyledComponentProps> = ({
@@ -69,12 +69,12 @@ const convertThemeStylesToCSS = (
       if (typeof value === "string" && value.includes(".")) {
         const tokenValue = getThemeValue(value, tokens);
         if (tokenValue) {
-          css[convertToCamelCase(key)] = tokenValue;
+          (css as any)[convertToCamelCase(key)] = tokenValue;
         } else {
-          css[convertToCamelCase(key)] = value;
+          (css as any)[convertToCamelCase(key)] = value;
         }
       } else {
-        css[convertToCamelCase(key)] = value;
+        (css as any)[convertToCamelCase(key)] = value;
       }
     } else if (typeof value === "object" && value !== null) {
       // Handle nested objects (e.g., pseudo-selectors)

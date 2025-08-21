@@ -47,7 +47,7 @@ const ThemeText: React.FC<ThemeTextProps> = ({
     ...style,
   };
 
-  const Component = as as keyof JSX.IntrinsicElements;
+  const Component = as as keyof React.JSX.IntrinsicElements;
 
   return (
     <Component className={className} style={textStyle}>

@@ -6,16 +6,21 @@ services:
     container_name: agentspy-minimal-postgresql
     restart: unless-stopped
     environment:
-      POSTGRES_DB: agentspy_minimal
-      POSTGRES_USER: agentspy_user
-      POSTGRES_PASSWORD: agentspy_password
+      POSTGRES_DB: ${POSTGRES_DB:-agentspy_minimal}
+      POSTGRES_USER: ${POSTGRES_USER:-agentspy_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentspy_password}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
-      - "5432:5432"
+      - "${DATABASE_PORT:-5432}:${POSTGRES_PORT}"
     volumes:
       - postgresql_minimal_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agentspy_user -d agentspy_minimal"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-agentspy_user} -d ${POSTGRES_DB:-agentspy_minimal}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,32 +35,67 @@ services:
     container_name: agentspy-minimal-backend
     volumes:
       - ..:/workspace:cached
+      - sqlite_data:/workspace/data
     working_dir: /workspace
     environment:
-      # Backend development configuration
-      DATABASE_TYPE: ${DATABASE_TYPE:-sqlite}
-      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./agentspy.db}
-      ENVIRONMENT: development
-      DEBUG: true
+      # Application Settings
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
       HOST: 0.0.0.0
       PORT: 8000
-      LOG_LEVEL: DEBUG
-      PYTHONPATH: /workspace
-      CORS_ORIGINS: http://localhost:3001,http://localhost:3000,http://localhost:5173
+
+      # Database Settings
+      DATABASE_TYPE: ${DATABASE_TYPE:-sqlite}
+      # DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./data/agentspy.db}
+      DATABASE_ECHO: ${DATABASE_ECHO:-true}
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
       DATABASE_HOST: ${DATABASE_HOST:-postgresql}
-      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_PORT: ${POSTGRES_PORT:-5432}
       DATABASE_NAME: ${DATABASE_NAME:-agentspy_minimal}
       DATABASE_USER: ${DATABASE_USER:-agentspy_user}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
       DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
       DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-20}
+
+      # API Settings
+      API_PREFIX: /api/v1
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
+      API_KEYS: ${API_KEYS:-}
+
+      # CORS Settings
+      CORS_ORIGINS: "*"
+      CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
+
+      # OTLP Settings
+      OTLP_HTTP_ENABLED: ${OTLP_HTTP_ENABLED:-true}
+      OTLP_HTTP_PATH: ${OTLP_HTTP_PATH:-/v1/traces}
+      OTLP_GRPC_ENABLED: ${OTLP_GRPC_ENABLED:-true}
+      OTLP_GRPC_HOST: ${OTLP_GRPC_HOST:-0.0.0.0}
+      OTLP_GRPC_PORT: ${OTLP_GRPC_PORT:-4317}
+
+      # Performance Settings
+      MAX_TRACE_SIZE_MB: ${MAX_TRACE_SIZE_MB:-10}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-30}
+
+      # Logging Settings
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      LOG_FORMAT: ${LOG_FORMAT:-text}
+
+      # Development Settings
+      PYTHONPATH: /workspace
     ports:
-      - "8000:8000"
+      - "${BACKEND_EXTERNAL_PORT:-8000}:8000" # Main API
+      - "${OTLP_GRPC_PORT:-4317}:4317" # OTLP gRPC
     depends_on:
       postgresql:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - agentspy-minimal-network
 
@@ -72,21 +112,36 @@ services:
     command: /usr/local/bin/frontend-supervisor.sh
     environment:
       # Frontend development configuration
-      VITE_API_BASE_URL: http://localhost:8000/api/v1
+      VITE_API_BASE_URL: http://localhost:${BACKEND_EXTERNAL_PORT:-8000}/api/v1
       VITE_BACKEND_PORT: 8000
       VITE_FRONTEND_PORT: 3000
       VITE_BACKEND_HOST: localhost
-      VITE_WS_URL: ws://localhost:8000/ws
+      VITE_WS_URL: ws://localhost:${BACKEND_EXTERNAL_PORT:-8000}/ws
       NODE_ENV: development
     ports:
-      - "3001:3000"
+      - "${FRONTEND_EXTERNAL_PORT:-3001}:3000"
       - "5173:5173"
     depends_on:
       - backend
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - agentspy-minimal-network
 
 volumes:
+  sqlite_data:
+    driver: local
   postgresql_minimal_data:
     driver: local
 

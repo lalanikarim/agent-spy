@@ -6,7 +6,7 @@ import { darkTokens, lightTokens } from "./tokens";
  */
 export const generateTailwindTheme = () => {
   const light = lightTokens;
-  const dark = darkTokens;
+  // const dark = darkTokens;
 
   return {
     colors: {

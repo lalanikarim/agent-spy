@@ -26,7 +26,7 @@ import {
 } from "antd";
 import type { DataNode } from "antd/es/tree";
 import React from "react";
-import { useTraceHierarchy, useRealTimeUpdates } from "../hooks/useTraces";
+import { useRealTimeUpdates, useTraceHierarchy } from "../hooks/useTraces";
 import type { RunHierarchyNode } from "../types/traces";
 import { formatters } from "../utils/formatters";
 import { SimpleTimeline } from "./SimpleTimeline";
@@ -111,8 +111,8 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
     const { icon: typeIcon } = formatters.formatRunType(node.run_type);
     const duration = formatters.formatTaskDuration(
       node.duration_ms,
-      node.start_time,
-      node.end_time,
+      node.start_time ?? null,
+      node.end_time ?? null,
       node.status
     );
 
@@ -211,8 +211,8 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
               <Text className="font-mono">
                 {formatters.formatTaskDuration(
                   node.duration_ms,
-                  node.start_time,
-                  node.end_time,
+                  node.start_time ?? null,
+                  node.end_time ?? null,
                   node.status
                 )}
               </Text>
@@ -587,8 +587,8 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                       Duration:{" "}
                       {formatters.formatTaskDuration(
                         data.hierarchy.duration_ms,
-                        data.hierarchy.start_time,
-                        data.hierarchy.end_time,
+                        data.hierarchy.start_time ?? null,
+                        data.hierarchy.end_time ?? null,
                         data.hierarchy.status
                       )}
                     </span>
@@ -654,7 +654,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                                 hierarchy={data.hierarchy}
                                 selectedNodeId={selectedNodeKey || undefined}
                                 onNodeSelect={(nodeId) => {
-                                  setSelectedNodeKey(nodeId);
+                                  setSelectedNodeKey(nodeId || null);
                                   const findNode = (
                                     node: RunHierarchyNode
                                   ): RunHierarchyNode | null => {
@@ -686,7 +686,7 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                                 hierarchy={data.hierarchy}
                                 selectedNodeId={selectedNodeKey || undefined}
                                 onNodeSelect={(nodeId) => {
-                                  setSelectedNodeKey(nodeId);
+                                  setSelectedNodeKey(nodeId || null);
                                   const findNode = (
                                     node: RunHierarchyNode
                                   ): RunHierarchyNode | null => {
@@ -772,8 +772,8 @@ const TraceDetail: React.FC<TraceDetailProps> = ({
                     Duration:{" "}
                     {formatters.formatTaskDuration(
                       data.hierarchy.duration_ms,
-                      data.hierarchy.start_time,
-                      data.hierarchy.end_time,
+                      data.hierarchy.start_time ?? null,
+                      data.hierarchy.end_time ?? null,
                       data.hierarchy.status
                     )}
                   </span>
