@@ -86,14 +86,16 @@ graph TB
 - **Base Image**: `nginx:alpine`
 - **Build Process**: Multi-stage build with Node.js 20
 - **Served Content**: Optimized React production build
-- **Port**: 80 (configurable via `FRONTEND_PORT`)
+- **Internal Port**: 80 (fixed)
+- **External Port**: Configurable via `FRONTEND_EXTERNAL_PORT`
 - **Health Check**: HTTP request to root path
 
 #### Backend Container (`agentspy-backend`)
 - **Base Image**: `python:3.13-slim`
 - **Package Manager**: uv for fast dependency management
 - **Runtime**: FastAPI with Uvicorn server
-- **Port**: 8000 (configurable via `BACKEND_PORT`)
+- **Internal Port**: 8000 (fixed)
+- **External Port**: Configurable via `BACKEND_EXTERNAL_PORT`
 - **Health Check**: HTTP request to `/health` endpoint
 
 ## Configuration Files
@@ -118,7 +120,7 @@ services:
       DATABASE_URL: sqlite+aiosqlite:////app/data/agentspy.db
       CORS_ORIGINS: "*"
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_EXTERNAL_PORT:-8000}:8000"
     volumes:
       - sqlite_data:/app/data
     healthcheck:
@@ -135,11 +137,13 @@ services:
     container_name: agentspy-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - "${FRONTEND_EXTERNAL_PORT:-3000}:80"
     depends_on:
       - backend
     environment:
-      - VITE_API_BASE_URL=http://localhost:${BACKEND_PORT:-8000}
+      - VITE_BACKEND_HOST=${BACKEND_HOST:-localhost}
+      - VITE_BACKEND_PORT=${BACKEND_EXTERNAL_PORT:-8000}
+      - VITE_API_BASE_URL=http://${BACKEND_HOST:-localhost}:${BACKEND_EXTERNAL_PORT:-8000}/api/v1
 
 volumes:
   sqlite_data:
@@ -169,9 +173,13 @@ ENVIRONMENT=production  # or development
 # Debug mode
 DEBUG=false  # Set to true for development
 
-# Service ports
-BACKEND_PORT=8000   # Backend API port
-FRONTEND_PORT=80    # Frontend web interface port
+# External port mapping
+BACKEND_EXTERNAL_PORT=8000   # External port for backend API
+FRONTEND_EXTERNAL_PORT=3000  # External port for frontend
+OTLP_EXTERNAL_PORT=4317      # External port for OTLP gRPC
+
+# Backend hostname for frontend connection
+BACKEND_HOST=localhost       # Hostname for frontend to connect to backend
 ```
 
 ### Database Configuration
@@ -334,8 +342,9 @@ CMD ["nginx", "-g", "daemon off;"]
 ### Port Mapping
 ```
 Host Port → Container Port
-FRONTEND_PORT (80) → 80    # Frontend web interface
-BACKEND_PORT (8000) → 8000 # Backend API server
+FRONTEND_EXTERNAL_PORT (3000) → 80    # Frontend web interface (nginx)
+BACKEND_EXTERNAL_PORT (8000) → 8000   # Backend API server
+OTLP_EXTERNAL_PORT (4317) → 4317      # OTLP gRPC receiver
 ```
 
 ### Internal Communication
@@ -402,8 +411,8 @@ lsof -i :8000  # Backend port
 lsof -i :80    # Frontend port
 
 # Solution: Change ports in .env file
-BACKEND_PORT=8001
-FRONTEND_PORT=8080
+BACKEND_EXTERNAL_PORT=8001
+FRONTEND_EXTERNAL_PORT=8080
 ```
 
 #### 2. Permission Issues

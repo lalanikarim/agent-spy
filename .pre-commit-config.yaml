@@ -11,7 +11,18 @@ repos:
         name: ruff check (with --fix)
         args: [--fix]
         types: [python]
-        exclude: ^\.venv/
+        exclude: |
+          (?x)^(
+              \.venv/|
+              \.pytest_cache/|
+              __pycache__/|
+              \.mypy_cache/|
+              \.ruff_cache/|
+              \.cursor/artifacts/|
+              node_modules/|
+              dist/|
+              build/
+          )/
 
   # Type checking with basedpyright (local hook)
   - repo: local
@@ -40,10 +51,32 @@ repos:
       # Python-specific checks
       - id: check-ast
         types: [python]
-        exclude: ^\.venv/
+        exclude: |
+          (?x)^(
+              \.venv/|
+              \.pytest_cache/|
+              __pycache__/|
+              \.mypy_cache/|
+              \.ruff_cache/|
+              \.cursor/artifacts/|
+              node_modules/|
+              dist/|
+              build/
+          )/
       - id: debug-statements
         types: [python]
-        exclude: ^\.venv/
+        exclude: |
+          (?x)^(
+              \.venv/|
+              \.pytest_cache/|
+              __pycache__/|
+              \.mypy_cache/|
+              \.ruff_cache/|
+              \.cursor/artifacts/|
+              node_modules/|
+              dist/|
+              build/
+          )/
       # YAML/JSON checks
       - id: check-yaml
         exclude: ^frontend/

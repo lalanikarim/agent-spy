@@ -8,16 +8,27 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   // Parse port numbers with fallbacks
-  // Use new environment variable naming convention with fallbacks
   const backendPort =
-    env.BACKEND_PORT || process.env.BACKEND_PORT || env.VITE_BACKEND_PORT || process.env.VITE_BACKEND_PORT || "8000";
+    env.PORT ||
+    process.env.PORT ||
+    env.VITE_BACKEND_PORT ||
+    process.env.VITE_BACKEND_PORT ||
+    "8000";
   const frontendPort = parseInt(
-    env.FRONTEND_PORT || process.env.FRONTEND_PORT || env.VITE_FRONTEND_PORT || process.env.VITE_FRONTEND_PORT || "3001"
+    env.FRONTEND_PORT ||
+      process.env.FRONTEND_PORT ||
+      env.VITE_FRONTEND_PORT ||
+      process.env.VITE_FRONTEND_PORT ||
+      "3000"
   );
 
   // Determine backend host based on environment
   const backendHost =
-    env.BACKEND_HOST || process.env.BACKEND_HOST || env.VITE_BACKEND_HOST || process.env.VITE_BACKEND_HOST || "agentspy-minimal-backend";
+    env.HOST ||
+    process.env.HOST ||
+    env.VITE_BACKEND_HOST ||
+    process.env.VITE_BACKEND_HOST ||
+    "agentspy-minimal-backend";
 
   return {
     plugins: [react()],

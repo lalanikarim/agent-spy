@@ -1,7 +1,6 @@
 """OTLP gRPC server for Agent Spy."""
 
 import asyncio
-import os
 from concurrent import futures
 from typing import Any
 
@@ -232,10 +231,14 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
 class OtlpGrpcServer:
     """OTLP gRPC server for receiving traces."""
 
-    def __init__(self, host: str = None, port: int = None):  # nosec B104
-        # Use environment variables if not provided, fallback to defaults
-        self.host = host or os.getenv("BACKEND_OTLP_GRPC_HOST", "0.0.0.0")  # nosec B104
-        self.port = port or int(os.getenv("BACKEND_OTLP_GRPC_PORT", "4317"))
+    def __init__(self, host: str = None, port: int = None):
+        # Use provided values or get from centralized settings
+        from src.core.config import get_settings
+
+        settings = get_settings()
+
+        self.host = host or settings.otlp_grpc_host
+        self.port = port or settings.otlp_grpc_port
         self.server = None
         self.converter = OtlpToAgentSpyConverter()
         self.run_repository = None

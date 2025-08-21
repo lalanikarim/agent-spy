@@ -31,10 +31,7 @@ export const useWebSocket = () => {
       return; // Already connected
     }
 
-    const wsUrl =
-      import.meta.env.API_WS_URL ||
-      import.meta.env.VITE_WS_URL ||
-      `ws://localhost:8000/ws`;
+    const wsUrl = import.meta.env.VITE_WS_URL || `ws://localhost:8000/ws`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
