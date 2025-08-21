@@ -82,8 +82,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-json}
     ports:
-      - "8000:8000"  # Main API
-      - "4317:4317"  # OTLP gRPC
+      - "${BACKEND_EXTERNAL_PORT:-8000}:${PORT:-8000}" # Main API
+      - "${OTLP_GRPC_EXTERNAL_PORT:-4317}:${OTLP_GRPC_PORT:-4317}" # OTLP gRPC
     volumes:
       - sqlite_data:/app/data
     depends_on:

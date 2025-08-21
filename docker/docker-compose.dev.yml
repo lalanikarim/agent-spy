@@ -10,9 +10,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-agentspy_dev}
       POSTGRES_USER: ${POSTGRES_USER:-agentspy_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentspy_password}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "${DATABASE_PORT:-5433}:${POSTGRES_PORT}"
     volumes:
       - postgresql_dev_data:/var/lib/postgresql/data
       - ./init-postgresql.sql:/docker-entrypoint-initdb.d/init-postgresql.sql:ro
@@ -38,15 +39,14 @@ services:
     restart: unless-stopped
     environment:
       # Application Settings
-      ENVIRONMENT: development
-      DEBUG: true
-      HOST: 0.0.0.0
-      PORT: 8000
-      RELOAD: true
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${PORT:-8000}
+      RELOAD: ${RELOAD:-true}
 
       # Database Settings
       DATABASE_TYPE: ${DATABASE_TYPE:-sqlite}
-      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/data/agentspy_dev.db}
       DATABASE_ECHO: ${DATABASE_ECHO:-true}
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
@@ -59,12 +59,13 @@ services:
       DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-20}
 
       # API Settings
-      API_PREFIX: /api/v1
-      REQUIRE_AUTH: false
+      API_PREFIX: ${API_PREFIX:-/api/v1}
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
+      API_KEYS: ${API_KEYS:-}
 
       # CORS Settings - Allow all origins in development
-      CORS_ORIGINS: "*"
-      CORS_CREDENTIALS: true
+      CORS_ORIGINS: ${CORS_ORIGINS:-"*"}
+      CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
 
       # OTLP Settings
       OTLP_HTTP_ENABLED: ${OTLP_HTTP_ENABLED:-true}
@@ -77,12 +78,15 @@ services:
       MAX_TRACE_SIZE_MB: ${MAX_TRACE_SIZE_MB:-50}
       REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-60}
 
+      # WebSocket Settings
+      WEBSOCKET_ENABLED: ${WEBSOCKET_ENABLED:-true}
+
       # Logging Settings
-      LOG_LEVEL: DEBUG
-      LOG_FORMAT: text
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      LOG_FORMAT: ${LOG_FORMAT:-text}
     ports:
-      - "8000:8000" # Main API
-      - "4317:4317" # OTLP gRPC
+      - "${BACKEND_EXTERNAL_PORT:-8000}:${PORT:-8000}" # Main API
+      - "${OTLP_GRPC_EXTERNAL_PORT:-4317}:${OTLP_GRPC_PORT:-4317}" # OTLP gRPC
     volumes:
       # Mount source code for development
       - ../src:/app/src:ro
@@ -96,11 +100,11 @@ services:
       postgresql:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/health"]
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-40s}
     networks:
       - agentspy-dev-network
 
@@ -111,9 +115,10 @@ services:
       dockerfile: ../docker/frontend-dev-standalone.Dockerfile
     container_name: agentspy-frontend-dev
     restart: unless-stopped
-    command: npm run dev -- --host 0.0.0.0 --port 3000
+    command: npm run dev -- --host 0.0.0.0 --port ${FRONTEND_INTERNAL_PORT:-3000}
     ports:
-      - "3000:3000"
+      - "${FRONTEND_EXTERNAL_PORT:-3000}:${FRONTEND_INTERNAL_PORT:-3000}"
+      - "5173:5173"
     volumes:
       # Mount source code for hot reloading
       - ../frontend/src:/app/src:ro
@@ -126,11 +131,24 @@ services:
     depends_on:
       - backend
     environment:
-      - VITE_API_BASE_URL=http://localhost:8000/api/v1
-      - VITE_BACKEND_HOST=localhost
-      - VITE_BACKEND_PORT=8000
-      - VITE_FRONTEND_PORT=3000
-      - NODE_ENV=development
+      - VITE_API_BASE_URL=http://localhost:${BACKEND_EXTERNAL_PORT:-8000}${API_PREFIX:-/api/v1}
+      - VITE_BACKEND_HOST=${VITE_BACKEND_HOST:-localhost}
+      - VITE_BACKEND_PORT=${VITE_BACKEND_PORT:-8000}
+      - VITE_FRONTEND_PORT=${VITE_FRONTEND_PORT:-3000}
+      - VITE_WS_URL=ws://localhost:${BACKEND_EXTERNAL_PORT:-8000}/ws
+      - NODE_ENV=${NODE_ENV:-development}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${FRONTEND_INTERNAL_PORT:-3000}/",
+        ]
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-40s}
     networks:
       - agentspy-dev-network
 
