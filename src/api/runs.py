@@ -8,8 +8,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import get_settings
 from src.core.database import get_db
 from src.core.logging import get_logger
+from src.otel.forwarder import OtlpForwarderConfig, OtlpForwarderService
 from src.repositories.feedback import FeedbackRepository
 from src.repositories.runs import RunRepository
 from src.schemas.dashboard import (
@@ -32,6 +34,19 @@ from src.schemas.runs import (
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+# Initialize OTLP forwarder service
+settings = get_settings()
+forwarder_config = OtlpForwarderConfig(
+    enabled=settings.otlp_forwarder_enabled,
+    endpoint=settings.otlp_forwarder_endpoint,
+    protocol=settings.otlp_forwarder_protocol,
+    service_name=settings.otlp_forwarder_service_name,
+    timeout=settings.otlp_forwarder_timeout,
+    retry_count=settings.otlp_forwarder_retry_count,
+    headers=settings.otlp_forwarder_headers,
+)
+forwarder_service = OtlpForwarderService(forwarder_config)
 
 
 @router.get("/info", response_model=LangSmithInfo, summary="Service Information")
@@ -101,6 +116,8 @@ async def batch_ingest_runs(
     created_count = 0
     updated_count = 0
     errors = 0
+    created_runs = []  # Track created runs for forwarding
+    updated_runs = []  # Track updated runs for forwarding
 
     # Extract project name from headers or metadata if not in request body
     project_from_headers = None
@@ -180,8 +197,9 @@ async def batch_ingest_runs(
                 logger.info(f"📝 Project already set in run_create: {run_create.project_name}")
 
             logger.info(f"🔄 Creating run: {run_create.id} (final project: {run_create.project_name})")
-            await run_repo.create(run_create)
+            created_run = await run_repo.create(run_create)
             created_count += 1
+            created_runs.append(created_run)
             logger.info(f"✅ Created run: {run_create.id}")
         except Exception as e:
             logger.error(f"❌ Failed to create run {run_create.id}: {e}")
@@ -218,6 +236,7 @@ async def batch_ingest_runs(
             updated_run = await run_repo.update(run_update.id, run_update)
             if updated_run:
                 updated_count += 1
+                updated_runs.append(updated_run)
                 logger.debug(f"Updated run: {run_update.id}")
             else:
                 logger.warning(f"Run not found for update: {run_update.id}")
@@ -225,6 +244,55 @@ async def batch_ingest_runs(
         except Exception as e:
             logger.error(f"Failed to update run {run_update.id}: {e}")
             errors += 1
+
+    # Forward runs to OTLP endpoint if enabled
+    runs_to_forward = created_runs + updated_runs
+
+    # For LangGraph workflows, also forward related traces in the same project
+    if forwarder_service and runs_to_forward:
+        try:
+            # Get project names from the runs being processed
+            project_names = set()
+            for run in runs_to_forward:
+                if run.project_name:
+                    project_names.add(run.project_name)
+
+            # If we have project names, also forward recent traces from the same projects
+            if project_names:
+                logger.info(f"🔍 Looking for related traces in projects: {project_names}")
+
+                # Get recent traces from the same projects (last 5 minutes)
+                from datetime import datetime, timedelta
+
+                recent_time = (datetime.now() - timedelta(minutes=5)).isoformat()
+
+                for project_name in project_names:
+                    try:
+                        # Get recent traces from this project
+                        recent_traces = await run_repo.get_recent_runs_by_project(
+                            project_name=project_name, start_time_gte=recent_time, limit=50
+                        )
+
+                        if recent_traces:
+                            # Add recent traces that aren't already in our list
+                            existing_ids = {run.id for run in runs_to_forward}
+                            for recent_run in recent_traces:
+                                if recent_run.id not in existing_ids:
+                                    runs_to_forward.append(recent_run)
+
+                            logger.info(f"📋 Added {len(recent_traces)} recent traces from project '{project_name}'")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not fetch recent traces for project '{project_name}': {e}")
+
+            logger.info(f"🔄 Forwarding {len(runs_to_forward)} runs to OTLP endpoint")
+            logger.info(f"📋 Runs to forward: {[run.id for run in runs_to_forward]}")
+            await forwarder_service.forward_runs(runs_to_forward)
+            logger.info(f"✅ Successfully queued {len(runs_to_forward)} runs for OTLP forwarding")
+        except Exception as e:
+            logger.error(f"❌ Error forwarding runs to OTLP: {e}")
+            # Don't fail the main request if forwarding fails
+    else:
+        logger.info(f"ℹ️ No runs to forward: forwarder_enabled={bool(forwarder_service)}, runs_count={len(runs_to_forward)}")
 
     logger.info(f"Batch ingest completed: created={created_count}, updated={updated_count}, errors={errors}")
     return BatchIngestResponse(
@@ -244,6 +312,17 @@ async def create_run(run_data: RunCreate, db: AsyncSession = Depends(get_db)) ->
 
     try:
         run = await run_repo.create(run_data)
+
+        # Forward run to OTLP endpoint if enabled
+        if forwarder_service:
+            try:
+                logger.info(f"🔄 Forwarding individual run {run.id} to OTLP endpoint")
+                await forwarder_service.forward_runs([run])
+                logger.info(f"✅ Successfully queued individual run {run.id} for OTLP forwarding")
+            except Exception as e:
+                logger.error(f"❌ Error forwarding individual run {run.id} to OTLP: {e}")
+                # Don't fail the main request if forwarding fails
+
         return RunResponse.from_run(run)
     except Exception as e:
         logger.error(f"Failed to create run {run_data.id}: {e}")
@@ -261,6 +340,16 @@ async def update_run(run_id: UUID, run_data: RunUpdate, db: AsyncSession = Depen
         run = await run_repo.update(run_id, run_data)
         if not run:
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+        # Forward updated run to OTLP endpoint if enabled
+        if forwarder_service and run:
+            try:
+                logger.info(f"🔄 Forwarding updated run {run.id} to OTLP endpoint")
+                await forwarder_service.forward_runs([run])
+                logger.info(f"✅ Successfully queued updated run {run.id} for OTLP forwarding")
+            except Exception as e:
+                logger.error(f"❌ Error forwarding updated run {run.id} to OTLP: {e}")
+                # Don't fail the main request if forwarding fails
 
         return RunResponse.from_run(run)
     except HTTPException:

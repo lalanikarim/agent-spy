@@ -423,6 +423,29 @@ class RunRepository:
         logger.debug(f"Run types: {run_types}")
         return run_types
 
+    async def get_recent_runs_by_project(
+        self, project_name: str, start_time_gte: str | None = None, limit: int = 50
+    ) -> list[Run]:
+        """Get recent runs from a specific project."""
+        logger.debug(f"Getting recent runs for project: {project_name}")
+
+        stmt = select(Run).where(Run.project_name == project_name)
+
+        if start_time_gte:
+            try:
+                start_time = datetime.fromisoformat(start_time_gte.replace("Z", "+00:00"))
+                stmt = stmt.where(Run.start_time >= start_time)
+            except Exception as e:
+                logger.warning(f"Invalid start_time_gte format: {start_time_gte}, error: {e}")
+
+        stmt = stmt.order_by(desc(Run.start_time)).limit(limit)
+
+        result = await self.session.execute(stmt)
+        runs = result.scalars().all()
+
+        logger.debug(f"Found {len(runs)} recent runs for project {project_name}")
+        return list(runs)
+
     async def get_dashboard_stats(self) -> dict[str, Any]:
         """Get comprehensive dashboard statistics."""
         logger.debug("Getting dashboard statistics")
