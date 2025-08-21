@@ -51,7 +51,12 @@ def check_agent_spy_health() -> bool:
     try:
         import requests
 
-        response = requests.get("http://localhost:8000/health", timeout=5)
+        # Extract the base URL from LANGSMITH_ENDPOINT
+        langsmith_endpoint = os.getenv("LANGSMITH_ENDPOINT", "http://localhost:8000/api/v1")
+        base_url = langsmith_endpoint.replace("/api/v1", "")
+        health_url = f"{base_url}/health"
+
+        response = requests.get(health_url, timeout=5)
         if response.status_code == 200:
             data = response.json()
             print(f"  ✅ Agent Spy is healthy (v{data.get('version', 'unknown')})")

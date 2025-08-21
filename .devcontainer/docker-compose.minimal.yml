@@ -67,7 +67,7 @@ services:
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
       DATABASE_HOST: ${DATABASE_HOST:-postgresql}
-      DATABASE_PORT: ${POSTGRES_PORT:-5432}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
       DATABASE_NAME: ${DATABASE_NAME:-agentspy_minimal}
       DATABASE_USER: ${DATABASE_USER:-agentspy_user}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}

@@ -109,7 +109,7 @@ services:
     container_name: agentspy-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_EXTERNAL_PORT:-3000}:${VITE_FRONTEND_PORT:-3000}"
+      - "${FRONTEND_EXTERNAL_PORT:-3000}:80"
     depends_on:
       - backend
     environment:
