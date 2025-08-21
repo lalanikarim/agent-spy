@@ -177,6 +177,52 @@ class Settings(BaseSettings):
         """Check if running in test mode."""
         return self.environment == "test"
 
+    # New naming convention properties for backward compatibility
+    @property
+    def backend_host(self) -> str:
+        """Get backend host (alias for host)."""
+        return self.host
+
+    @property
+    def backend_port(self) -> int:
+        """Get backend port (alias for port)."""
+        return self.port
+
+    @property
+    def db_host(self) -> str:
+        """Get database host (alias for database_host)."""
+        return self.database_host
+
+    @property
+    def db_port(self) -> int:
+        """Get database port (alias for database_port)."""
+        return self.database_port
+
+    @property
+    def db_name(self) -> str:
+        """Get database name (alias for database_name)."""
+        return self.database_name
+
+    @property
+    def db_user(self) -> str:
+        """Get database user (alias for database_user)."""
+        return self.database_user
+
+    @property
+    def db_password(self) -> str:
+        """Get database password (alias for database_password)."""
+        return self.database_password
+
+    @property
+    def backend_otlp_grpc_host(self) -> str:
+        """Get OTLP gRPC host (alias for otlp_grpc_host)."""
+        return self.otlp_grpc_host
+
+    @property
+    def backend_otlp_grpc_port(self) -> int:
+        """Get OTLP gRPC port (alias for otlp_grpc_port)."""
+        return self.otlp_grpc_port
+
     def get_database_url(self) -> str:
         """Get the database URL, constructing it from components if needed."""
         # If a direct URL is provided, use it
@@ -194,10 +240,10 @@ class Settings(BaseSettings):
 
     @classmethod
     def load_env_file_priority(cls) -> dict[str, str]:
-        """Load environment variables with .env file taking priority over existing env vars."""
+        """Load environment variables with environment variables taking priority over .env file."""
         env_vars = {}
 
-        # First, load from .env file
+        # First, load from .env file as defaults
         env_file = Path(".env")
         if env_file.exists():
             with open(env_file, encoding="utf-8") as f:
@@ -207,10 +253,29 @@ class Settings(BaseSettings):
                         key, value = line.split("=", 1)
                         env_vars[key] = value
 
-        # Then, only add environment variables that are NOT already in .env file
+        # Then, override with environment variables (environment variables take priority)
         for key, value in os.environ.items():
-            if key not in env_vars:
-                env_vars[key] = value
+            env_vars[key] = value
+
+        # Handle new naming convention by mapping to old field names
+        # This allows both old and new environment variable names to work
+        env_mapping = {
+            "BACKEND_HOST": "HOST",
+            "BACKEND_PORT": "PORT",
+            "DB_HOST": "DATABASE_HOST",
+            "DB_PORT": "DATABASE_PORT",
+            "DB_NAME": "DATABASE_NAME",
+            "DB_USER": "DATABASE_USER",
+            "DB_PASSWORD": "DATABASE_PASSWORD",
+            "BACKEND_OTLP_GRPC_HOST": "OTLP_GRPC_HOST",
+            "BACKEND_OTLP_GRPC_PORT": "OTLP_GRPC_PORT",
+        }
+
+        # Apply mapping for new environment variables
+        # New naming convention takes priority over old naming convention
+        for new_key, old_key in env_mapping.items():
+            if new_key in env_vars:
+                env_vars[old_key] = env_vars[new_key]
 
         return env_vars
 
