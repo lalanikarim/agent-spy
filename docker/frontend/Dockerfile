@@ -6,7 +6,6 @@ WORKDIR /app
 
 # Accept build arguments
 ARG VITE_API_BASE_URL=/api/v1
-ARG VITE_WS_URL
 
 # Copy package files
 COPY package*.json ./
@@ -18,7 +17,7 @@ RUN npm ci
 COPY . .
 
 # Build the application with environment variables
-RUN VITE_API_BASE_URL=$VITE_API_BASE_URL VITE_WS_URL=$VITE_WS_URL npm run build
+RUN VITE_API_BASE_URL=$VITE_API_BASE_URL npm run build
 
 # Production stage
 FROM nginx:alpine

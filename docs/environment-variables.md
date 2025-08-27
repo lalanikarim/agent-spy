@@ -26,20 +26,20 @@ This document provides a comprehensive overview of all environment variables use
 
 ### Server Configuration
 
-| Variable                | Type    | Default   | Description                 | Usage                                                             |
-| ----------------------- | ------- | --------- | --------------------------- | ----------------------------------------------------------------- |
-| `HOST`                  | string  | "0.0.0.0" | Server host address (internal) | Used in `src/core/config.py` and `src/main.py` for server binding |
-| `PORT`                  | integer | 8000      | Server port (internal, fixed) | Used in `src/core/config.py` and `src/main.py` for server binding |
-| `RELOAD`                | boolean | false     | Auto-reload on code changes | Used in `src/main.py` for development server                      |
+| Variable | Type    | Default   | Description                    | Usage                                                             |
+| -------- | ------- | --------- | ------------------------------ | ----------------------------------------------------------------- |
+| `HOST`   | string  | "0.0.0.0" | Server host address (internal) | Used in `src/core/config.py` and `src/main.py` for server binding |
+| `PORT`   | integer | 8000      | Server port (internal, fixed)  | Used in `src/core/config.py` and `src/main.py` for server binding |
+| `RELOAD` | boolean | false     | Auto-reload on code changes    | Used in `src/main.py` for development server                      |
 
 ### External Port Mapping
 
-| Variable                | Type    | Default   | Description                 | Usage                                                             |
-| ----------------------- | ------- | --------- | --------------------------- | ----------------------------------------------------------------- |
-| `BACKEND_EXTERNAL_PORT` | integer | 8000      | External port for backend API | Used in Docker Compose for external port mapping |
-| `FRONTEND_EXTERNAL_PORT`| integer | 3000      | External port for frontend   | Used in Docker Compose for external port mapping |
-| `OTLP_EXTERNAL_PORT`    | integer | 4317      | External port for OTLP gRPC  | Used in Docker Compose for external port mapping |
-| `BACKEND_HOST`          | string  | "localhost" | Backend hostname for frontend | Used by frontend to connect to backend |
+| Variable                 | Type    | Default     | Description                   | Usage                                            |
+| ------------------------ | ------- | ----------- | ----------------------------- | ------------------------------------------------ |
+| `BACKEND_EXTERNAL_PORT`  | integer | 8000        | External port for backend API | Used in Docker Compose for external port mapping |
+| `FRONTEND_EXTERNAL_PORT` | integer | 3000        | External port for frontend    | Used in Docker Compose for external port mapping |
+| `OTLP_EXTERNAL_PORT`     | integer | 4317        | External port for OTLP gRPC   | Used in Docker Compose for external port mapping |
+| `BACKEND_HOST`           | string  | "localhost" | Backend hostname for frontend | Used by frontend to connect to backend           |
 
 ### Database Configuration
 
@@ -153,6 +153,7 @@ This document provides a comprehensive overview of all environment variables use
 | `VITE_FRONTEND_PORT` | string | "3001"  | Frontend server port | Used in `frontend/src/config/environment.ts` and `frontend/vite.config.ts` for dev server configuration |
 
 **Note**: These Vite variables should reference the external port mapping variables:
+
 - `VITE_BACKEND_PORT` should reference `BACKEND_EXTERNAL_PORT`
 - `VITE_FRONTEND_PORT` should reference the internal port (3000 for dev, 80 for prod)
 - `FRONTEND_PORT` is used by Vite config to determine the internal port
@@ -165,9 +166,9 @@ This document provides a comprehensive overview of all environment variables use
 
 ### WebSocket Configuration
 
-| Variable                     | Type   | Default                  | Description                         | Usage                                                                 |
-| ---------------------------- | ------ | ------------------------ | ----------------------------------- | --------------------------------------------------------------------- |
-| `VITE_WS_URL` / `API_WS_URL` | string | "ws://localhost:8000/ws" | WebSocket URL for real-time updates | Used in `frontend/src/hooks/useWebSocket.ts` for WebSocket connection |
+| Variable | Type            | Default        | Description                                                      | Usage                                                                 |
+| -------- | --------------- | -------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------- |
+| _None_   | _Auto-inferred_ | _From API URL_ | WebSocket URL is automatically inferred from `VITE_API_BASE_URL` | Used in `frontend/src/hooks/useWebSocket.ts` for WebSocket connection |
 
 ### Development Configuration
 
@@ -229,9 +230,9 @@ This document provides a comprehensive overview of all environment variables use
 
 ### Development Docker Settings
 
-| Variable            | Type    | Default | Description               | Usage                                     |
-| ------------------- | ------- | ------- | ------------------------- | ----------------------------------------- |
-| `BACKEND_EXTERNAL_PORT` | integer | 8001    | Backend external port (dev) | Used in development Docker configurations |
+| Variable                 | Type    | Default | Description                  | Usage                                     |
+| ------------------------ | ------- | ------- | ---------------------------- | ----------------------------------------- |
+| `BACKEND_EXTERNAL_PORT`  | integer | 8001    | Backend external port (dev)  | Used in development Docker configurations |
 | `FRONTEND_EXTERNAL_PORT` | integer | 3000    | Frontend external port (dev) | Used in development Docker configurations |
 
 **Note**: Internal ports are fixed (backend: 8000, frontend: 3000 for dev, 80 for prod)
@@ -284,13 +285,15 @@ This document provides a comprehensive overview of all environment variables use
 
 ### 4. **WebSocket URL Configuration**
 
-**Issue**: Multiple ways to configure WebSocket URL:
+**Issue**: ~~Multiple ways to configure WebSocket URL~~ **RESOLVED**
 
-- `API_WS_URL` (backend config)
-- `VITE_WS_URL` (frontend config)
-- Hardcoded fallback: `ws://localhost:8000/ws`
+- ~~`API_WS_URL` (backend config)~~ **REMOVED**
+- ~~`VITE_WS_URL` (frontend config)~~ **REMOVED**
+- ~~Hardcoded fallback: `ws://localhost:8000/ws`~~ **REMOVED**
 
-**Impact**: Inconsistent WebSocket configuration between frontend and backend.
+**Solution**: WebSocket URL is now automatically inferred from `VITE_API_BASE_URL` by converting HTTP/HTTPS to WS/WSS and appending `/ws`.
+
+**Impact**: ✅ Simplified configuration with single source of truth.
 
 ### 5. **API Base URL Redundancy**
 

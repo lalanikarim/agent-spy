@@ -74,6 +74,34 @@ export const getBackendUrl = (): string => {
 };
 
 /**
+ * Helper to infer WebSocket URL from API base URL
+ * Converts HTTP/HTTPS URLs to WS/WSS and appends /ws path
+ */
+export const getWebSocketUrl = (): string => {
+  // Infer from API base URL
+  const apiUrl = config.apiBaseUrl;
+
+  // Convert HTTP/HTTPS to WS/WSS
+  let wsUrl: string;
+  if (apiUrl.startsWith("https://")) {
+    wsUrl = apiUrl.replace("https://", "wss://");
+  } else if (apiUrl.startsWith("http://")) {
+    wsUrl = apiUrl.replace("http://", "ws://");
+  } else {
+    // Fallback for relative URLs or other cases
+    wsUrl =
+      apiUrl.startsWith("ws://") || apiUrl.startsWith("wss://")
+        ? apiUrl
+        : `ws://localhost:${config.backendPort}`;
+  }
+
+  // Remove /api/v1 suffix and add /ws
+  wsUrl = wsUrl.replace("/api/v1", "") + "/ws";
+
+  return wsUrl;
+};
+
+/**
  * Debug helper to log current configuration (development only)
  */
 export const logConfiguration = (): void => {
@@ -91,6 +119,7 @@ export const logConfiguration = (): void => {
       proxyUrl: `http://localhost:${config.frontendPort}/api/v1`,
       directBackendUrl: getBackendUrl() + "/api/v1",
       healthCheckUrl: getHealthUrl(),
+      webSocketUrl: getWebSocketUrl(),
       backendHost: import.meta.env.VITE_BACKEND_HOST || "localhost",
     });
     console.log("🔧 Raw Environment Variables:", {

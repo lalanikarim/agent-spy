@@ -142,7 +142,6 @@ services:
       VITE_BACKEND_PORT: 8000
       VITE_FRONTEND_PORT: 3000
       VITE_BACKEND_HOST: localhost
-      VITE_WS_URL: ws://localhost:${BACKEND_EXTERNAL_PORT:-8000}/ws
       NODE_ENV: development
     ports:
       - "${FRONTEND_EXTERNAL_PORT:-3001}:3000"

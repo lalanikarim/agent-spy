@@ -105,7 +105,6 @@ services:
       dockerfile: ../docker/frontend/Dockerfile
       args:
         - VITE_API_BASE_URL=/api/v1
-        - VITE_WS_URL=ws://localhost:${FRONTEND_EXTERNAL_PORT:-3000}/ws
     container_name: agentspy-frontend
     restart: unless-stopped
     ports:

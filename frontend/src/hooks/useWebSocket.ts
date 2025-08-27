@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getWebSocketUrl } from "../config/environment";
 
 interface WebSocketMessage {
   type: string;
@@ -31,7 +32,7 @@ export const useWebSocket = () => {
       return; // Already connected
     }
 
-    const wsUrl = import.meta.env.VITE_WS_URL || `ws://localhost:8000/ws`;
+    const wsUrl = getWebSocketUrl();
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

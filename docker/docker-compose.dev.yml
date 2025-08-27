@@ -134,7 +134,6 @@ services:
       - VITE_BACKEND_HOST=${BACKEND_HOST:-localhost}
       - VITE_BACKEND_PORT=${BACKEND_EXTERNAL_PORT:-8000}
       - VITE_API_BASE_URL=http://${BACKEND_HOST:-localhost}:${BACKEND_EXTERNAL_PORT:-8000}/api/v1
-      - VITE_WS_URL=ws://${BACKEND_HOST:-localhost}:${BACKEND_EXTERNAL_PORT:-8000}/ws
       - FRONTEND_PORT=3000
       - VITE_FRONTEND_PORT=3000
       - NODE_ENV=development
