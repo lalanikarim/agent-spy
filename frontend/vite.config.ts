@@ -96,6 +96,21 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        // Proxy WebSocket connections
+        "/ws": {
+          target: `http://${backendHost}:${backendPort}`,
+          changeOrigin: true,
+          secure: false,
+          ws: true, // Enable WebSocket proxying
+          configure: (proxy, _options) => {
+            proxy.on("error", (err, _req, _res) => {
+              console.log("❌ WebSocket proxy error:", err);
+            });
+            proxy.on("upgrade", (req, socket, head) => {
+              console.log("🔌 WebSocket upgrade:", req.url);
+            });
+          },
+        },
       },
     },
     build: {

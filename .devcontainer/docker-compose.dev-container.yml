@@ -1,12 +1,12 @@
 version: "3.8"
 
 services:
-  postgresql:
+  dev-container-postgresql:
     image: postgres:16-alpine
-    container_name: agentspy-minimal-postgresql
+    container_name: agentspy-dev-container-postgresql
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-agentspy_minimal}
+      POSTGRES_DB: ${POSTGRES_DB:-agentspy_dev_container}
       POSTGRES_USER: ${POSTGRES_USER:-agentspy_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentspy_password}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
@@ -14,24 +14,24 @@ services:
     ports:
       - "${DATABASE_PORT:-5432}:${POSTGRES_PORT}"
     volumes:
-      - postgresql_minimal_data:/var/lib/postgresql/data
+      - postgresql_dev_container_data:/var/lib/postgresql/data
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-agentspy_user} -d ${POSTGRES_DB:-agentspy_minimal}",
+          "pg_isready -U ${POSTGRES_USER:-agentspy_user} -d ${POSTGRES_DB:-agentspy_dev_container}",
         ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     networks:
-      - agentspy-minimal-network
+      - agentspy-dev-container-network
 
   # Jaeger for OTLP testing
-  jaeger:
+  dev-container-jaeger:
     image: cr.jaegertracing.io/jaegertracing/jaeger:2.9.0
-    container_name: agentspy-minimal-jaeger
+    container_name: agentspy-dev-container-jaeger
     restart: unless-stopped
     ports:
       - "16686:16686" # Jaeger UI
@@ -42,13 +42,13 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     networks:
-      - agentspy-minimal-network
+      - agentspy-dev-container-network
 
-  backend:
+  dev-container-backend:
     build:
       context: ..
       dockerfile: .devcontainer/backend.simple.Dockerfile
-    container_name: agentspy-minimal-backend
+    container_name: agentspy-dev-container-backend
     volumes:
       - ..:/workspace:cached
       - sqlite_data:/workspace/data
@@ -66,9 +66,9 @@ services:
       DATABASE_ECHO: ${DATABASE_ECHO:-true}
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
-      DATABASE_HOST: ${DATABASE_HOST:-postgresql}
+      DATABASE_HOST: ${DATABASE_HOST:-dev-container-postgresql}
       DATABASE_PORT: ${DATABASE_PORT:-5432}
-      DATABASE_NAME: ${DATABASE_NAME:-agentspy_minimal}
+      DATABASE_NAME: ${DATABASE_NAME:-agentspy_dev_container}
       DATABASE_USER: ${DATABASE_USER:-agentspy_user}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-agentspy_password}
       DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
@@ -92,7 +92,7 @@ services:
 
       # OTLP Forwarder Settings for testing
       OTLP_FORWARDER_ENABLED: ${OTLP_FORWARDER_ENABLED:-true}
-      OTLP_FORWARDER_ENDPOINT: ${OTLP_FORWARDER_ENDPOINT:-jaeger:4317}
+      OTLP_FORWARDER_ENDPOINT: ${OTLP_FORWARDER_ENDPOINT:-dev-container-jaeger:4317}
       OTLP_FORWARDER_PROTOCOL: ${OTLP_FORWARDER_PROTOCOL:-grpc}
       OTLP_FORWARDER_SERVICE_NAME: ${OTLP_FORWARDER_SERVICE_NAME:-agent-spy-forwarder}
       OTLP_FORWARDER_TIMEOUT: ${OTLP_FORWARDER_TIMEOUT:-30}
@@ -112,9 +112,9 @@ services:
       - "${BACKEND_EXTERNAL_PORT:-8000}:8000" # Main API
       # Note: OTLP gRPC port (4317) is disabled to avoid conflict with Jaeger
     depends_on:
-      postgresql:
+      dev-container-postgresql:
         condition: service_healthy
-      jaeger:
+      dev-container-jaeger:
         condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -123,13 +123,13 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - agentspy-minimal-network
+      - agentspy-dev-container-network
 
-  frontend:
+  dev-container-frontend:
     build:
       context: ..
       dockerfile: .devcontainer/frontend.simple.Dockerfile
-    container_name: agentspy-minimal-frontend
+    container_name: agentspy-dev-container-frontend
     volumes:
       - ../frontend:/workspace/frontend:cached
       - ../.cursor:/workspace/.cursor:cached
@@ -147,7 +147,7 @@ services:
       - "${FRONTEND_EXTERNAL_PORT:-3001}:3000"
       - "5173:5173"
     depends_on:
-      - backend
+      - dev-container-backend
     healthcheck:
       test:
         [
@@ -162,14 +162,14 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - agentspy-minimal-network
+      - agentspy-dev-container-network
 
 volumes:
   sqlite_data:
     driver: local
-  postgresql_minimal_data:
+  postgresql_dev_container_data:
     driver: local
 
 networks:
-  agentspy-minimal-network:
+  agentspy-dev-container-network:
     driver: bridge

@@ -1,7 +1,7 @@
 {
   "name": "Agent Spy - With Extensions",
-  "dockerComposeFile": "docker-compose.minimal.yml",
-  "service": "backend",
+  "dockerComposeFile": "docker-compose.dev-container.yml",
+  "service": "dev-container-backend",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "appPort": [8000],

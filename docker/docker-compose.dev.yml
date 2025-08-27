@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   # PostgreSQL Database (Development)
-  postgresql:
+  dev-postgresql:
     image: postgres:16-alpine
     container_name: agentspy-postgresql-dev
     restart: unless-stopped
@@ -31,7 +31,7 @@ services:
       - agentspy-dev-network
 
   # Agent Spy Backend API (Development)
-  backend:
+  dev-backend:
     build:
       context: ..
       dockerfile: docker/backend/Dockerfile
@@ -50,7 +50,7 @@ services:
       DATABASE_ECHO: ${DATABASE_ECHO:-true}
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
-      DATABASE_HOST: ${DATABASE_HOST:-postgresql}
+      DATABASE_HOST: ${DATABASE_HOST:-dev-postgresql}
       DATABASE_PORT: ${DATABASE_PORT:-5432}
       DATABASE_NAME: ${DATABASE_NAME:-agentspy_dev}
       DATABASE_USER: ${DATABASE_USER:-agentspy_user}
@@ -97,7 +97,7 @@ services:
       # SQLite database volume
       - sqlite_dev_data:/app/data
     depends_on:
-      postgresql:
+      dev-postgresql:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/health"]
@@ -109,7 +109,7 @@ services:
       - agentspy-dev-network
 
   # Agent Spy Frontend (Development)
-  frontend:
+  dev-frontend:
     build:
       context: ../frontend
       dockerfile: ../docker/frontend-dev-standalone.Dockerfile
@@ -129,7 +129,7 @@ services:
       # Mount .cursor directory for diagnostics and artifacts
       - ../.cursor:/app/.cursor:cached
     depends_on:
-      - backend
+      - dev-backend
     environment:
       - VITE_BACKEND_HOST=${BACKEND_HOST:-localhost}
       - VITE_BACKEND_PORT=${BACKEND_EXTERNAL_PORT:-8000}

@@ -179,7 +179,7 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         """Get the database URL, constructing it from components if needed."""
-        # If a direct URL is provided, use it
+        # If a direct URL is provided and it's not the default SQLite URL, use it
         if self.database_url and not self.database_url.startswith("sqlite+aiosqlite:///./agentspy.db"):
             return self.database_url
 
