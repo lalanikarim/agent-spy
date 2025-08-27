@@ -10,6 +10,8 @@ interface EnvironmentConfig {
   isDevelopment: boolean;
   /** Backend server port */
   backendPort: string;
+  /** Backend server external port */
+  backendExternalPort: string;
   /** Frontend server port */
   frontendPort: string;
   /** Environment name (development, production, etc.) */
@@ -25,6 +27,7 @@ export const config: EnvironmentConfig = {
     import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
   isDevelopment: import.meta.env.DEV || false,
   backendPort: import.meta.env.VITE_BACKEND_PORT || "8000",
+  backendExternalPort: import.meta.env.BACKEND_EXTERNAL_PORT || "8000",
   frontendPort: import.meta.env.VITE_FRONTEND_PORT || "3000",
   environment: import.meta.env.MODE || "development",
 };
@@ -74,6 +77,38 @@ export const getBackendUrl = (): string => {
 };
 
 /**
+ * Helper to infer WebSocket URL from API base URL
+ * Converts HTTP/HTTPS URLs to WS/WSS and appends /ws path
+ * If apiBaseUrl doesn't include a host, uses the browser's host
+ */
+export const getWebSocketUrl = (): string => {
+  // Infer from API base URL
+  const apiUrl = config.apiBaseUrl;
+
+  // Check if apiUrl has a host (starts with http:// or https://)
+  let wsUrl: string;
+  if (apiUrl.startsWith("https://") || apiUrl.startsWith("http://")) {
+    // Convert HTTP/HTTPS to WS/WSS
+    if (apiUrl.startsWith("https://")) {
+      wsUrl = apiUrl.replace("https://", "wss://");
+    } else {
+      wsUrl = apiUrl.replace("http://", "ws://");
+    }
+  } else {
+    // No host in apiBaseUrl, use browser's host
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    wsUrl = `${protocol}//${host}${apiUrl}`;
+  }
+
+  // Remove /api/v1 suffix and add /ws
+  wsUrl = wsUrl.replace("/api/v1", "") + "/ws";
+
+  console.log("🔌 WebSocket URL:", wsUrl);
+  return wsUrl;
+};
+
+/**
  * Debug helper to log current configuration (development only)
  */
 export const logConfiguration = (): void => {
@@ -91,6 +126,7 @@ export const logConfiguration = (): void => {
       proxyUrl: `http://localhost:${config.frontendPort}/api/v1`,
       directBackendUrl: getBackendUrl() + "/api/v1",
       healthCheckUrl: getHealthUrl(),
+      webSocketUrl: getWebSocketUrl(),
       backendHost: import.meta.env.VITE_BACKEND_HOST || "localhost",
     });
     console.log("🔧 Raw Environment Variables:", {

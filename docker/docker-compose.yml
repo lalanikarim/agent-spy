@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   # PostgreSQL Database
-  postgresql:
+  prod-postgresql:
     image: postgres:16-alpine
     container_name: agentspy-postgresql
     restart: unless-stopped
@@ -31,7 +31,7 @@ services:
       - agentspy-network
 
   # Agent Spy Backend API
-  backend:
+  prod-backend:
     build:
       context: ..
       dockerfile: docker/backend/Dockerfile
@@ -50,7 +50,7 @@ services:
       DATABASE_ECHO: ${DATABASE_ECHO:-false}
 
       # PostgreSQL Settings (used when DATABASE_TYPE=postgresql)
-      DATABASE_HOST: ${DATABASE_HOST:-postgresql}
+      DATABASE_HOST: ${DATABASE_HOST:-prod-postgresql}
       DATABASE_PORT: ${DATABASE_PORT:-5432}
       DATABASE_NAME: ${DATABASE_NAME:-agentspy}
       DATABASE_USER: ${DATABASE_USER:-agentspy_user}
@@ -87,7 +87,7 @@ services:
     volumes:
       - sqlite_data:/app/data
     depends_on:
-      postgresql:
+      prod-postgresql:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -99,19 +99,20 @@ services:
       - agentspy-network
 
   # Agent Spy Frontend
-  frontend:
+  prod-frontend:
     build:
       context: ../frontend
       dockerfile: ../docker/frontend/Dockerfile
       args:
         - VITE_API_BASE_URL=/api/v1
-        - VITE_WS_URL=ws://localhost:${FRONTEND_EXTERNAL_PORT:-3000}/ws
+        - BACKEND_SERVICE_NAME=prod-backend
+        - BACKEND_PORT=8000
     container_name: agentspy-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_EXTERNAL_PORT:-3000}:80"
     depends_on:
-      - backend
+      - prod-backend
     environment:
       - VITE_BACKEND_HOST=${BACKEND_HOST:-localhost}
       - VITE_BACKEND_PORT=${BACKEND_EXTERNAL_PORT:-8000}

@@ -15,7 +15,7 @@ The dev container setup provides a complete development environment with:
 ```
 .devcontainer/
 ├── devcontainer.json              # Main dev container configuration
-├── docker-compose.minimal.yml     # Multi-service container setup
+├── docker-compose.dev-container.yml     # Multi-service container setup
 ├── backend.simple.Dockerfile      # Python backend container
 ├── frontend.simple.Dockerfile     # Node.js frontend container
 └── README.md                      # This documentation
@@ -139,8 +139,8 @@ If containers fail to build:
 ```bash
 # Clean rebuild
 cd .devcontainer
-docker compose -f docker-compose.minimal.yml down
-docker compose -f docker-compose.minimal.yml build --no-cache
+docker compose -f docker-compose.dev-container.yml down
+docker compose -f docker-compose.dev-container.yml build --no-cache
 ```
 
 ### Python Dependencies Not Found

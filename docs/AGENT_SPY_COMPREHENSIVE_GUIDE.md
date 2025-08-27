@@ -22,6 +22,9 @@ Agent Spy is a powerful, self-hosted observability platform for AI agents and mu
 - **Real-time Notifications**: Live updates and status notifications
 - **Live Elapsed Time Updates**: Real-time duration tracking for running traces
 - **Incremental Trace Sending**: Support for sending running and completed trace states
+- **WebSocket URL Resolution**: Intelligent WebSocket URL inference with browser host fallback
+- **Vite WebSocket Proxy**: Development server WebSocket proxying for seamless local development
+- **Dev Container Support**: Comprehensive VS Code dev container configuration with PostgreSQL and Jaeger
 
 ## 📁 Current Folder/File Structure
 
@@ -491,10 +494,11 @@ flowchart TD
 
 ### Infrastructure Stack
 
-- **Docker & Docker Compose** for containerization
+- **Docker & Docker Compose** for containerization with improved service naming
 - **SQLite** for development; **PostgreSQL** supported
 - **Nginx** for serving frontend assets
 - **Health checks** and monitoring built-in
+- **VS Code Dev Container** with comprehensive development environment
 - **ESLint** for code linting
 - **TypeScript** for type safety
 
@@ -506,7 +510,7 @@ flowchart TD
 - REST API with LangSmith compatibility
 - **OpenTelemetry Protocol (OTLP) support** with HTTP and gRPC receivers
 - React dashboard with real-time updates
-- Docker containerization
+- Docker containerization with improved service naming
 - Smart completion detection
 - Coordinated dashboard refresh
 - Health monitoring and logging
@@ -520,6 +524,10 @@ flowchart TD
 - **OTLP WebSocket integration** for real-time trace updates
 - **OTLP protobuf parsing** and validation
 - **OTLP span conversion** to Agent Spy runs
+- **WebSocket URL resolution** with intelligent browser host fallback
+- **Vite WebSocket proxy** for seamless development
+- **VS Code dev container** with comprehensive development environment
+- **Database configuration** improvements for better compatibility
 
 ### 📈 Current Metrics
 
@@ -544,6 +552,134 @@ flowchart TD
 - Authentication and authorization
 - Enhanced OTLP gRPC testing
 - Additional OTLP format support
+
+## 🔌 Recent Infrastructure Improvements
+
+### WebSocket URL Resolution Enhancement
+
+The WebSocket connectivity has been significantly improved with intelligent URL resolution:
+
+#### Key Improvements:
+
+- **Browser Host Fallback**: When `apiBaseUrl` doesn't include a host, the system now uses the browser's host automatically
+- **Protocol Detection**: Automatically detects HTTP/HTTPS and converts to WS/WSS appropriately
+- **Relative URL Support**: Handles relative API URLs by inferring the correct WebSocket endpoint
+- **Debug Logging**: Added console logging for WebSocket URL debugging
+
+#### Implementation Details:
+
+```typescript
+// frontend/src/config/environment.ts
+export const getWebSocketUrl = (): string => {
+  const apiUrl = config.apiBaseUrl;
+
+  if (apiUrl.startsWith("https://") || apiUrl.startsWith("http://")) {
+    // Convert HTTP/HTTPS to WS/WSS
+    if (apiUrl.startsWith("https://")) {
+      wsUrl = apiUrl.replace("https://", "wss://");
+    } else {
+      wsUrl = apiUrl.replace("http://", "ws://");
+    }
+  } else {
+    // No host in apiBaseUrl, use browser's host
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    wsUrl = `${protocol}//${host}${apiUrl}`;
+  }
+
+  return wsUrl.replace("/api/v1", "") + "/ws";
+};
+```
+
+### Vite WebSocket Proxy Configuration
+
+Development server now includes WebSocket proxying for seamless local development:
+
+#### Configuration:
+
+```typescript
+// frontend/vite.config.ts
+"/ws": {
+  target: `http://${backendHost}:${backendPort}`,
+  changeOrigin: true,
+  secure: false,
+  ws: true, // Enable WebSocket proxying
+  configure: (proxy, _options) => {
+    proxy.on("error", (err, _req, _res) => {
+      console.log("❌ WebSocket proxy error:", err);
+    });
+    proxy.on("upgrade", (req, socket, head) => {
+      console.log("🔌 WebSocket upgrade:", req.url);
+    });
+  },
+},
+```
+
+### Docker Service Naming Improvements
+
+Docker Compose configurations have been updated with improved service naming to avoid conflicts:
+
+#### Service Naming Convention:
+
+- **Production**: `prod-postgresql`, `prod-backend`, `prod-frontend`
+- **Development**: `dev-postgresql`, `dev-backend`, `dev-frontend`
+- **Dev Container**: `dev-container-postgresql`, `dev-container-backend`, `dev-container-frontend`
+
+#### Benefits:
+
+- **No Port Conflicts**: Different environments can run simultaneously
+- **Clear Environment Separation**: Easy identification of service purpose
+- **Improved Debugging**: Better log identification and troubleshooting
+- **Scalability**: Support for multiple development environments
+
+### Comprehensive Dev Container Setup
+
+VS Code dev container configuration has been enhanced with a complete development environment:
+
+#### Features:
+
+- **PostgreSQL Database**: Full database support for development
+- **Jaeger Tracing**: Built-in tracing visualization for OTLP testing
+- **Hot Reload**: Frontend and backend development with live reloading
+- **Volume Mounting**: Source code mounted for real-time development
+- **Health Checks**: Comprehensive health monitoring for all services
+- **Environment Variables**: Pre-configured development environment
+
+#### Configuration:
+
+```yaml
+# .devcontainer/docker-compose.dev-container.yml
+services:
+  dev-container-postgresql:
+    image: postgres:16-alpine
+    # PostgreSQL configuration
+
+  dev-container-jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.9.0
+    # Jaeger tracing setup
+
+  dev-container-backend:
+    build:
+      context: ..
+      dockerfile: .devcontainer/backend.simple.Dockerfile
+    # Backend development setup
+
+  dev-container-frontend:
+    build:
+      context: ..
+      dockerfile: .devcontainer/frontend.simple.Dockerfile
+    # Frontend development setup
+```
+
+### Database Configuration Improvements
+
+SQLite URL handling has been improved for better compatibility:
+
+#### Changes:
+
+- **Default URL Detection**: Better handling of default SQLite URLs
+- **Path Resolution**: Improved path handling for database files
+- **Configuration Priority**: Enhanced environment variable priority handling
 
 ## 🚀 Development Patterns
 
@@ -791,6 +927,9 @@ uv run pytest tests/e2e/
 5. **Real-time Updates**: See `frontend/src/hooks/useTraces.ts` for patterns
 6. **Database Changes**: Update models and run migrations
 7. **Configuration Changes**: Modify `src/core/config.py`
+8. **WebSocket Configuration**: See `frontend/src/config/environment.ts` for WebSocket URL logic
+9. **Docker Configuration**: See `docker/docker-compose.yml` and `docker/docker-compose.dev.yml` for service naming
+10. **Dev Container Setup**: See `.devcontainer/docker-compose.dev-container.yml` for development environment
 
 ### Important Files
 
@@ -801,6 +940,10 @@ uv run pytest tests/e2e/
 - **OTLP Integration**: `src/otel/receiver/`
 - **Frontend App**: `frontend/src/App.tsx`
 - **Real-time Hooks**: `frontend/src/hooks/useTraces.ts`
+- **WebSocket Config**: `frontend/src/config/environment.ts`
+- **Vite Config**: `frontend/vite.config.ts`
+- **Docker Compose**: `docker/docker-compose.yml`, `docker/docker-compose.dev.yml`
+- **Dev Container**: `.devcontainer/docker-compose.dev-container.yml`
 - **Package Config**: `pyproject.toml`, `frontend/package.json`
 
 ### Development Commands
@@ -838,8 +981,10 @@ uv run pytest tests/integration/
 
 ---
 
-**Last Updated**: August 19, 2025
-**Version**: 0.1.0
+**Last Updated**: August 27, 2025
+**Version**: 0.1.1
 **Maintainer**: Development Team
+
+**Recent Updates**: WebSocket URL resolution improvements, Docker service naming enhancements, and comprehensive dev container setup
 
 **Remember**: Keep this document updated with every significant change to the project!

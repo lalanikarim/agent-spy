@@ -2,7 +2,7 @@
 
 ## Overview
 
-Agent Spy provides comprehensive Docker support with separate configurations for production and development environments. The containerized setup includes the FastAPI backend, React frontend, and persistent SQLite storage.
+Agent Spy provides comprehensive Docker support with separate configurations for production and development environments. The containerized setup includes the FastAPI backend, React frontend, and database storage (SQLite for development, PostgreSQL for production).
 
 ## Quick Start
 
@@ -30,12 +30,21 @@ nano .env  # or your preferred editor
 
 #### Production Deployment
 ```bash
-# Using the convenience script
-bash scripts/docker-start.sh
+# Using the production convenience script (RECOMMENDED)
+bash scripts/docker-prod.sh
 
-# Or manually with docker compose
-docker compose -f docker/docker-compose.yml up -d
+# Or manually with docker compose using production environment
+docker compose -f docker/docker-compose.yml --env-file .env.production up -d
 ```
+
+**Important**: For production deployment, you should:
+1. Copy `env.example.production` to `.env.production`
+2. Customize the production settings, especially:
+   - `POSTGRES_PASSWORD` and `DATABASE_PASSWORD` (use strong passwords)
+   - `API_KEYS` (set secure API keys)
+   - `CORS_ORIGINS` (restrict to your domain)
+   - `DATABASE_TYPE=postgresql` (required for production)
+3. Use the `docker-prod.sh` script which validates these settings
 
 #### Development Environment
 ```bash
@@ -64,7 +73,8 @@ graph TB
         end
 
         subgraph "Storage"
-            V1[SQLite Volume]
+            V1[SQLite Volume (Dev)]
+            V2[PostgreSQL Container (Prod)]
         end
     end
 
@@ -443,6 +453,19 @@ docker volume inspect agentspy_sqlite_data
 docker exec -it agentspy-backend sqlite3 /app/data/agentspy.db
 ```
 
+#### 5. Wrong Database Type in Production
+If you see SQLite being used instead of PostgreSQL in production logs:
+```bash
+# Check current database configuration
+docker compose -f docker/docker-compose.yml --env-file .env.production logs backend | grep "database connection"
+
+# Verify .env.production has correct settings
+grep DATABASE_TYPE .env.production
+
+# Solution: Use the production script
+bash scripts/docker-prod.sh
+```
+
 ### Debugging Commands
 ```bash
 # Access backend container shell
@@ -477,6 +500,6 @@ docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 
 ### Scaling Considerations
 - **Load Balancing**: Multiple backend instances behind load balancer
-- **Database**: Migrate to PostgreSQL for production scale
+- **Database**: PostgreSQL is included in production setup for better performance and scalability
 - **Caching**: Add Redis for session and response caching
 - **CDN**: Use CDN for static asset delivery

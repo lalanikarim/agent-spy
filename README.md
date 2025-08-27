@@ -26,6 +26,8 @@ While Agent Spy aims to provide a powerful open-source alternative for AI observ
 - **Multi-step Analysis**: Follow agent reasoning through tools, LLMs, and decision points
 - **Smart Completion Detection**: Universal pattern-based detection for accurate run status across all trace types
 - **Performance Metrics**: Monitor execution times, token usage, and resource consumption
+- **WebSocket URL Resolution**: Intelligent WebSocket URL inference with browser host fallback
+- **Vite WebSocket Proxy**: Development server WebSocket proxying for seamless local development
 
 ### 📊 **Advanced Analytics & Dashboard**
 
@@ -45,8 +47,9 @@ While Agent Spy aims to provide a powerful open-source alternative for AI observ
 - **Scalable Storage**: SQLite for development; PostgreSQL supported
 - **API-First Design**: RESTful API for integration with any agent framework
 - **Comprehensive Testing**: Unit, integration, and end-to-end test coverage (51% coverage, 65 tests passing, 2 skipped)
-- **Containerized Deployment**: Docker Compose setup for easy deployment
+- **Containerized Deployment**: Docker Compose setup for easy deployment with improved service naming
 - **OTLP Integration**: 9 comprehensive integration tests for OpenTelemetry Protocol
+- **Dev Container Support**: Comprehensive VS Code dev container configuration with PostgreSQL and Jaeger
 
 ### 🔌 **Framework Compatibility**
 
@@ -66,6 +69,7 @@ While Agent Spy aims to provide a powerful open-source alternative for AI observ
 All Docker Compose verification tasks have been completed successfully. All three categories of examples are now working perfectly:
 
 ### ✅ **LangSmith Examples (5/5 Working)**
+
 - `test_simple_tracing.py` - Basic LangSmith tracing
 - `test_langchain_app.py` - LangChain application with Ollama
 - `test_langgraph_agent.py` - LangGraph agent with Ollama
@@ -73,11 +77,13 @@ All Docker Compose verification tasks have been completed successfully. All thre
 - `test_dual_chain_agent.py` - Dual chain agent
 
 ### ✅ **OTeL to HTTP Examples (3/3 Working)**
+
 - `ollama_otel_instrumentation.py` - OpenTelemetry with Ollama
 - `ollama_direct_http.py` - Direct HTTP with protobuf conversion
 - `simple_ollama_test.py` - Simple Ollama connection test
 
 ### ✅ **OTeL to gRPC Examples (4/4 Working)**
+
 - `nested_workflow_otlp_grpc.py` - Nested workflow with HTTP
 - `nested_workflow_otlp_grpc_real.py` - Real gRPC with single-span sending
 - `multi_step_otlp_workflow.py` - Multi-step workflow
@@ -86,11 +92,13 @@ All Docker Compose verification tasks have been completed successfully. All thre
 ### 🔧 **Environment Variables for Testing**
 
 #### **For Ollama Examples:**
+
 ```bash
 export OLLAMA_HOST="http://192.168.1.200:11434"
 ```
 
 #### **For OpenAI-Compatible API:**
+
 ```bash
 export OPENAI_API_KEY="dummy-key"
 export OPENAI_API_BASE="http://192.168.1.200:11434/v1"
@@ -98,6 +106,7 @@ export OPENAI_MODEL_NAME="qwen2.5:7b"
 ```
 
 #### **For LangSmith Examples:**
+
 ```bash
 export LANGSMITH_TRACING="true"
 export LANGSMITH_ENDPOINT="http://localhost:8000/api/v1"
@@ -354,6 +363,15 @@ with tracer.start_as_current_span("agent-operation") as span:
 Agent Spy uses intelligent pattern-based detection to automatically mark runs as completed when they have both `end_time` and `outputs`, ensuring accurate status tracking across all trace types without manual configuration.
 
 ## 🆕 Recent Improvements
+
+### WebSocket Connectivity & Docker Improvements
+
+- **WebSocket URL Resolution**: Intelligent URL inference with browser host fallback for relative API URLs
+- **Vite WebSocket Proxy**: Development server WebSocket proxying for seamless local development
+- **Docker Service Naming**: Improved service naming to avoid conflicts between dev/prod environments
+- **Dev Container Enhancement**: Comprehensive VS Code dev container setup with PostgreSQL and Jaeger
+- **Database Configuration**: Fixed SQLite URL handling logic for better compatibility
+- **Documentation Updates**: Updated Docker setup guides for PostgreSQL production deployment
 
 ### OpenTelemetry Protocol (OTLP) Integration
 
