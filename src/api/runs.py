@@ -246,14 +246,37 @@ async def batch_ingest_runs(
                 errors += 1
                 # Continue processing other operations but track errors
 
-        # Validate completion for all processed traces
+        # Validate completion and status consistency for all processed traces
         if created_runs or updated_runs:
-            logger.info(f"🔍 Validating completion for {len(created_runs) + len(updated_runs)} traces")
+            logger.info(f"🔍 Validating completion and status consistency for {len(created_runs) + len(updated_runs)} traces")
+
+            # Validate basic completion (outputs present)
             run_repo.validate_langsmith_completion(created_runs + updated_runs)
+
+            # Validate status consistency for each trace
+            for run in created_runs + updated_runs:
+                run_repo.validate_trace_status_consistency(run)
+                logger.debug(f"Validated trace {run.id}: status={run.status}, has_outputs={bool(run.outputs)}")
 
         logger.info(
             f"✅ Atomic upsert processing completed: {created_count} created, {updated_count} updated, {errors} errors"
         )
+
+        # Process any remaining deferred updates for all traces
+        if created_runs or updated_runs:
+            logger.info("🔄 Processing any remaining deferred updates...")
+            deferred_processed = 0
+            for run in created_runs + updated_runs:
+                try:
+                    if await run_repo.process_deferred_updates(run.id):
+                        deferred_processed += 1
+                except Exception as e:
+                    logger.warning(f"Failed to process deferred updates for trace {run.id}: {e}")
+
+            if deferred_processed > 0:
+                logger.info(f"✅ Processed {deferred_processed} deferred updates")
+            else:
+                logger.info("ℹ️ No deferred updates to process")
 
     except Exception as e:
         logger.error(f"❌ Critical error in atomic upsert processing: {e}")

@@ -24,6 +24,7 @@ class RunRepository:
     def __init__(self, session: AsyncSession):
         """Initialize the repository with a database session."""
         self.session = session
+        self._deferred_updates = {}  # Initialize deferred updates queue
 
     async def create(self, run_data: RunCreate, disable_events: bool = False) -> Run:
         """Create a new run."""
@@ -93,7 +94,22 @@ class RunRepository:
             # Update existing trace
             if isinstance(trace_data, RunUpdate):
                 logger.debug(f"Updating existing trace: {trace_data.id}")
-                return await self.update(trace_data.id, trace_data)
+
+                # Validate message sequence before applying update
+                if not self.validate_message_sequence(existing_run, trace_data):
+                    logger.warning(f"Trace {trace_data.id}: Message sequence validation failed - deferring update")
+                    # Queue update for later processing
+                    await self.queue_deferred_update(trace_data.id, trace_data, "Message sequence validation failed")
+                    # Return existing run with current state
+                    return existing_run
+
+                # Apply update and validate status consistency
+                updated_run = await self.update(trace_data.id, trace_data)
+                if updated_run:
+                    self.validate_trace_status_consistency(updated_run)
+                    # Try to process any deferred updates now that we have more context
+                    await self.process_deferred_updates(trace_data.id)
+                return updated_run
             else:
                 # Convert RunCreate to RunUpdate for existing trace
                 logger.debug(f"Converting RunCreate to RunUpdate for existing trace: {trace_data.id}")
@@ -107,7 +123,21 @@ class RunRepository:
                     tags=trace_data.tags,
                     events=trace_data.events,
                 )
-                return await self.update(trace_data.id, update_data)
+
+                # Validate message sequence before applying update
+                if not self.validate_message_sequence(existing_run, update_data):
+                    logger.warning(f"Trace {trace_data.id}: Message sequence validation failed - deferring update")
+                    # Queue update for later processing
+                    await self.queue_deferred_update(trace_data.id, update_data, "Message sequence validation failed")
+                    return existing_run
+
+                # Apply update and validate status consistency
+                updated_run = await self.update(trace_data.id, update_data)
+                if updated_run:
+                    self.validate_trace_status_consistency(updated_run)
+                    # Try to process any deferred updates now that we have more context
+                    await self.process_deferred_updates(trace_data.id)
+                return updated_run
         else:
             # Create new trace
             if isinstance(trace_data, RunCreate):
@@ -241,6 +271,170 @@ class RunRepository:
                 run.status = "running"
                 logger.info(f"Reverted trace {run.id} to running status - awaiting outputs")
                 # Optionally, queue for retry or alert
+
+    def validate_trace_status_consistency(self, run: Run) -> bool:
+        """
+        Validate that trace status is consistent with its data.
+
+        This method implements the smart completion detection logic to ensure
+        status consistency and prevent premature completion.
+
+        Returns:
+            True if status is consistent, False if status needs adjustment
+        """
+        # Check if we have completion indicators
+        has_end_time = run.end_time is not None
+        has_outputs = run.outputs is not None
+        has_error = run.error is not None
+
+        # Determine expected status based on data
+        expected_status = "running"
+
+        if has_error:
+            expected_status = "failed"
+        elif has_end_time and has_outputs:
+            expected_status = "completed"
+        elif has_end_time and not has_outputs:
+            # Has end_time but no outputs - should remain running until outputs arrive
+            expected_status = "running"
+
+        # Check if status needs adjustment
+        if run.status != expected_status:
+            logger.info(f"Adjusting trace {run.id} status from '{run.status}' to '{expected_status}'")
+            logger.info(f"  end_time: {has_end_time}, outputs: {has_outputs}, error: {has_error}")
+            run.status = expected_status
+            return False
+
+        return True
+
+    def validate_message_sequence(self, run: Run, update_data: RunUpdate) -> bool:
+        """
+        Validate message sequence to prevent out-of-order updates.
+
+        This method checks if the update makes sense in the context of the current trace state.
+        It prevents scenarios like receiving outputs before start_time or end_time before outputs.
+
+        Args:
+            run: Current run state
+            update_data: Incoming update data
+
+        Returns:
+            True if update sequence is valid, False if it should be deferred
+        """
+        # Check for out-of-order scenarios
+        if update_data.end_time and not run.start_time:
+            logger.warning(f"Trace {run.id}: Received end_time before start_time - deferring update")
+            return False
+
+        if update_data.outputs and not run.start_time:
+            logger.warning(f"Trace {run.id}: Received outputs before start_time - deferring update")
+            return False
+
+        if update_data.end_time and not update_data.outputs and run.status == "running":
+            # This is a valid scenario - trace is ending but outputs will come later
+            logger.info(f"Trace {run.id}: Received end_time, awaiting outputs")
+            return True
+
+        # Check for premature completion
+        if update_data.end_time and update_data.outputs and not self._has_required_fields_for_completion(run, update_data):
+            logger.warning(f"Trace {run.id}: Incomplete completion data - deferring update")
+            return False
+
+        return True
+
+    def _has_required_fields_for_completion(self, run: Run, update_data: RunUpdate) -> bool:
+        """
+        Check if we have all required fields for trace completion.
+
+        This method ensures that a trace has all necessary data before being marked as completed.
+        """
+        # For LangSmith traces, we need at minimum: name, run_type, start_time, end_time, outputs
+        required_fields = {
+            "name": run.name or getattr(update_data, "name", None),
+            "run_type": run.run_type or getattr(update_data, "run_type", None),
+            "start_time": run.start_time or getattr(update_data, "start_time", None),
+            "end_time": run.end_time or update_data.end_time,
+            "outputs": run.outputs or update_data.outputs,
+        }
+
+        missing_fields = [field for field, value in required_fields.items() if not value]
+
+        if missing_fields:
+            logger.debug(f"Trace {run.id} missing required fields for completion: {missing_fields}")
+            return False
+
+        return True
+
+    async def queue_deferred_update(self, run_id: UUID, update_data: RunUpdate, reason: str) -> None:
+        """
+        Queue a deferred update for later processing.
+
+        This method handles updates that arrive out of order and need to be
+        processed later when the trace has the required context.
+        """
+        logger.info(f"Queueing deferred update for trace {run_id}: {reason}")
+
+        # Store deferred update in memory (could be extended to use Redis/database)
+        if not hasattr(self, "_deferred_updates"):
+            self._deferred_updates = {}
+
+        if run_id not in self._deferred_updates:
+            self._deferred_updates[run_id] = []
+
+        self._deferred_updates[run_id].append({"data": update_data, "reason": reason, "timestamp": datetime.now(UTC)})
+
+        logger.info(f"Queued {len(self._deferred_updates[run_id])} deferred updates for trace {run_id}")
+
+    async def process_deferred_updates(self, run_id: UUID) -> bool:
+        """
+        Process any deferred updates for a specific trace.
+
+        This method attempts to process previously deferred updates when
+        the trace has sufficient context.
+
+        Returns:
+            True if updates were processed, False otherwise
+        """
+        if not hasattr(self, "_deferred_updates") or run_id not in self._deferred_updates:
+            return False
+
+        deferred_updates = self._deferred_updates[run_id]
+        if not deferred_updates:
+            return False
+
+        logger.info(f"Processing {len(deferred_updates)} deferred updates for trace {run_id}")
+
+        # Get current trace state
+        current_run = await self.get_by_id(run_id)
+        if not current_run:
+            logger.warning(f"Trace {run_id} not found for deferred update processing")
+            return False
+
+        processed_count = 0
+        for update_info in deferred_updates[:]:  # Copy list for iteration
+            update_data = update_info["data"]
+
+            # Check if update can now be processed
+            if self.validate_message_sequence(current_run, update_data):
+                try:
+                    logger.info(f"Processing deferred update for trace {run_id}")
+                    updated_run = await self.update(run_id, update_data)
+                    if updated_run:
+                        self.validate_trace_status_consistency(updated_run)
+                        processed_count += 1
+                        # Remove processed update from queue
+                        deferred_updates.remove(update_info)
+                        logger.info(f"Successfully processed deferred update for trace {run_id}")
+                except Exception as e:
+                    logger.error(f"Failed to process deferred update for trace {run_id}: {e}")
+            else:
+                logger.debug(f"Deferred update for trace {run_id} still not ready: {update_info['reason']}")
+
+        if processed_count > 0:
+            logger.info(f"Processed {processed_count} deferred updates for trace {run_id}")
+            return True
+
+        return False
 
     async def get_by_id(self, run_id: UUID) -> Run | None:
         """Get a run by its ID."""
