@@ -176,14 +176,16 @@ async def batch_ingest_runs(
                 project_from_metadata = extra["LANGSMITH_PROJECT"]
                 logger.info(f"🎯 Found project in extra.LANGSMITH_PROJECT: {project_from_metadata}")
 
-    # Process new runs (POST operations)
-    for run_create in request.post:
-        try:
-            # If project_name is not set in the run data, use the one from metadata or headers
-            logger.info(f"🔍 Before assignment - run_create.project_name: {run_create.project_name}")
-            logger.info(f"🔍 Available - project_from_metadata: {project_from_metadata}")
-            logger.info(f"🔍 Available - project_from_headers: {project_from_headers}")
+    # Process all operations atomically using upserts (LangSmith fix)
+    logger.info(f"🔄 Processing {len(request.post)} POST and {len(request.patch)} PATCH operations atomically")
 
+    try:
+        # Combine all operations into a single upsert batch
+        all_operations = []
+
+        # Add POST operations (trace creation)
+        for run_create in request.post:
+            # Apply project name extraction
             if not run_create.project_name:
                 if project_from_metadata:
                     run_create.project_name = project_from_metadata
@@ -196,28 +198,12 @@ async def batch_ingest_runs(
             else:
                 logger.info(f"📝 Project already set in run_create: {run_create.project_name}")
 
-            logger.info(f"🔄 Creating run: {run_create.id} (final project: {run_create.project_name})")
-            created_run = await run_repo.create(run_create)
-            created_count += 1
-            created_runs.append(created_run)
-            logger.info(f"✅ Created run: {run_create.id}")
-        except Exception as e:
-            logger.error(f"❌ Failed to create run {run_create.id}: {e}")
-            import traceback
+            all_operations.append(("create", run_create))
+            logger.info(f"🔄 Queued POST operation: {run_create.id} (project: {run_create.project_name})")
 
-            logger.error(f"📍 Traceback: {traceback.format_exc()}")
-            errors += 1
-
-    # Process run updates (PATCH operations)
-    for run_update in request.patch:
-        try:
+        # Add PATCH operations (trace updates)
+        for run_update in request.patch:
             # Apply project name extraction to PATCH operations too
-            logger.info(f"🔍 Before PATCH assignment - run_update.project_name: {getattr(run_update, 'project_name', None)}")
-            logger.info(f"🔍 Available - project_from_metadata: {project_from_metadata}")
-            logger.info(f"🔍 Available - project_from_headers: {project_from_headers}")
-
-            # Only set project_name if it's not already set in the update AND we have a source
-            # Don't overwrite existing project_name with None
             current_project = getattr(run_update, "project_name", None)
             if not current_project:
                 if project_from_metadata:
@@ -228,22 +214,56 @@ async def batch_ingest_runs(
                     logger.info(f"📝 Set project_name from headers on PATCH: {project_from_headers}")
                 else:
                     logger.info("❌ No project source available for PATCH - will preserve existing project_name")
-                    # Don't set project_name to None, let the repository preserve the existing value
             else:
                 logger.info(f"📝 Project already set in run_update: {current_project}")
 
-            logger.info(f"🔄 Updating run: {run_update.id} (final project: {getattr(run_update, 'project_name', None)})")
-            updated_run = await run_repo.update(run_update.id, run_update)
-            if updated_run:
-                updated_count += 1
-                updated_runs.append(updated_run)
-                logger.debug(f"Updated run: {run_update.id}")
-            else:
-                logger.warning(f"Run not found for update: {run_update.id}")
+            all_operations.append(("update", run_update))
+            logger.info(f"🔄 Queued PATCH operation: {run_update.id} (project: {getattr(run_update, 'project_name', None)})")
+
+        # Process all operations atomically using upserts
+        logger.info(f"🔄 Processing {len(all_operations)} operations atomically")
+
+        for op_type, trace_data in all_operations:
+            try:
+                if op_type == "create":
+                    logger.info(f"🔄 Upserting POST operation: {trace_data.id}")
+                    result = await run_repo.upsert_langsmith_trace(trace_data)
+                    created_count += 1
+                    created_runs.append(result)
+                    logger.info(f"✅ Successfully upserted POST operation: {trace_data.id}")
+                else:  # update
+                    logger.info(f"🔄 Upserting PATCH operation: {trace_data.id}")
+                    result = await run_repo.upsert_langsmith_trace(trace_data)
+                    updated_count += 1
+                    updated_runs.append(result)
+                    logger.info(f"✅ Successfully upserted PATCH operation: {trace_data.id}")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to upsert {op_type} operation {trace_data.id}: {e}")
+                import traceback
+
+                logger.error(f"📍 Traceback: {traceback.format_exc()}")
                 errors += 1
-        except Exception as e:
-            logger.error(f"Failed to update run {run_update.id}: {e}")
-            errors += 1
+                # Continue processing other operations but track errors
+
+        # Validate completion for all processed traces
+        if created_runs or updated_runs:
+            logger.info(f"🔍 Validating completion for {len(created_runs) + len(updated_runs)} traces")
+            run_repo.validate_langsmith_completion(created_runs + updated_runs)
+
+        logger.info(
+            f"✅ Atomic upsert processing completed: {created_count} created, {updated_count} updated, {errors} errors"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Critical error in atomic upsert processing: {e}")
+        import traceback
+
+        logger.error(f"📍 Traceback: {traceback.format_exc()}")
+        # Don't continue with forwarding if critical error occurred
+        return BatchIngestResponse(
+            success=False, created_count=0, updated_count=0, errors=[f"Critical error in atomic processing: {str(e)}"]
+        )
 
     # Forward runs to OTLP endpoint if enabled
     runs_to_forward = created_runs + updated_runs

@@ -65,6 +65,20 @@ class Run(Base, TimestampMixin, ProjectMixin):
         Index("idx_runs_status_time", "status", "start_time"),
     )
 
+    @property
+    def execution_time(self) -> float | None:
+        """
+        Calculate execution time in seconds.
+
+        Returns:
+            Execution time in seconds if both start_time and end_time are available,
+            None otherwise.
+        """
+        if self.start_time and self.end_time:
+            delta = self.end_time - self.start_time
+            return delta.total_seconds()
+        return None
+
     def to_dict(self) -> dict[str, Any]:
         """Convert the model to a dictionary."""
         return {

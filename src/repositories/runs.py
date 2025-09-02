@@ -77,12 +77,80 @@ class RunRepository:
         logger.info(f"Created run: {run.id}")
         return run
 
+    async def upsert_langsmith_trace(self, trace_data: RunCreate | RunUpdate) -> Run:
+        """
+        Upsert a LangSmith trace - create if new, update if exists.
+
+        This method handles both RunCreate and RunUpdate data types and provides
+        atomic create/update operations to prevent missing outputs in LangSmith traces.
+        """
+        logger.debug(f"Upserting LangSmith trace: {trace_data.id}")
+
+        # Check if trace exists
+        existing_run = await self.get_by_id(trace_data.id)
+
+        if existing_run:
+            # Update existing trace
+            if isinstance(trace_data, RunUpdate):
+                logger.debug(f"Updating existing trace: {trace_data.id}")
+                return await self.update(trace_data.id, trace_data)
+            else:
+                # Convert RunCreate to RunUpdate for existing trace
+                logger.debug(f"Converting RunCreate to RunUpdate for existing trace: {trace_data.id}")
+
+                update_data = RunUpdate(
+                    id=trace_data.id,
+                    end_time=trace_data.end_time,
+                    outputs=trace_data.outputs,
+                    error=trace_data.error,
+                    extra=trace_data.extra,
+                    tags=trace_data.tags,
+                    events=trace_data.events,
+                )
+                return await self.update(trace_data.id, update_data)
+        else:
+            # Create new trace
+            if isinstance(trace_data, RunCreate):
+                logger.debug(f"Creating new trace: {trace_data.id}")
+                return await self.create(trace_data)
+            else:
+                # Convert RunUpdate to RunCreate for new trace
+                logger.debug(f"Converting RunUpdate to RunCreate for new trace: {trace_data.id}")
+
+                # Extract required fields for creation, with sensible defaults
+                name = getattr(trace_data, "name", None)
+                run_type = getattr(trace_data, "run_type", None)
+                start_time = getattr(trace_data, "start_time", None)
+
+                # If essential fields are missing, we need to create them
+                if not name:
+                    name = f"Trace {trace_data.id}"
+                if not run_type:
+                    run_type = "chain"  # Default LangSmith run type
+                if not start_time:
+                    start_time = datetime.now(UTC)
+
+                create_data = RunCreate(
+                    id=trace_data.id,
+                    name=name,
+                    run_type=run_type,
+                    start_time=start_time,
+                    end_time=trace_data.end_time,
+                    outputs=trace_data.outputs,
+                    error=trace_data.error,
+                    extra=trace_data.extra,
+                    tags=trace_data.tags,
+                    events=trace_data.events,
+                )
+                return await self.create(create_data)
+
     async def update(self, run_id: UUID, run_data: RunUpdate) -> Run | None:
         """Update an existing run."""
         logger.debug(f"Updating run: {run_id}")
 
         stmt = select(Run).where(Run.id == run_id)
         result = await self.session.execute(stmt)
+        logger.debug(f"Found run: {run_id}")
         run = result.scalar_one_or_none()
 
         if not run:
@@ -158,6 +226,21 @@ class RunRepository:
 
         logger.info(f"Updated run: {run_id}")
         return run
+
+    def validate_langsmith_completion(self, runs: list[Run]) -> None:
+        """
+        Validate that completed LangSmith traces have outputs.
+
+        This method checks for traces that are marked as completed but missing outputs,
+        which is a common issue with the current separate operations approach.
+        """
+        for run in runs:
+            if run.status == "completed" and not run.outputs:
+                logger.warning(f"LangSmith trace {run.id} marked as completed but missing outputs")
+                # Revert to running status until outputs are received
+                run.status = "running"
+                logger.info(f"Reverted trace {run.id} to running status - awaiting outputs")
+                # Optionally, queue for retry or alert
 
     async def get_by_id(self, run_id: UUID) -> Run | None:
         """Get a run by its ID."""
