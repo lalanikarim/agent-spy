@@ -21,7 +21,7 @@ const ThemeButton: React.FC<ThemeButtonProps> = ({
   type = "button",
 }) => {
   const styles = useThemeStyleObjects();
-  
+
   const sizeStyles = {
     small: {
       padding: "6px 12px",
