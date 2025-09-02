@@ -28,6 +28,7 @@ class HealthResponse(BaseModel):
     database_status: str = "not_configured"
     database_type: str = "unknown"
     dependencies: dict[str, str] = {}
+    otlp_config: dict[str, Any] = {}
 
 
 class ReadinessResponse(BaseModel):
@@ -70,10 +71,55 @@ async def health_check() -> HealthResponse:
         logger.warning(f"Database connectivity check failed: {e}")
         database_status = "disconnected"
 
-    # TODO: Add dependency checks (Redis, external APIs, etc.) in later phases
+    # Initialize dependencies
     dependencies = {
         "database": database_status,
     }
+
+    # Gather OTLP configuration and status
+    otlp_config = {}
+    try:
+        # OTLP Receiver Configuration
+        otlp_config["receiver"] = {
+            "http_enabled": settings.otlp_http_enabled,
+            "http_path": settings.otlp_http_path,
+            "grpc_enabled": settings.otlp_grpc_enabled,
+            "grpc_host": settings.otlp_grpc_host,
+            "grpc_port": settings.otlp_grpc_port,
+        }
+
+        # OTLP Forwarder Configuration
+        otlp_config["forwarder"] = {
+            "enabled": settings.otlp_forwarder_enabled,
+            "endpoint": settings.otlp_forwarder_endpoint,
+            "protocol": settings.otlp_forwarder_protocol,
+            "service_name": settings.otlp_forwarder_service_name,
+            "timeout": settings.otlp_forwarder_timeout,
+            "retry_count": settings.otlp_forwarder_retry_count,
+            "status": "configured"
+            if settings.otlp_forwarder_enabled and settings.otlp_forwarder_endpoint
+            else "not_configured",
+        }
+
+        # Add OTLP status to dependencies
+        if settings.otlp_http_enabled or settings.otlp_grpc_enabled:
+            dependencies["otlp_receiver"] = "enabled"
+        else:
+            dependencies["otlp_receiver"] = "disabled"
+
+        if settings.otlp_forwarder_enabled and settings.otlp_forwarder_endpoint:
+            dependencies["otlp_forwarder"] = "enabled"
+            # Add forwarder endpoint info to dependencies for easier debugging
+            dependencies["otlp_forwarder_endpoint"] = (
+                f"{settings.otlp_forwarder_protocol}://{settings.otlp_forwarder_endpoint}"
+            )
+        else:
+            dependencies["otlp_forwarder"] = "disabled"
+
+    except Exception as e:
+        logger.warning(f"Failed to gather OTLP configuration: {e}")
+        otlp_config["error"] = str(e)
+        dependencies["otlp_config"] = "error"
 
     response = HealthResponse(
         status="healthy" if database_status == "connected" else "degraded",
@@ -84,6 +130,7 @@ async def health_check() -> HealthResponse:
         database_status=database_status,
         database_type=settings.database_type,
         dependencies=dependencies,
+        otlp_config=otlp_config,
     )
 
     logger.info(f"Health check completed: {response.status} (database: {database_status})")

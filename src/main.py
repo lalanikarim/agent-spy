@@ -12,6 +12,7 @@ from src.api import debug, health, runs, websocket
 from src.core.config import get_settings
 from src.core.database import close_database, init_database
 from src.core.logging import setup_logging
+from src.core.otlp_forwarder import set_otlp_forwarder
 from src.otel.otlp_receiver import OtlpReceiver
 
 # Get settings
@@ -46,6 +47,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             logger.info(f"OTLP receiver configured with HTTP path: {settings.otlp_http_path}")
         except Exception as e:
             logger.error(f"Failed to start OTLP receiver: {e}")
+
+    # Initialize OTLP forwarder
+    if settings.otlp_forwarder_enabled:
+        try:
+            from src.otel.forwarder import OtlpForwarderConfig, OtlpForwarderService
+
+            forwarder_config = OtlpForwarderConfig(
+                enabled=settings.otlp_forwarder_enabled,
+                endpoint=settings.otlp_forwarder_endpoint,
+                protocol=settings.otlp_forwarder_protocol,
+                service_name=settings.otlp_forwarder_service_name,
+                timeout=settings.otlp_forwarder_timeout,
+                retry_count=settings.otlp_forwarder_retry_count,
+            )
+            otlp_forwarder = OtlpForwarderService(forwarder_config)
+            set_otlp_forwarder(otlp_forwarder)
+            logger.info(f"OTLP forwarder initialized: {settings.otlp_forwarder_protocol}://{settings.otlp_forwarder_endpoint}")
+        except Exception as e:
+            logger.error(f"Failed to initialize OTLP forwarder: {e}")
+            set_otlp_forwarder(None)
+    else:
+        logger.info("OTLP forwarder disabled")
 
     yield
 

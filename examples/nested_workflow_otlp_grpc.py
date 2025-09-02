@@ -162,7 +162,14 @@ class NestedWorkflowOTLP:
         start_time = datetime.now()
         print(f"   🚀 Call {call_number} actually starting...")
 
-        # Create span for this call (STARTING - no end_time)
+        # Random wait time for the actual work (10-20 seconds)
+        work_wait_time = random.uniform(10.0, 20.0)
+        print(f"   ⏳ Call {call_number} working for {work_wait_time:.2f}s...")
+        await asyncio.sleep(work_wait_time)
+
+        end_time = datetime.now()
+
+        # Create span for this call (COMPLETED - with end_time)
         span_id = self.create_span(
             name=f"second_level_call_{call_number}",
             parent_span_id=parent_span_id,
@@ -173,47 +180,19 @@ class NestedWorkflowOTLP:
                 "component": "workflow_engine",
                 "input.data": f"Processing data for call {call_number}",
                 "pre_start_wait_seconds": round(pre_start_wait, 2),
+                "work_wait_time_seconds": round(work_wait_time, 2),
+                "output.result": f"Call {call_number} completed successfully",
+                "metadata.call_id": f"call-{call_number}-{int(time.time())}",
             },
             start_time=start_time,
-            # No end_time = running status
+            end_time=end_time,
+            status_code=trace_pb2.Status.StatusCode.STATUS_CODE_OK,
         )
 
-        # Send the span immediately when it starts (running status)
+        # Send the completed span
         span = next(s for s in self.spans if s.span_id == span_id)
         await self.send_single_span(span)
-        print(f"   📤 Sent trace for call {call_number} (RUNNING)")
-
-        # Random wait time for the actual work (10-20 seconds)
-        work_wait_time = random.uniform(10.0, 20.0)
-        print(f"   ⏳ Call {call_number} working for {work_wait_time:.2f}s...")
-        await asyncio.sleep(work_wait_time)
-
-        end_time = datetime.now()
-
-        # Update the span with completion data
-        for span in self.spans:
-            if span.span_id == span_id:
-                span.end_time_unix_nano = int(end_time.timestamp() * 1_000_000_000)
-                span.status.code = trace_pb2.Status.StatusCode.STATUS_CODE_OK
-
-                # Add completion attributes
-                completion_attr = span.attributes.add()
-                completion_attr.key = "work_wait_time_seconds"
-                completion_attr.value.double_value = round(work_wait_time, 2)
-
-                completion_attr = span.attributes.add()
-                completion_attr.key = "output.result"
-                completion_attr.value.string_value = f"Call {call_number} completed successfully"
-
-                completion_attr = span.attributes.add()
-                completion_attr.key = "metadata.call_id"
-                completion_attr.value.string_value = f"call-{call_number}-{int(time.time())}"
-
-                # Send updated span (completed status)
-                await self.send_single_span(span)
-                break
-
-                print(f"   ✅ Second-level call {call_number} completed in {work_wait_time:.2f}s")
+        print(f"   ✅ Second-level call {call_number} completed in {work_wait_time:.2f}s")
         print(f"   📤 Sent trace for call {call_number} (COMPLETED)")
 
         return {"call_number": call_number, "duration": work_wait_time, "span_id": span_id, "status": "completed"}
@@ -225,7 +204,7 @@ class NestedWorkflowOTLP:
 
         workflow_start = datetime.now()
 
-        # Create root span for the entire workflow (STARTING)
+        # Create root span for the entire workflow (will be completed at the end)
         root_span_id = self.create_span(
             name="nested_workflow_root",
             attributes={
@@ -239,13 +218,8 @@ class NestedWorkflowOTLP:
                 "component": "workflow_orchestrator",
             },
             start_time=workflow_start,
-            # No end_time = running status
+            # No end_time yet - will be set when workflow completes
         )
-
-        # Send root span immediately when it starts (running status)
-        root_span = next(s for s in self.spans if s.span_id == root_span_id)
-        await self.send_single_span(root_span)
-        print("📤 Sent trace for root workflow (RUNNING)")
 
         print("📋 Step 1: Top-level call started")
         print("   ⏳ Waiting 5 seconds...")
@@ -277,7 +251,11 @@ class NestedWorkflowOTLP:
 
             start_time_seq = datetime.now()
 
-            # Create span for sequential call (STARTING - no end_time)
+            # Simulate the work
+            await asyncio.sleep(duration)
+            end_time_seq = datetime.now()
+
+            # Create span for sequential call (COMPLETED - with end_time)
             span_id = self.create_span(
                 name=f"sequential_call_{call_number}",
                 parent_span_id=root_span_id,
@@ -287,35 +265,17 @@ class NestedWorkflowOTLP:
                     "operation": "post_processing",
                     "component": "workflow_engine",
                     "input.data": f"Sequential processing for call {call_number}",
+                    "duration_seconds": round(duration, 2),
+                    "output.result": f"Sequential call {call_number} completed successfully",
                 },
                 start_time=start_time_seq,
-                # No end_time = running status
+                end_time=end_time_seq,
+                status_code=trace_pb2.Status.StatusCode.STATUS_CODE_OK,
+                status_message="Sequential call completed successfully",
             )
 
-            # Send the span immediately when it starts (running status)
-            span = next(s for s in self.spans if s.span_id == span_id)
-            await self.send_single_span(span)
-            print(f"   📤 Sent trace for sequential call {call_number} (RUNNING)")
-
-            # Simulate the work
-            await asyncio.sleep(duration)
-            end_time_seq = datetime.now()
-
-            # Update span with completion data
-            span.end_time_unix_nano = int(end_time_seq.timestamp() * 1_000_000_000)
-            span.status.code = trace_pb2.Status.StatusCode.STATUS_CODE_OK
-            span.status.message = "Sequential call completed successfully"
-
-            # Add completion attributes
-            completion_attr = span.attributes.add()
-            completion_attr.key = "duration_seconds"
-            completion_attr.value.double_value = round(duration, 2)
-
-            completion_attr = span.attributes.add()
-            completion_attr.key = "output.result"
-            completion_attr.value.string_value = f"Sequential call {call_number} completed successfully"
-
             # Send the completed span
+            span = next(s for s in self.spans if s.span_id == span_id)
             await self.send_single_span(span)
             print(f"   ✅ Sequential call {call_number} completed in {duration:.2f}s")
             print(f"   📤 Sent trace for sequential call {call_number} (COMPLETED)")

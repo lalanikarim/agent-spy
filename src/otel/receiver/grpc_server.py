@@ -105,6 +105,17 @@ class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
                             logger.warning(f"⚠️ Failed to broadcast WebSocket event for run {created_run.name}: {ws_error}")
                             # Don't fail the gRPC request if WebSocket fails
 
+                    # Forward to OTLP endpoints (fire and forget)
+                    try:
+                        from src.core.otlp_forwarder import get_otlp_forwarder
+
+                        otlp_forwarder = get_otlp_forwarder()
+                        if otlp_forwarder and otlp_forwarder.tracer:
+                            asyncio.create_task(otlp_forwarder.forward_runs(created_runs))
+                            logger.debug(f"OTLP forwarding initiated for {len(created_runs)} gRPC OTLP traces")
+                    except Exception as e:
+                        logger.warning(f"Failed to forward gRPC OTLP traces to OTLP endpoints: {e}")
+
                 except Exception as e:
                     logger.error(f"Failed to create runs: {e}")
                     context.set_code(grpc.StatusCode.INTERNAL)

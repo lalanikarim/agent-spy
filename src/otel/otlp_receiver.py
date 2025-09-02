@@ -273,6 +273,17 @@ class OtlpReceiver:
             except Exception as e:
                 logger.error(f"Error broadcasting event for run {run.id}: {e}")
 
+        # Forward to OTLP endpoints (fire and forget)
+        try:
+            from src.core.otlp_forwarder import get_otlp_forwarder
+
+            otlp_forwarder = get_otlp_forwarder()
+            if otlp_forwarder and otlp_forwarder.tracer:
+                await otlp_forwarder.forward_runs(created_runs)
+                logger.debug(f"OTLP forwarding initiated for {len(created_runs)} OTLP traces")
+        except Exception as e:
+            logger.warning(f"Failed to forward OTLP traces to OTLP endpoints: {e}")
+
     async def start_grpc_server(self):
         """Start gRPC server for OTLP trace export."""
         try:
@@ -290,11 +301,18 @@ class OtlpReceiver:
             trace_service_pb2_grpc.add_TraceServiceServicer_to_server(trace_service, self.grpc_server)
 
             # Bind to port
-            self.grpc_server.add_insecure_port(f"{self.grpc_host}:{self.grpc_port}")
+            bind_address = f"{self.grpc_host}:{self.grpc_port}"
+            try:
+                self.grpc_server.add_insecure_port(bind_address)
+            except Exception as bind_err:
+                logger.warning(f"Failed to bind OTLP gRPC server to {bind_address}: {bind_err}. Falling back to 0.0.0.0.")
+                fallback_address = f"0.0.0.0:{self.grpc_port}"
+                self.grpc_server.add_insecure_port(fallback_address)
+                bind_address = fallback_address
 
             # Start server
             await self.grpc_server.start()
-            logger.info(f"OTLP gRPC server started on {self.grpc_host}:{self.grpc_port}")
+            logger.info(f"OTLP gRPC server started on {bind_address}")
 
         except Exception as e:
             logger.error(f"Failed to start OTLP gRPC server: {e}")

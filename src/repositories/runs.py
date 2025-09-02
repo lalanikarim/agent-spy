@@ -75,6 +75,17 @@ class RunRepository:
             except Exception as e:
                 logger.warning(f"Failed to emit trace.created event for run {run.id}: {e}")
 
+        # Forward to OTLP endpoints (fire and forget)
+        try:
+            from src.core.otlp_forwarder import get_otlp_forwarder
+
+            otlp_forwarder = get_otlp_forwarder()
+            if otlp_forwarder and otlp_forwarder.tracer:
+                asyncio.create_task(otlp_forwarder.forward_runs([run]))
+                logger.debug(f"OTLP forwarding initiated for run {run.id}")
+        except Exception as e:
+            logger.warning(f"Failed to forward run {run.id} to OTLP: {e}")
+
         logger.info(f"Created run: {run.id}")
         return run
 
@@ -253,6 +264,18 @@ class RunRepository:
                     asyncio.create_task(EventService.emit_trace_failed(run, run.error))
                 except Exception as e:
                     logger.warning(f"Failed to emit trace.failed event for run {run.id}: {e}")
+
+        # Forward status changes to OTLP endpoints (fire and forget)
+        if status_changed:
+            try:
+                from src.core.otlp_forwarder import get_otlp_forwarder
+
+                otlp_forwarder = get_otlp_forwarder()
+                if otlp_forwarder and otlp_forwarder.tracer:
+                    asyncio.create_task(otlp_forwarder.forward_runs([run]))
+                    logger.debug(f"OTLP forwarding initiated for status change on run {run.id}")
+            except Exception as e:
+                logger.warning(f"Failed to forward status change for run {run.id} to OTLP: {e}")
 
         logger.info(f"Updated run: {run_id}")
         return run

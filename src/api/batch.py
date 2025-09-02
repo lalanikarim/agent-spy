@@ -1,5 +1,7 @@
 """Batch processing operations for runs/traces."""
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -118,6 +120,24 @@ async def batch_ingest_runs(
 
         # Commit all changes
         await db.commit()
+
+        # Forward to OTLP endpoints (fire and forget)
+        try:
+            from src.core.otlp_forwarder import get_otlp_forwarder
+
+            otlp_forwarder = get_otlp_forwarder()
+            if otlp_forwarder and otlp_forwarder.tracer:
+                # Forward created runs
+                if created_runs:
+                    asyncio.create_task(otlp_forwarder.forward_runs(created_runs))
+                    logger.debug(f"OTLP forwarding initiated for {len(created_runs)} batch-created traces")
+
+                # Forward updated runs (for status changes that might be important)
+                if updated_runs:
+                    asyncio.create_task(otlp_forwarder.forward_runs(updated_runs))
+                    logger.debug(f"OTLP forwarding initiated for {len(updated_runs)} batch-updated traces")
+        except Exception as e:
+            logger.warning(f"Failed to forward batch traces to OTLP endpoints: {e}")
 
         # Log summary
         logger.info(
