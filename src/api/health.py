@@ -11,6 +11,7 @@ from sqlalchemy import select
 from src.core.config import get_settings
 from src.core.database import get_db_session
 from src.core.logging import get_logger
+from src.repositories.runs import RunRepository
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -139,3 +140,72 @@ async def liveness_check() -> dict[str, Any]:
     response = {"alive": True, "timestamp": datetime.now(UTC).isoformat()}
 
     return response
+
+
+@router.get("/health/traces", summary="Trace Completeness Health Check")
+async def trace_completeness_check() -> dict[str, Any]:
+    """
+    Trace completeness health check endpoint.
+
+    This endpoint checks for incomplete traces that may be missing outputs,
+    which is the core issue we're addressing. It provides proactive monitoring
+    to detect trace completeness issues before they become problems.
+    """
+    logger.info("🔍 Trace completeness health check requested")
+
+    try:
+        async with get_db_session() as session:
+            run_repo = RunRepository(session)
+
+            # Check trace completeness across all projects for the last 24 hours
+            completeness_stats = await run_repo.check_trace_completeness(hours_back=24)
+
+            # Determine overall health status
+            if completeness_stats["completeness_score"] >= 0.95:
+                health_status = "healthy"
+            elif completeness_stats["completeness_score"] >= 0.90:
+                health_status = "degraded"
+            else:
+                health_status = "unhealthy"
+
+            # Check for critical issues
+            critical_issues = []
+            if completeness_stats["completed_missing_outputs"] > 0:
+                critical_issues.append(
+                    f"{completeness_stats['completed_missing_outputs']} traces marked completed but missing outputs"
+                )
+
+            if completeness_stats["long_running_potential_orphans"] > 0:
+                critical_issues.append(f"{completeness_stats['long_running_potential_orphans']} potentially orphaned traces")
+
+            if completeness_stats["incomplete_completion"] > 0:
+                critical_issues.append(f"{completeness_stats['incomplete_completion']} traces with incomplete completion")
+
+            response = {
+                "status": health_status,
+                "completeness_score": completeness_stats["completeness_score"],
+                "total_traces_checked": completeness_stats["total_traces_checked"],
+                "critical_issues": critical_issues,
+                "problematic_traces_count": len(completeness_stats["problematic_traces"]),
+                "timestamp": datetime.now(UTC).isoformat(),
+                "details": {
+                    "completed_missing_outputs": completeness_stats["completed_missing_outputs"],
+                    "long_running_potential_orphans": completeness_stats["long_running_potential_orphans"],
+                    "incomplete_completion": completeness_stats["incomplete_completion"],
+                },
+            }
+
+            if critical_issues:
+                logger.warning(
+                    f"⚠️ Trace completeness health check: {health_status} - {len(critical_issues)} critical issues found"
+                )
+                for issue in critical_issues:
+                    logger.warning(f"  - {issue}")
+            else:
+                logger.info(f"✅ Trace completeness health check: {health_status} - No critical issues found")
+
+            return response
+
+    except Exception as e:
+        logger.error(f"❌ Trace completeness health check failed: {e}")
+        return {"status": "error", "error": str(e), "timestamp": datetime.now(UTC).isoformat()}

@@ -838,3 +838,207 @@ class RunRepository:
             logger.info(f"Marked as failed: {run.name} (id: {run.id}, started: {run.start_time})")
 
         return count
+
+    # Phase 4.1: Add Trace Completeness Checks
+    async def check_trace_completeness(self, project_name: str | None = None, hours_back: int = 24) -> dict:
+        """
+        Check for incomplete traces that may be missing outputs.
+
+        Args:
+            project_name: Optional project to check (None for all projects)
+            hours_back: How many hours back to check for incomplete traces
+
+        Returns:
+            Dictionary with completeness statistics and problematic traces
+        """
+        logger.info(
+            f"🔍 Checking trace completeness for {hours_back}h back"
+            + (f" in project '{project_name}'" if project_name else " across all projects")
+        )
+
+        from datetime import timedelta
+
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_back)
+
+        # Build the base query for traces that should be complete
+        base_conditions = [Run.start_time >= cutoff_time, Run.status.in_(["running", "completed", "failed"])]
+
+        if project_name:
+            base_conditions.append(Run.project_name == project_name)
+
+        # Find traces that are marked as completed but missing outputs
+        completed_missing_outputs_stmt = select(Run).where(
+            and_(*base_conditions, Run.status == "completed", Run.outputs.is_(None))
+        )
+
+        result = await self.session.execute(completed_missing_outputs_stmt)
+        completed_missing_outputs = result.scalars().all()
+
+        # Find traces that are running but have been running for too long (potential orphans)
+        long_running_cutoff = datetime.now(UTC) - timedelta(hours=2)  # 2 hours
+        long_running_stmt = select(Run).where(
+            and_(*base_conditions, Run.status == "running", Run.start_time < long_running_cutoff)
+        )
+
+        result = await self.session.execute(long_running_stmt)
+        long_running_traces = result.scalars().all()
+
+        # Find traces with end_time but no outputs (incomplete completion)
+        incomplete_completion_stmt = select(Run).where(
+            and_(*base_conditions, Run.end_time.is_not(None), Run.outputs.is_(None), Run.status != "failed")
+        )
+
+        result = await self.session.execute(incomplete_completion_stmt)
+        incomplete_completion = result.scalars().all()
+
+        # Calculate statistics
+        total_traces_stmt = select(func.count(Run.id)).where(and_(*base_conditions))
+        result = await self.session.execute(total_traces_stmt)
+        total_traces = result.scalar() or 0
+
+        completeness_stats = {
+            "total_traces_checked": total_traces,
+            "completed_missing_outputs": len(completed_missing_outputs),
+            "long_running_potential_orphans": len(long_running_traces),
+            "incomplete_completion": len(incomplete_completion),
+            "completeness_score": 0.0,
+            "problematic_traces": [],
+        }
+
+        # Calculate completeness score
+        if total_traces > 0:
+            problematic_count = len(completed_missing_outputs) + len(long_running_traces) + len(incomplete_completion)
+            completeness_stats["completeness_score"] = max(0.0, (total_traces - problematic_count) / total_traces)
+
+        # Collect details of problematic traces
+        for trace in completed_missing_outputs:
+            completeness_stats["problematic_traces"].append(
+                {
+                    "id": str(trace.id),
+                    "name": trace.name,
+                    "project": trace.project_name,
+                    "status": trace.status,
+                    "issue": "completed_missing_outputs",
+                    "start_time": trace.start_time.isoformat() if trace.start_time else None,
+                    "end_time": trace.end_time.isoformat() if trace.end_time else None,
+                }
+            )
+
+        for trace in long_running_traces:
+            completeness_stats["problematic_traces"].append(
+                {
+                    "id": str(trace.id),
+                    "name": trace.name,
+                    "project": trace.project_name,
+                    "status": trace.status,
+                    "issue": "long_running_potential_orphan",
+                    "start_time": trace.start_time.isoformat() if trace.start_time else None,
+                    "end_time": trace.end_time.isoformat() if trace.end_time else None,
+                    "duration_hours": (datetime.now(UTC) - trace.start_time).total_seconds() / 3600
+                    if trace.start_time
+                    else None,
+                }
+            )
+
+        for trace in incomplete_completion:
+            completeness_stats["problematic_traces"].append(
+                {
+                    "id": str(trace.id),
+                    "name": trace.name,
+                    "project": trace.project_name,
+                    "status": trace.status,
+                    "issue": "incomplete_completion",
+                    "start_time": trace.start_time.isoformat() if trace.start_time else None,
+                    "end_time": trace.end_time.isoformat() if trace.end_time else None,
+                }
+            )
+
+        logger.info(
+            f"🔍 Trace completeness check completed: {completeness_stats['completeness_score']:.2%} completeness score"
+        )
+        if completeness_stats["problematic_traces"]:
+            logger.warning(f"⚠️ Found {len(completeness_stats['problematic_traces'])} problematic traces")
+
+        return completeness_stats
+
+    async def get_trace_hierarchy_completeness(self, root_trace_id: UUID) -> dict:
+        """
+        Check completeness of a specific trace hierarchy.
+
+        Args:
+            root_trace_id: ID of the root trace to check
+
+        Returns:
+            Dictionary with hierarchy completeness information
+        """
+        logger.info(f"🔍 Checking completeness of trace hierarchy: {root_trace_id}")
+
+        # Get all traces in the hierarchy
+        hierarchy_traces = await self.get_run_hierarchy(root_trace_id)
+
+        if not hierarchy_traces:
+            return {
+                "root_trace_id": str(root_trace_id),
+                "hierarchy_found": False,
+                "completeness_score": 0.0,
+                "missing_outputs": [],
+                "orphaned_traces": [],
+            }
+
+        # Analyze each trace in the hierarchy
+        missing_outputs = []
+        orphaned_traces = []
+        total_traces = len(hierarchy_traces)
+        complete_traces = 0
+
+        for trace in hierarchy_traces:
+            # Check if trace has outputs
+            if trace.outputs:
+                complete_traces += 1
+            else:
+                # Check if it's a completed trace without outputs
+                if trace.status == "completed":
+                    missing_outputs.append(
+                        {
+                            "id": str(trace.id),
+                            "name": trace.name,
+                            "parent_id": str(trace.parent_run_id) if trace.parent_run_id else None,
+                            "start_time": trace.start_time.isoformat() if trace.start_time else None,
+                            "end_time": trace.end_time.isoformat() if trace.end_time else None,
+                        }
+                    )
+
+                # Check if it's a long-running trace (potential orphan)
+                if trace.status == "running" and trace.start_time:
+                    duration_hours = (datetime.now(UTC) - trace.start_time).total_seconds() / 3600
+                    if duration_hours > 2:  # More than 2 hours
+                        orphaned_traces.append(
+                            {
+                                "id": str(trace.id),
+                                "name": trace.name,
+                                "parent_id": str(trace.parent_run_id) if trace.parent_run_id else None,
+                                "duration_hours": duration_hours,
+                                "start_time": trace.start_time.isoformat(),
+                            }
+                        )
+
+        completeness_score = complete_traces / total_traces if total_traces > 0 else 0.0
+
+        hierarchy_stats = {
+            "root_trace_id": str(root_trace_id),
+            "hierarchy_found": True,
+            "total_traces": total_traces,
+            "complete_traces": complete_traces,
+            "completeness_score": completeness_score,
+            "missing_outputs": missing_outputs,
+            "orphaned_traces": orphaned_traces,
+            "hierarchy_depth": 1,  # Simplified depth calculation for now
+        }
+
+        logger.info(f"🔍 Hierarchy completeness: {completeness_score:.2%} ({complete_traces}/{total_traces})")
+        if missing_outputs:
+            logger.warning(f"⚠️ Found {len(missing_outputs)} traces missing outputs in hierarchy")
+        if orphaned_traces:
+            logger.warning(f"⚠️ Found {len(orphaned_traces)} potentially orphaned traces in hierarchy")
+
+        return hierarchy_stats
