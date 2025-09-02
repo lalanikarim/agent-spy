@@ -69,7 +69,19 @@ class OtlpReceiver:
                 raise
             except Exception as e:
                 logger.error(f"Error processing OTLP HTTP request: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                # Check if it's a database-related error
+                if "duplicate key" in str(e).lower() or "unique constraint" in str(e).lower():
+                    logger.warning("Duplicate key detected, some spans may already exist")
+                    return JSONResponse(
+                        content={"status": "partial_success", "spans_processed": 0, "message": "Some spans already exist"}
+                    )
+                elif "transaction has been rolled back" in str(e):
+                    logger.error("Database transaction error, database may be in inconsistent state")
+                    return JSONResponse(
+                        content={"status": "error", "spans_processed": 0, "message": "Database transaction error"}
+                    )
+                else:
+                    raise HTTPException(status_code=500, detail=str(e))
 
     async def _process_otlp_data(self, body: bytes) -> list[RunCreate]:
         """Process OTLP protobuf data and convert to Agent Spy runs."""
@@ -82,6 +94,7 @@ class OtlpReceiver:
             request.ParseFromString(body)
 
             runs_to_create = []
+            seen_span_ids = set()  # Track seen span IDs to avoid duplicates
 
             for resource_spans in request.resource_spans:
                 # Extract resource attributes
@@ -100,6 +113,13 @@ class OtlpReceiver:
                 # Process spans
                 for scope_spans in resource_spans.scope_spans:
                     for span_proto in scope_spans.spans:
+                        # Skip if we've already seen this span ID
+                        span_id = span_proto.span_id.hex()
+                        if span_id in seen_span_ids:
+                            logger.debug(f"Skipping duplicate span ID: {span_id}")
+                            continue
+                        seen_span_ids.add(span_id)
+
                         run_create = self.convert_span_to_run(span_proto, resource_attrs)
                         if run_create:
                             runs_to_create.append(run_create)
@@ -192,13 +212,33 @@ class OtlpReceiver:
 
         created_runs = []
         async with get_db_session() as session:
-            run_repository = RunRepository(session)
-            for run_create in runs_to_create:
-                try:
-                    created_run = await run_repository.create(run_create, disable_events=True)
-                    created_runs.append(created_run)
-                except Exception as e:
-                    logger.error(f"Error creating run {run_create.id}: {e}")
+            try:
+                run_repository = RunRepository(session)
+                for run_create in runs_to_create:
+                    try:
+                        # Check if run already exists to avoid duplicate key errors
+                        existing_run = await run_repository.get_by_id(run_create.id)
+                        if existing_run:
+                            logger.debug(f"Run {run_create.id} already exists, skipping creation")
+                            created_runs.append(existing_run)
+                            continue
+
+                        created_run = await run_repository.create(run_create, disable_events=True)
+                        created_runs.append(created_run)
+                    except Exception as e:
+                        logger.error(f"Error creating run {run_create.id}: {e}")
+                        # Continue with next run instead of failing the entire batch
+                        continue
+
+                # Commit the transaction if we have any successful creations
+                if created_runs:
+                    await session.commit()
+
+            except Exception as e:
+                logger.error(f"Database session error: {e}")
+                await session.rollback()
+                # Return empty list on session error to avoid further issues
+                return []
 
         return created_runs
 
