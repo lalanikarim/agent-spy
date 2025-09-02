@@ -176,117 +176,183 @@ async def batch_ingest_runs(
                 project_from_metadata = extra["LANGSMITH_PROJECT"]
                 logger.info(f"🎯 Found project in extra.LANGSMITH_PROJECT: {project_from_metadata}")
 
-    # Process all operations atomically using upserts (LangSmith fix)
+    # Process all operations atomically using upserts with batch transaction (Phase 3.1)
     logger.info(f"🔄 Processing {len(request.post)} POST and {len(request.patch)} PATCH operations atomically")
 
-    try:
-        # Combine all operations into a single upsert batch
-        all_operations = []
+    # Phase 3.1: Implement Batch Transactions - Wrap entire operation in database transaction
+    async with db.begin_nested() as nested_transaction:  # Savepoint for rollback
+        try:
+            # Combine all operations into a single upsert batch
+            all_operations = []
 
-        # Add POST operations (trace creation)
-        for run_create in request.post:
-            # Apply project name extraction
-            if not run_create.project_name:
-                if project_from_metadata:
-                    run_create.project_name = project_from_metadata
-                    logger.info(f"📝 Set project_name from metadata: {project_from_metadata}")
-                elif project_from_headers:
-                    run_create.project_name = project_from_headers
-                    logger.info(f"📝 Set project_name from headers: {project_from_headers}")
+            # Add POST operations (trace creation)
+            for run_create in request.post:
+                # Apply project name extraction
+                if not run_create.project_name:
+                    if project_from_metadata:
+                        run_create.project_name = project_from_metadata
+                        logger.info(f"📝 Set project_name from metadata: {project_from_metadata}")
+                    elif project_from_headers:
+                        run_create.project_name = project_from_headers
+                        logger.info(f"📝 Set project_name from headers: {project_from_headers}")
+                    else:
+                        logger.info("❌ No project source available")
                 else:
-                    logger.info("❌ No project source available")
-            else:
-                logger.info(f"📝 Project already set in run_create: {run_create.project_name}")
+                    logger.info(f"📝 Project already set in run_create: {run_create.project_name}")
 
-            all_operations.append(("create", run_create))
-            logger.info(f"🔄 Queued POST operation: {run_create.id} (project: {run_create.project_name})")
+                all_operations.append(("create", run_create))
+                logger.info(f"🔄 Queued POST operation: {run_create.id} (project: {run_create.project_name})")
 
-        # Add PATCH operations (trace updates)
-        for run_update in request.patch:
-            # Apply project name extraction to PATCH operations too
-            current_project = getattr(run_update, "project_name", None)
-            if not current_project:
-                if project_from_metadata:
-                    run_update.project_name = project_from_metadata
-                    logger.info(f"📝 Set project_name from metadata on PATCH: {project_from_metadata}")
-                elif project_from_headers:
-                    run_update.project_name = project_from_headers
-                    logger.info(f"📝 Set project_name from headers on PATCH: {project_from_headers}")
+            # Add PATCH operations (trace updates)
+            for run_update in request.patch:
+                # Apply project name extraction to PATCH operations too
+                current_project = getattr(run_update, "project_name", None)
+                if not current_project:
+                    if project_from_metadata:
+                        run_update.project_name = project_from_metadata
+                        logger.info(f"📝 Set project_name from metadata on PATCH: {project_from_metadata}")
+                    elif project_from_headers:
+                        run_update.project_name = project_from_headers
+                        logger.info(f"📝 Set project_name from headers on PATCH: {project_from_headers}")
+                    else:
+                        logger.info("❌ No project source available for PATCH - will preserve existing project_name")
                 else:
-                    logger.info("❌ No project source available for PATCH - will preserve existing project_name")
-            else:
-                logger.info(f"📝 Project already set in run_update: {current_project}")
+                    logger.info(f"📝 Project already set in run_update: {current_project}")
 
-            all_operations.append(("update", run_update))
-            logger.info(f"🔄 Queued PATCH operation: {run_update.id} (project: {getattr(run_update, 'project_name', None)})")
+                all_operations.append(("update", run_update))
+                project_name = getattr(run_update, "project_name", None)
+                logger.info(f"🔄 Queued PATCH operation: {run_update.id} (project: {project_name})")
 
-        # Process all operations atomically using upserts
-        logger.info(f"🔄 Processing {len(all_operations)} operations atomically")
+            # Process all operations atomically using upserts
+            logger.info(f"🔄 Processing {len(all_operations)} operations atomically")
 
-        for op_type, trace_data in all_operations:
-            try:
+            # Phase 3.3: Improve Batch Validation - Pre-validate entire batch before processing
+            logger.info("🔍 Pre-validating batch operations...")
+            validation_errors = []
+
+            for op_type, trace_data in all_operations:
+                # Validate required fields for each operation
                 if op_type == "create":
-                    logger.info(f"🔄 Upserting POST operation: {trace_data.id}")
-                    result = await run_repo.upsert_langsmith_trace(trace_data)
-                    created_count += 1
-                    created_runs.append(result)
-                    logger.info(f"✅ Successfully upserted POST operation: {trace_data.id}")
-                else:  # update
-                    logger.info(f"🔄 Upserting PATCH operation: {trace_data.id}")
-                    result = await run_repo.upsert_langsmith_trace(trace_data)
-                    updated_count += 1
-                    updated_runs.append(result)
-                    logger.info(f"✅ Successfully upserted PATCH operation: {trace_data.id}")
+                    missing_fields = []
+                    if not trace_data.name:
+                        missing_fields.append("name")
+                    if not trace_data.run_type:
+                        missing_fields.append("run_type")
+                    if not trace_data.start_time:
+                        missing_fields.append("start_time")
 
-            except Exception as e:
-                logger.error(f"❌ Failed to upsert {op_type} operation {trace_data.id}: {e}")
-                import traceback
+                    if missing_fields:
+                        validation_errors.append(f"POST operation {trace_data.id}: Missing required fields {missing_fields}")
+                elif op_type == "update":
+                    if not trace_data.id:
+                        validation_errors.append("PATCH operation: Missing trace ID")
 
-                logger.error(f"📍 Traceback: {traceback.format_exc()}")
-                errors += 1
-                # Continue processing other operations but track errors
+            if validation_errors:
+                logger.error(f"❌ Batch validation failed: {len(validation_errors)} errors")
+                for error in validation_errors:
+                    logger.error(f"   - {error}")
 
-        # Validate completion and status consistency for all processed traces
-        if created_runs or updated_runs:
-            logger.info(f"🔍 Validating completion and status consistency for {len(created_runs) + len(updated_runs)} traces")
+                # Rollback transaction due to validation failures
+                await nested_transaction.rollback()
+                logger.info("🔄 Batch transaction rolled back due to validation failures")
 
-            # Validate basic completion (outputs present)
-            run_repo.validate_langsmith_completion(created_runs + updated_runs)
+                return BatchIngestResponse(success=False, created_count=0, updated_count=0, errors=validation_errors)
 
-            # Validate status consistency for each trace
-            for run in created_runs + updated_runs:
-                run_repo.validate_trace_status_consistency(run)
-                logger.debug(f"Validated trace {run.id}: status={run.status}, has_outputs={bool(run.outputs)}")
+            logger.info("✅ Batch validation passed - proceeding with processing")
 
-        logger.info(
-            f"✅ Atomic upsert processing completed: {created_count} created, {updated_count} updated, {errors} errors"
-        )
+            # Phase 3.2: Add Partial Success Handling - Track failures and implement rollback logic
+            failed_operations = []
 
-        # Process any remaining deferred updates for all traces
-        if created_runs or updated_runs:
-            logger.info("🔄 Processing any remaining deferred updates...")
-            deferred_processed = 0
-            for run in created_runs + updated_runs:
+            for op_type, trace_data in all_operations:
                 try:
-                    if await run_repo.process_deferred_updates(run.id):
-                        deferred_processed += 1
+                    if op_type == "create":
+                        logger.info(f"🔄 Upserting POST operation: {trace_data.id}")
+                        result = await run_repo.upsert_langsmith_trace(trace_data)
+                        created_count += 1
+                        created_runs.append(result)
+                        logger.info(f"✅ Successfully upserted POST operation: {trace_data.id}")
+                    else:  # update
+                        logger.info(f"🔄 Upserting PATCH operation: {trace_data.id}")
+                        result = await run_repo.upsert_langsmith_trace(trace_data)
+                        updated_count += 1
+                        updated_runs.append(result)
+                        logger.info(f"✅ Successfully upserted PATCH operation: {trace_data.id}")
+
                 except Exception as e:
-                    logger.warning(f"Failed to process deferred updates for trace {run.id}: {e}")
+                    logger.error(f"❌ Failed to upsert {op_type} operation {trace_data.id}: {e}")
+                    import traceback
 
-            if deferred_processed > 0:
-                logger.info(f"✅ Processed {deferred_processed} deferred updates")
-            else:
-                logger.info("ℹ️ No deferred updates to process")
+                    logger.error(f"📍 Traceback: {traceback.format_exc()}")
+                    errors += 1
+                    failed_operations.append((op_type, trace_data, str(e)))
 
-    except Exception as e:
-        logger.error(f"❌ Critical error in atomic upsert processing: {e}")
-        import traceback
+                    # Phase 3.2: Implement rollback on partial failures for critical operations
+                    if errors > 0 and len(failed_operations) > 0:
+                        logger.warning(f"⚠️ Partial failure detected: {errors} errors out of {len(all_operations)} operations")
 
-        logger.error(f"📍 Traceback: {traceback.format_exc()}")
-        # Don't continue with forwarding if critical error occurred
-        return BatchIngestResponse(
-            success=False, created_count=0, updated_count=0, errors=[f"Critical error in atomic processing: {str(e)}"]
-        )
+                        # For LangSmith traces, even one failure can cause missing outputs
+                        # Implement rollback to maintain consistency
+                        if any(op_type == "update" for op_type, _, _ in failed_operations):
+                            logger.error("🚨 Critical failure: Update operations failed - rolling back entire batch")
+                            await nested_transaction.rollback()
+                            logger.info("🔄 Batch transaction rolled back due to critical failures")
+
+                            return BatchIngestResponse(
+                                success=False,
+                                created_count=0,
+                                updated_count=0,
+                                errors=[
+                                    f"Critical failures detected: {len(failed_operations)} operations failed. "
+                                    + "Batch rolled back for consistency."
+                                ],
+                            )
+
+            # Validate completion and status consistency for all processed traces
+            if created_runs or updated_runs:
+                trace_count = len(created_runs) + len(updated_runs)
+                logger.info(f"🔍 Validating completion and status consistency for {trace_count} traces")
+
+                # Validate basic completion (outputs present)
+                run_repo.validate_langsmith_completion(created_runs + updated_runs)
+
+                # Validate status consistency for each trace
+                for run in created_runs + updated_runs:
+                    run_repo.validate_trace_status_consistency(run)
+                    logger.debug(f"Validated trace {run.id}: status={run.status}, has_outputs={bool(run.outputs)}")
+
+            logger.info(
+                f"✅ Atomic upsert processing completed: {created_count} created, {updated_count} updated, {errors} errors"
+            )
+
+            # Process any remaining deferred updates for all traces
+            if created_runs or updated_runs:
+                logger.info("🔄 Processing any remaining deferred updates...")
+                deferred_processed = 0
+                for run in created_runs + updated_runs:
+                    try:
+                        if await run_repo.process_deferred_updates(run.id):
+                            deferred_processed += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to process deferred updates for trace {run.id}: {e}")
+
+                if deferred_processed > 0:
+                    logger.info(f"✅ Processed {deferred_processed} deferred updates")
+                else:
+                    logger.info("ℹ️ No deferred updates to process")
+
+            # Phase 3.1: Commit the batch transaction if all operations succeeded
+            logger.info("✅ Batch transaction completed successfully - committing changes")
+
+        except Exception as e:
+            # Phase 3.1: Rollback batch transaction on critical errors
+            logger.error(f"❌ Critical error in batch transaction - rolling back: {e}")
+            await nested_transaction.rollback()
+            logger.info("🔄 Batch transaction rolled back successfully")
+
+            # Don't continue with forwarding if critical error occurred
+            return BatchIngestResponse(
+                success=False, created_count=0, updated_count=0, errors=[f"Critical error in batch processing: {str(e)}"]
+            )
 
     # Forward runs to OTLP endpoint if enabled
     runs_to_forward = created_runs + updated_runs
