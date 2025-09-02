@@ -1,0 +1,318 @@
+"""Simplified OpenTelemetry receiver for Agent Spy."""
+
+from concurrent import futures
+from datetime import UTC
+from typing import Any
+from uuid import UUID
+
+import grpc
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
+from opentelemetry.proto.collector.trace.v1 import trace_service_pb2, trace_service_pb2_grpc
+
+from src.api.websocket import manager as websocket_manager
+from src.core.database import get_db_session
+from src.core.logging import get_logger
+from src.repositories.runs import RunRepository
+from src.schemas.runs import RunCreate
+
+logger = get_logger(__name__)
+
+
+class OtlpReceiver:
+    """Simplified OTLP receiver handling both HTTP and gRPC protocols."""
+
+    def __init__(self, http_path: str = "/v1/traces", grpc_host: str = "127.0.0.1", grpc_port: int = 4317):
+        self.http_path = http_path
+        self.grpc_host = grpc_host
+        self.grpc_port = grpc_port
+        self.router = APIRouter(prefix=http_path, tags=["opentelemetry"])
+        self.grpc_server = None
+        self._setup_http_routes()
+
+    def _setup_http_routes(self):
+        """Setup HTTP routes for OTLP trace export."""
+
+        @self.router.get("/")
+        async def health_check():
+            """Health check endpoint for OTLP receiver."""
+            return JSONResponse(content={"status": "healthy", "service": "otlp-http-receiver"})
+
+        @self.router.post("/")
+        async def export_traces(request: Request):
+            """Handle OTLP HTTP trace export."""
+            try:
+                content_type = request.headers.get("content-type", "")
+                if "application/x-protobuf" not in content_type:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Unsupported content type: {content_type}. Only application/x-protobuf is supported.",
+                    )
+
+                body = await request.body()
+                if not body:
+                    raise HTTPException(status_code=400, detail="Empty request body")
+
+                # Parse protobuf and convert to runs
+                runs_to_create = await self._process_otlp_data(body)
+
+                # Store runs in database
+                created_runs = await self.store_runs(runs_to_create)
+
+                # Broadcast WebSocket events
+                await self.broadcast_events(created_runs)
+
+                return JSONResponse(content={"status": "success", "spans_processed": len(created_runs)})
+
+            except HTTPException:
+                # Re-raise HTTP exceptions as-is
+                raise
+            except Exception as e:
+                logger.error(f"Error processing OTLP HTTP request: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+    async def _process_otlp_data(self, body: bytes) -> list[RunCreate]:
+        """Process OTLP protobuf data and convert to Agent Spy runs."""
+        try:
+            # Import here to avoid circular imports
+            from opentelemetry.proto.collector.trace.v1 import trace_service_pb2
+
+            # Parse protobuf
+            request = trace_service_pb2.ExportTraceServiceRequest()
+            request.ParseFromString(body)
+
+            runs_to_create = []
+
+            for resource_spans in request.resource_spans:
+                # Extract resource attributes
+                resource_attrs = {}
+                if resource_spans.resource and resource_spans.resource.attributes:
+                    for attr in resource_spans.resource.attributes:
+                        if attr.value.HasField("string_value"):
+                            resource_attrs[attr.key] = attr.value.string_value
+                        elif attr.value.HasField("int_value"):
+                            resource_attrs[attr.key] = attr.value.int_value
+                        elif attr.value.HasField("double_value"):
+                            resource_attrs[attr.key] = attr.value.double_value
+                        elif attr.value.HasField("bool_value"):
+                            resource_attrs[attr.key] = attr.value.bool_value
+
+                # Process spans
+                for scope_spans in resource_spans.scope_spans:
+                    for span_proto in scope_spans.spans:
+                        run_create = self.convert_span_to_run(span_proto, resource_attrs)
+                        if run_create:
+                            runs_to_create.append(run_create)
+
+            return runs_to_create
+
+        except Exception as e:
+            logger.error(f"Error processing OTLP data: {e}")
+            # Return 400 for protobuf parsing errors
+            if "Error parsing message" in str(e):
+                raise HTTPException(status_code=400, detail="Invalid protobuf data")
+            raise
+
+    def convert_span_to_run(self, span_proto, resource_attrs: dict[str, Any]) -> RunCreate | None:
+        """Convert OTLP span to Agent Spy run."""
+        try:
+            # Extract basic span information
+            span_id = span_proto.span_id.hex()
+            parent_id = span_proto.parent_span_id.hex() if span_proto.parent_span_id else None
+
+            # Convert timestamps
+            start_time = self._nanos_to_datetime(span_proto.start_time_unix_nano)
+            end_time = self._nanos_to_datetime(span_proto.end_time_unix_nano) if span_proto.end_time_unix_nano else None
+
+            # Determine status
+            status = "running"
+            if end_time:
+                status = "failed" if span_proto.status.code == 2 else "completed"
+
+            # Extract inputs/outputs from attributes
+            inputs = {}
+            outputs = {}
+            if span_proto.attributes:
+                for attr in span_proto.attributes:
+                    if attr.key.startswith("input."):
+                        inputs[attr.key[6:]] = self._extract_attribute_value(attr.value)
+                    elif attr.key.startswith("output."):
+                        outputs[attr.key[7:]] = self._extract_attribute_value(attr.value)
+
+            # Extract project name from resource
+            project_name = resource_attrs.get("service.name", "unknown")
+
+            # Create run
+            return RunCreate(
+                id=UUID(span_id),
+                name=span_proto.name,
+                run_type="llm" if "llm" in span_proto.name.lower() else "chain",
+                start_time=start_time,
+                end_time=end_time,
+                parent_run_id=UUID(parent_id) if parent_id else None,
+                inputs=inputs or {"span_id": span_id},
+                outputs=outputs or ({"status": "completed"} if end_time else {}),
+                extra={"otlp_span_kind": span_proto.kind},
+                serialized=None,
+                events=[],
+                error=None if status != "failed" else "OTLP span error",
+                tags=list(resource_attrs.keys()),
+                reference_example_id=None,
+                project_name=project_name,
+            )
+
+        except Exception as e:
+            logger.error(f"Error converting span {span_proto.span_id.hex()}: {e}")
+            return None
+
+    def _extract_attribute_value(self, value) -> Any:
+        """Extract value from OTLP attribute."""
+        if value.HasField("string_value"):
+            return value.string_value
+        elif value.HasField("int_value"):
+            return value.int_value
+        elif value.HasField("double_value"):
+            return value.double_value
+        elif value.HasField("bool_value"):
+            return value.bool_value
+        return str(value)
+
+    def _nanos_to_datetime(self, nanos: int) -> Any:
+        """Convert nanoseconds to datetime."""
+        from datetime import datetime
+
+        if nanos == 0:
+            return None
+        return datetime.fromtimestamp(nanos / 1_000_000_000, tz=UTC)
+
+    async def store_runs(self, runs_to_create: list[RunCreate]) -> list[Any]:
+        """Store runs in database."""
+        if not runs_to_create:
+            return []
+
+        created_runs = []
+        async with get_db_session() as session:
+            run_repository = RunRepository(session)
+            for run_create in runs_to_create:
+                try:
+                    created_run = await run_repository.create(run_create, disable_events=True)
+                    created_runs.append(created_run)
+                except Exception as e:
+                    logger.error(f"Error creating run {run_create.id}: {e}")
+
+        return created_runs
+
+    async def broadcast_events(self, created_runs: list[Any]):
+        """Broadcast WebSocket events for created runs."""
+        for run in created_runs:
+            try:
+                await websocket_manager.broadcast_event(
+                    "trace.created",
+                    {
+                        "trace_id": str(run.id),
+                        "name": run.name,
+                        "run_type": run.run_type,
+                        "project_name": run.project_name,
+                        "source": "otlp_simple",
+                    },
+                )
+
+                if run.status == "completed":
+                    await websocket_manager.broadcast_event(
+                        "trace.completed",
+                        {
+                            "trace_id": str(run.id),
+                            "name": run.name,
+                            "run_type": run.run_type,
+                            "project_name": run.project_name,
+                            "source": "otlp_simple",
+                            "execution_time": run.execution_time,
+                        },
+                    )
+
+            except Exception as e:
+                logger.error(f"Error broadcasting event for run {run.id}: {e}")
+
+    async def start_grpc_server(self):
+        """Start gRPC server for OTLP trace export."""
+        try:
+            # Create gRPC server
+            self.grpc_server = grpc.aio.server(
+                futures.ThreadPoolExecutor(max_workers=10),
+                options=[
+                    ("grpc.max_send_message_length", 50 * 1024 * 1024),
+                    ("grpc.max_receive_message_length", 50 * 1024 * 1024),
+                ],
+            )
+
+            # Add trace service
+            trace_service = OtlpTraceService(self)
+            trace_service_pb2_grpc.add_TraceServiceServicer_to_server(trace_service, self.grpc_server)
+
+            # Bind to port
+            self.grpc_server.add_insecure_port(f"{self.grpc_host}:{self.grpc_port}")
+
+            # Start server
+            await self.grpc_server.start()
+            logger.info(f"OTLP gRPC server started on {self.grpc_host}:{self.grpc_port}")
+
+        except Exception as e:
+            logger.error(f"Failed to start OTLP gRPC server: {e}")
+            raise
+
+    async def stop_grpc_server(self):
+        """Stop gRPC server."""
+        if self.grpc_server:
+            try:
+                await self.grpc_server.stop(grace=5)
+                logger.info("OTLP gRPC server stopped")
+            except Exception as e:
+                logger.error(f"Error stopping OTLP gRPC server: {e}")
+
+
+class OtlpTraceService(trace_service_pb2_grpc.TraceServiceServicer):
+    """Simplified OTLP trace service for gRPC."""
+
+    def __init__(self, receiver: OtlpReceiver):
+        self.receiver = receiver
+
+    async def Export(self, request, context):
+        """Handle OTLP gRPC trace export requests."""
+        try:
+            logger.debug(f"Received OTLP gRPC export request with {len(request.resource_spans)} resource spans")
+
+            # Convert OTLP spans to runs
+            runs_to_create = []
+
+            for resource_spans in request.resource_spans:
+                # Extract resource attributes
+                resource_attrs = {}
+                if resource_spans.resource and resource_spans.resource.attributes:
+                    for key, value in resource_spans.resource.attributes.items():
+                        if value.HasField("string_value"):
+                            resource_attrs[key] = value.string_value
+                        elif value.HasField("int_value"):
+                            resource_attrs[key] = value.int_value
+                        elif value.HasField("double_value"):
+                            resource_attrs[key] = value.double_value
+                        elif value.HasField("bool_value"):
+                            resource_attrs[key] = value.bool_value
+
+                # Process spans
+                for scope_spans in resource_spans.scope_spans:
+                    for span_proto in scope_spans.spans:
+                        run_create = self.receiver.convert_span_to_run(span_proto, resource_attrs)
+                        if run_create:
+                            runs_to_create.append(run_create)
+
+            # Store runs and broadcast events
+            if runs_to_create:
+                created_runs = await self.receiver.store_runs(runs_to_create)
+                await self.receiver.broadcast_events(created_runs)
+                logger.info(f"Successfully processed {len(runs_to_create)} spans from gRPC")
+
+            return trace_service_pb2.ExportTraceServiceResponse()
+
+        except Exception as e:
+            logger.error(f"Error processing OTLP gRPC request: {e}")
+            context.abort(grpc.StatusCode.INTERNAL, str(e))

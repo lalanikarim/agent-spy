@@ -12,7 +12,7 @@ from src.api import debug, health, runs, websocket
 from src.core.config import get_settings
 from src.core.database import close_database, init_database
 from src.core.logging import setup_logging
-from src.otel.receiver import OtlpGrpcServer, OtlpHttpServer
+from src.otel.otlp_receiver import OtlpReceiver
 
 # Get settings
 settings = get_settings()
@@ -32,28 +32,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Initialize database connection
     await init_database()
 
-    # Initialize OTLP servers
-    otlp_grpc_server = None
-    if settings.otlp_grpc_enabled:
+    # Initialize OTLP receiver
+    otlp_receiver = None
+    if settings.otlp_grpc_enabled or settings.otlp_http_enabled:
         try:
-            otlp_grpc_server = OtlpGrpcServer(host=settings.otlp_grpc_host, port=settings.otlp_grpc_port)
-            # Start gRPC server in background
-            asyncio.create_task(otlp_grpc_server.start())
-            logger.info(f"OTLP gRPC server configured on {settings.otlp_grpc_host}:{settings.otlp_grpc_port}")
+            otlp_receiver = OtlpReceiver(
+                http_path=settings.otlp_http_path, grpc_host=settings.otlp_grpc_host, grpc_port=settings.otlp_grpc_port
+            )
+            # Start gRPC server in background if enabled
+            if settings.otlp_grpc_enabled:
+                asyncio.create_task(otlp_receiver.start_grpc_server())
+                logger.info(f"OTLP gRPC server configured on {settings.otlp_grpc_host}:{settings.otlp_grpc_port}")
+            logger.info(f"OTLP receiver configured with HTTP path: {settings.otlp_http_path}")
         except Exception as e:
-            logger.error(f"Failed to start OTLP gRPC server: {e}")
+            logger.error(f"Failed to start OTLP receiver: {e}")
 
     yield
 
     # Shutdown
     logger.info("Shutting down application")
 
-    # Stop OTLP gRPC server
-    if otlp_grpc_server:
+    # Stop OTLP receiver
+    if otlp_receiver:
         try:
-            await otlp_grpc_server.stop()
+            await otlp_receiver.stop_grpc_server()
         except Exception as e:
-            logger.error(f"Error stopping OTLP gRPC server: {e}")
+            logger.error(f"Error stopping OTLP receiver: {e}")
 
     # Close database connections
     await close_database()
@@ -126,15 +130,17 @@ def create_app() -> FastAPI:
     app.include_router(websocket.router, tags=["websocket"])
     app.include_router(debug.router, tags=["debug"])
 
-    # Include OTLP HTTP server
+    # Include OTLP receiver router
     if settings.otlp_http_enabled:
         try:
-            otlp_http_server = OtlpHttpServer(path=settings.otlp_http_path)
-            # Note: RunRepository will be set with proper session in the request handlers
-            app.include_router(otlp_http_server.router)
-            logger.info(f"OTLP HTTP server configured at {settings.otlp_http_path}")
+            # Create OTLP receiver for HTTP routing
+            otlp_receiver = OtlpReceiver(
+                http_path=settings.otlp_http_path, grpc_host=settings.otlp_grpc_host, grpc_port=settings.otlp_grpc_port
+            )
+            app.include_router(otlp_receiver.router)
+            logger.info(f"OTLP HTTP receiver configured at {settings.otlp_http_path}")
         except Exception as e:
-            logger.error(f"Failed to configure OTLP HTTP server: {e}")
+            logger.error(f"Failed to configure OTLP HTTP receiver: {e}")
 
     return app
 
