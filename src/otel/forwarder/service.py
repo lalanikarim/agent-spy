@@ -112,7 +112,11 @@ class OtlpForwarderService:
                 try:
                     from datetime import datetime
 
-                    start_dt = datetime.fromisoformat(run.start_time.replace("Z", "+00:00"))
+                    if isinstance(run.start_time, datetime):
+                        start_dt = run.start_time
+                    else:
+                        start_str = str(run.start_time)
+                        start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
                     start_time_ns = int(start_dt.timestamp() * 1_000_000_000)  # Convert to nanoseconds
                     logger.info(f"🕐 Parsed start_time for run {run.id}: {run.start_time} -> {start_time_ns}")
                 except Exception as e:
@@ -122,7 +126,11 @@ class OtlpForwarderService:
                 try:
                     from datetime import datetime
 
-                    end_dt = datetime.fromisoformat(run.end_time.replace("Z", "+00:00"))
+                    if isinstance(run.end_time, datetime):
+                        end_dt = run.end_time
+                    else:
+                        end_str = str(run.end_time)
+                        end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
                     end_time_ns = int(end_dt.timestamp() * 1_000_000_000)  # Convert to nanoseconds
                     logger.info(f"🕐 Parsed end_time for run {run.id}: {run.end_time} -> {end_time_ns}")
                 except Exception as e:
@@ -162,8 +170,7 @@ class OtlpForwarderService:
                     else:
                         has_steps = self._has_step_like_outputs(run.outputs) if run.outputs else False
                         logger.debug(
-                            f"ℹ️ No step extraction for run {run.id}: "
-                            + f"outputs={bool(run.outputs)}, has_steps={has_steps}"
+                            f"ℹ️ No step extraction for run {run.id}: " + f"outputs={bool(run.outputs)}, has_steps={has_steps}"
                         )
 
                 # End the span with original end time
@@ -199,8 +206,7 @@ class OtlpForwarderService:
                     else:
                         has_steps = self._has_step_like_outputs(run.outputs) if run.outputs else False
                         logger.debug(
-                            f"ℹ️ No step extraction for run {run.id}: "
-                            + f"outputs={bool(run.outputs)}, has_steps={has_steps}"
+                            f"ℹ️ No step extraction for run {run.id}: " + f"outputs={bool(run.outputs)}, has_steps={has_steps}"
                         )
 
         except Exception as e:
@@ -292,23 +298,26 @@ class OtlpForwarderService:
                         # Create child span using the parent span's context
                         from opentelemetry import trace
 
-                        with trace.use_span(parent_span, end_on_exit=False), self.tracer.start_as_current_span(
-                            name=f"Step: {step_name}",
-                            end_on_exit=True,  # Child spans can auto-end since they inherit parent timing
-                        ) as step_span:
-                                # Add step-specific attributes
-                                step_span.set_attribute("step.key", step_key)
-                                step_span.set_attribute("step.name", step_name)
-                                step_span.set_attribute("step.type", self._get_step_type(step_data))
+                        with (
+                            trace.use_span(parent_span, end_on_exit=False),
+                            self.tracer.start_as_current_span(
+                                name=f"Step: {step_name}",
+                                end_on_exit=True,  # Child spans can auto-end since they inherit parent timing
+                            ) as step_span,
+                        ):
+                            # Add step-specific attributes
+                            step_span.set_attribute("step.key", step_key)
+                            step_span.set_attribute("step.name", step_name)
+                            step_span.set_attribute("step.type", self._get_step_type(step_data))
 
-                                # Add step data as attributes (truncated if too long)
-                                self._add_step_data_attributes(step_span, step_data)
+                            # Add step data as attributes (truncated if too long)
+                            self._add_step_data_attributes(step_span, step_data)
 
-                                # Set step status
-                                step_span.set_status(trace.Status(trace.StatusCode.OK))
+                            # Set step status
+                            step_span.set_status(trace.Status(trace.StatusCode.OK))
 
-                                span_count += 1
-                                logger.info(f"✅ Created span {span_count}: Step: {step_name}")
+                            span_count += 1
+                            logger.info(f"✅ Created span {span_count}: Step: {step_name}")
 
             logger.info(f"🎯 Created {span_count} child spans for run {run.id}")
 
@@ -411,17 +420,32 @@ class OtlpForwarderService:
         from datetime import datetime
 
         attributes = {
-            "run.id": run.id,
-            "run.type": run.run_type,
-            "run.status": run.status,
-            "project.name": run.project_name or "unknown",
+            "run.id": str(run.id),
+            "run.type": str(getattr(run, "run_type", "")),
+            "run.status": str(getattr(run, "status", "")),
+            "project.name": str(getattr(run, "project_name", None) or "unknown"),
         }
+
+        # Parent and trace identifiers if available
+        try:
+            parent_id = getattr(run, "parent_run_id", None)
+            if parent_id:
+                attributes["parent_run.id"] = str(parent_id)
+        except Exception:
+            pass
+
+        try:
+            trace_id = getattr(run, "trace_id", None)
+            if trace_id:
+                attributes["trace.id"] = str(trace_id)
+        except Exception:
+            pass
 
         # Add timing information for debugging
         if run.start_time:
-            attributes["run.start_time"] = run.start_time
+            attributes["run.start_time"] = str(run.start_time)
         if run.end_time:
-            attributes["run.end_time"] = run.end_time
+            attributes["run.end_time"] = str(run.end_time)
         if run.start_time and run.end_time:
             # Calculate duration in milliseconds
             try:
@@ -444,8 +468,18 @@ class OtlpForwarderService:
 
         # Add tags as attributes
         if run.tags:
-            for key, value in run.tags.items():
-                attributes[f"tag.{key}"] = str(value)
+            try:
+                # Support both dict-like and list-like tags
+                if isinstance(run.tags, dict):
+                    for key, value in run.tags.items():
+                        attributes[f"tag.{key}"] = str(value)
+                elif isinstance(run.tags, (list, tuple)):
+                    # OpenTelemetry allows sequences of primitive types
+                    attributes["run.tags"] = [str(tag) for tag in run.tags]
+                else:
+                    attributes["run.tags"] = str(run.tags)
+            except Exception as e:
+                logger.debug(f"Could not process tags for run {run.id}: {e}")
 
         # Add metadata from extra field
         if run.extra:

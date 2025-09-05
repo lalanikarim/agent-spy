@@ -26,26 +26,35 @@ async def batch_ingest_runs(
     """
     logger.info(f"🔍 Batch ingest request: {len(request.post)} creates, {len(request.patch)} updates")
 
-    # Debug: Log headers to check for project name
-    if http_request:
-        logger.info("📋 Request headers:")
-        for header_name, header_value in http_request.headers.items():
-            if "project" in header_name.lower() or "langsmith" in header_name.lower():
-                logger.info(f"  {header_name}: {header_value}")
+    # Project mapping policy: always use session_name as project_name
+    session_project = None
+    from contextlib import suppress
 
-        # Check common header names for project
-        project_headers = ["x-langsmith-project", "langsmith-project", "project", "x-project"]
-        for header in project_headers:
-            value = http_request.headers.get(header)
-            if value:
-                logger.info(f"🎯 Found project in header {header}: {value}")
+    with suppress(Exception):
+        if request.post and getattr(request.post[0], "session_name", None):
+            session_project = request.post[0].session_name
+            logger.info(f"🎯 Using project from session_name: {session_project}")
+
+    for item in list(request.post or []):
+        with suppress(Exception):
+            item.project_name = session_project
+    for item in list(request.patch or []):
+        with suppress(Exception):
+            item.project_name = session_project
 
     # Debug: Log the first few items to see the structure
     debug_info = {}
     if request.post:
         first_item = request.post[0]
         debug_info["first_post_item"] = first_item.model_dump()
-        logger.info(f"📝 First POST item full dump: {first_item.model_dump()}")
+        # Only log shallow keys to avoid very large logs
+        shallow = {}
+        for k, v in first_item.model_dump().items():
+            if k in {"id", "name", "run_type", "project_name"}:
+                shallow[k] = v
+            else:
+                shallow[k] = type(v).__name__
+        logger.info(f"PROJECT_POST_ITEM {shallow}")
 
         # Check if metadata contains project info
         if hasattr(first_item, "extra") and first_item.extra:

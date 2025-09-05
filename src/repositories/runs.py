@@ -133,6 +133,7 @@ class RunRepository:
                     extra=trace_data.extra,
                     tags=trace_data.tags,
                     events=trace_data.events,
+                    project_name=getattr(trace_data, "project_name", None),
                 )
 
                 # Validate message sequence before applying update
@@ -182,6 +183,7 @@ class RunRepository:
                     extra=trace_data.extra,
                     tags=trace_data.tags,
                     events=trace_data.events,
+                    project_name=getattr(trace_data, "project_name", None),
                 )
                 return await self.create(create_data)
 

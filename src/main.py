@@ -121,6 +121,8 @@ def create_app() -> FastAPI:
         response.headers["X-Request-ID"] = request_id
         return response
 
+    # Note: No default project injection; clients must send project via headers or payload
+
     # Add exception handlers
     @app.exception_handler(ValueError)
     async def value_error_handler(request, exc):

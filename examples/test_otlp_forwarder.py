@@ -24,6 +24,7 @@ Usage:
 import os
 import sys
 import time
+import asyncio
 from datetime import datetime
 from uuid import uuid4
 
@@ -123,6 +124,12 @@ async def test_forwarder():
     # Wait a bit for async forwarding to complete
     print("   ⏳ Waiting for forwarding to complete...")
     await asyncio.sleep(2)
+
+    # Flush and shutdown exporter to ensure spans are sent
+    try:
+        await forwarder.shutdown()
+    except Exception as e:
+        print(f"   ⚠️ Forwarder shutdown error (non-fatal): {e}")
 
     print("✅ Forwarder test completed!")
     print("\n🔍 Check the Agent Spy dashboard to see the forwarded traces:")

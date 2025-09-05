@@ -124,7 +124,6 @@ class OllamaOTelInstrumentation:
         otlp_exporter = OTLPSpanExporter(
             endpoint=self.agent_spy_endpoint,
             timeout=30,  # Increased timeout
-            headers={"Content-Type": "application/json"},  # Explicit content type
         )
 
         # Set up tracer provider with resource
@@ -265,6 +264,7 @@ class OllamaOTelInstrumentation:
         with self.tracer.start_as_current_span(f"ollama_generate_{self.test_id}") as span:
             print(f"   ✅ Span created: {span.name} (ID: {span.get_span_context().span_id})")
             # Set span attributes following semantic conventions
+            span.add_event("start")
             span.set_attribute("llm.vendor", "ollama")
             span.set_attribute("llm.request.model", model)
             span.set_attribute("llm.request.temperature", temperature)
@@ -336,6 +336,15 @@ class OllamaOTelInstrumentation:
 
                 # Success status
                 span.set_attribute("llm.response.status", "success")
+                span.add_event(
+                    "end",
+                    {
+                        "duration_ms": duration_ms,
+                        "prompt_tokens": prompt_eval_count,
+                        "completion_tokens": eval_count,
+                        "total_tokens": total_tokens,
+                    },
+                )
 
                 return {
                     "success": True,
@@ -357,6 +366,7 @@ class OllamaOTelInstrumentation:
 
                 # Record the exception
                 span.record_exception(e)
+                span.add_event("end", {"error": True, "message": str(e)})
 
                 return {
                     "success": False,
@@ -500,6 +510,7 @@ class OllamaOTelInstrumentation:
 
         with self.tracer.start_as_current_span("ollama_chat") as span:
             # Set span attributes
+            span.add_event("start")
             span.set_attribute("llm.vendor", "ollama")
             span.set_attribute("llm.request.model", model)
             span.set_attribute("llm.request.temperature", temperature)
@@ -567,6 +578,15 @@ class OllamaOTelInstrumentation:
 
                 # Success status
                 span.set_attribute("llm.response.status", "success")
+                span.add_event(
+                    "end",
+                    {
+                        "duration_ms": duration_ms,
+                        "prompt_tokens": prompt_eval_count,
+                        "completion_tokens": eval_count,
+                        "total_tokens": total_tokens,
+                    },
+                )
 
                 return {
                     "success": True,
@@ -588,6 +608,7 @@ class OllamaOTelInstrumentation:
 
                 # Record the exception
                 span.record_exception(e)
+                span.add_event("end", {"error": True, "message": str(e)})
 
                 return {
                     "success": False,
@@ -622,15 +643,15 @@ class OllamaOTelInstrumentation:
                     concept_span.set_attribute("step.number", 1)
                     concept_span.set_attribute("step.type", "generation")
 
-                    concept_result = self._call_ollama_generate_direct(
+                    concept_result = self.call_ollama_generate(
                         prompt=(
                             f"Create a compelling story concept about {topic}. "
                             "Include the main character, setting, and central conflict. "
                             "Keep it to 2-3 sentences."
                         ),
-                        system_prompt="You are a creative writing assistant. Generate engaging story concepts.",
                         temperature=0.8,
                         max_tokens=200,
+                        system_prompt="You are a creative writing assistant. Generate engaging story concepts.",
                     )
                     results["concept"] = concept_result
 
@@ -643,8 +664,7 @@ class OllamaOTelInstrumentation:
                     character_span.set_attribute("step.name", "character_development")
                     character_span.set_attribute("step.number", 2)
                     character_span.set_attribute("step.type", "chat")
-
-                    character_result = self._call_ollama_chat_direct(
+                    character_result = self.call_ollama_chat(
                         messages=[
                             {
                                 "role": "system",
@@ -673,16 +693,15 @@ class OllamaOTelInstrumentation:
                     opening_span.set_attribute("step.name", "opening_scene_writing")
                     opening_span.set_attribute("step.number", 3)
                     opening_span.set_attribute("step.type", "generation")
-
-                    opening_result = self._call_ollama_generate_direct(
+                    opening_result = self.call_ollama_generate(
                         prompt=(
                             f"Write the opening scene of a story with this concept:\n{concept_result['content']}\n\n"
                             f"And this main character:\n{character_result['content']}\n\n"
                             "Make it engaging and set the mood. Write 2-3 paragraphs."
                         ),
-                        system_prompt="You are a skilled fiction writer. Write vivid, engaging scenes that draw readers in.",
                         temperature=0.8,
                         max_tokens=400,
+                        system_prompt="You are a skilled fiction writer. Write vivid, engaging scenes that draw readers in.",
                     )
                     results["opening"] = opening_result
 
@@ -695,8 +714,7 @@ class OllamaOTelInstrumentation:
                     outline_span.set_attribute("step.name", "story_outline_creation")
                     outline_span.set_attribute("step.number", 4)
                     outline_span.set_attribute("step.type", "chat")
-
-                    outline_result = self._call_ollama_chat_direct(
+                    outline_result = self.call_ollama_chat(
                         messages=[
                             {
                                 "role": "system",
