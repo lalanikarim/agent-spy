@@ -167,14 +167,38 @@ class OtlpForwarderService:
     def _buffer_runs(self, runs: list[Run]) -> None:
         """Add runs to pending groups and debounce a grouped send."""
         for run in runs:
-            group_key = None
+            # Prefer original OTLP trace id when available
+            group_key: str | None = None
             try:
                 extra = getattr(run, "extra", None) or {}
                 group_key = str(extra.get("otlp.trace_id") or extra.get("trace.id") or "")
             except Exception:
                 group_key = ""
+
+            # For LangSmith/AgentSpy runs, derive grouping by root (top-most parent) id when no OTLP trace id
             if not group_key:
-                group_key = str(getattr(run, "id", "ungrouped"))
+                parent_id = getattr(run, "parent_run_id", None)
+                if parent_id:
+                    # If a parent bucket exists, prefer it
+                    pid_str = str(parent_id)
+                    if pid_str in self._pending_groups:
+                        group_key = pid_str
+                    else:
+                        # If any existing bucket contains the parent, use that bucket's key
+                        for existing_key, bucket in self._pending_groups.items():
+                            try:
+                                runs_map = cast(dict[str, Run], bucket.get("runs") or {})
+                                if pid_str in runs_map:
+                                    group_key = existing_key
+                                    break
+                            except Exception:
+                                pass
+                        # Fallback: group under immediate parent id
+                        if not group_key:
+                            group_key = pid_str
+                else:
+                    # Root without OTLP id groups by its own id
+                    group_key = str(getattr(run, "id", "ungrouped"))
 
             bucket = self._pending_groups.get(group_key)
             if bucket is None:
@@ -187,6 +211,36 @@ class OtlpForwarderService:
                 run_id = str(id(run))
             runs_dict = cast(dict[str, Run], bucket["runs"])
             runs_dict[run_id] = run
+
+            # If we grouped this run under its own id but its parent bucket appears later, merge buckets
+            # (Lightweight best-effort merge when parent bucket already exists now)
+            parent_id = getattr(run, "parent_run_id", None)
+            if parent_id:
+                pid_str = str(parent_id)
+                parent_bucket = self._pending_groups.get(pid_str)
+                if parent_bucket is not None and group_key != pid_str:
+                    # Move current bucket's runs into parent bucket and replace reference
+                    try:
+                        current_bucket = self._pending_groups.pop(group_key, None)
+                        if current_bucket is not None:
+                            cur_map = cast(dict[str, Run], current_bucket.get("runs") or {})
+                            parent_map = cast(dict[str, Run], parent_bucket.get("runs") or {})
+                            parent_map.update(cur_map)
+                            # Cancel current task and restart parent's debounce
+                            with suppress(Exception):
+                                t = current_bucket.get("task")
+                                if t and not t.done():
+                                    t.cancel()
+                            # Restart parent debounce to account for new runs
+                            t_parent = parent_bucket.get("task")
+                            if t_parent and not t_parent.done():
+                                with suppress(Exception):
+                                    t_parent.cancel()
+                            parent_bucket["task"] = asyncio.create_task(self._debounced_flush(pid_str))
+                            # Update group_key reference
+                            group_key = pid_str
+                    except Exception:
+                        pass
 
             # (Re)start debounce task
             task = bucket.get("task")
@@ -256,9 +310,7 @@ class OtlpForwarderService:
                     if callable(ts_method):
                         start_time_ns = int(float(ts_method()) * 1_000_000_000)
                     else:
-                        start_time_ns = int(
-                            datetime.fromisoformat(str(st).replace("Z", "+00:00")).timestamp() * 1_000_000_000
-                        )
+                        start_time_ns = int(datetime.fromisoformat(str(st).replace("Z", "+00:00")).timestamp() * 1_000_000_000)
                 except Exception as inner:
                     logger.debug(f"Could not parse start_time for run {getattr(run, 'id', '?')}: {inner}")
             if getattr(run, "end_time", None):
@@ -268,13 +320,9 @@ class OtlpForwarderService:
                     if callable(te_method):
                         end_time_ns = int(float(te_method()) * 1_000_000_000)
                     else:
-                        end_time_ns = int(
-                            datetime.fromisoformat(str(et).replace("Z", "+00:00")).timestamp() * 1_000_000_000
-                        )
+                        end_time_ns = int(datetime.fromisoformat(str(et).replace("Z", "+00:00")).timestamp() * 1_000_000_000)
                 except Exception as inner:
-                    logger.debug(
-                        f"Could not parse end_time for run {getattr(run, 'id', '?')}: {inner}"
-                    )
+                    logger.debug(f"Could not parse end_time for run {getattr(run, 'id', '?')}: {inner}")
         except Exception as e:
             logger.debug(f"Could not compute times for run {getattr(run, 'id', '?')}: {e}")
         return start_time_ns, end_time_ns
