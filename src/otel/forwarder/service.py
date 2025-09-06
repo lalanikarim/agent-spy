@@ -124,6 +124,44 @@ class OtlpForwarderService:
                 groups.setdefault(group_key, []).append(run)
 
             for group_key, group_runs in groups.items():
+                # Replace group runs with authoritative DB hierarchy if we can infer a root id
+                try:
+                    candidate_root = None
+                    for r in group_runs:
+                        if getattr(r, "parent_run_id", None) is None:
+                            candidate_root = getattr(r, "id", None)
+                            break
+                    if candidate_root is None and group_runs:
+                        # Fallback: take any run and walk up parents from DB
+                        from src.core.database import get_db_session
+                        from src.repositories.runs import RunRepository
+
+                        any_run = group_runs[0]
+                        start_parent = getattr(any_run, "parent_run_id", None)
+                        if start_parent is not None:
+                            async with get_db_session() as session:
+                                repo = RunRepository(session)
+                                current_id = start_parent
+                                visited: set[str] = set()
+                                while current_id and str(current_id) not in visited:
+                                    visited.add(str(current_id))
+                                    parent = await repo.get_by_id(current_id)
+                                    if not parent or not getattr(parent, "parent_run_id", None):
+                                        candidate_root = getattr(parent, "id", None) if parent else None
+                                        break
+                                    current_id = getattr(parent, "parent_run_id", None)
+                    if candidate_root is not None:
+                        from src.core.database import get_db_session
+                        from src.repositories.runs import RunRepository
+
+                        async with get_db_session() as session:
+                            repo = RunRepository(session)
+                            hierarchy_runs = await repo.get_run_hierarchy(candidate_root)
+                            if hierarchy_runs:
+                                group_runs = hierarchy_runs
+                                logger.debug(f"Using DB hierarchy ({len(group_runs)}) for grouped trace {group_key}")
+                except Exception as _:
+                    pass
                 # Index by id and build children mapping
                 by_id: dict[str, Run] = {}
                 children: dict[str | None, list[Run]] = {}
@@ -263,6 +301,60 @@ class OtlpForwarderService:
             if not bucket:
                 return
             runs = list(bucket.get("runs", {}).values())
+            # Enrich: if group_key or buffered runs can identify a root, load full hierarchy from DB
+            try:
+                from uuid import UUID
+
+                root_uuid = None
+                try:
+                    root_uuid = UUID(group_key)
+                except Exception:
+                    root_uuid = None
+                candidate_root = None
+                if root_uuid is not None:
+                    candidate_root = root_uuid
+                else:
+                    # Pick any run without parent as candidate root
+                    for r in runs:
+                        if getattr(r, "parent_run_id", None) is None:
+                            candidate_root = getattr(r, "id", None)
+                            break
+                    # If not found in buffered runs, derive by walking parents via DB from any run
+                    if candidate_root is None and runs:
+                        from src.core.database import get_db_session
+                        from src.repositories.runs import RunRepository
+
+                        any_run = runs[0]
+                        start_parent = getattr(any_run, "parent_run_id", None)
+                        if start_parent is not None:
+                            async with get_db_session() as session:
+                                repo = RunRepository(session)
+                                # walk up chain to root
+                                current_id = start_parent
+                                visited: set[str] = set()
+                                while current_id and str(current_id) not in visited:
+                                    visited.add(str(current_id))
+                                    parent = await repo.get_by_id(current_id)
+                                    if not parent or not getattr(parent, "parent_run_id", None):
+                                        candidate_root = getattr(parent, "id", None) if parent else None
+                                        break
+                                    current_id = getattr(parent, "parent_run_id", None)
+                if candidate_root is not None:
+                    from src.core.database import get_db_session
+                    from src.repositories.runs import RunRepository
+
+                    async with get_db_session() as session:
+                        repo = RunRepository(session)
+                        hierarchy = await repo.get_run_hierarchy(candidate_root)
+                        # Merge DB runs with buffered runs (prefer buffered objects)
+                        by_id: dict[str, Run] = {str(getattr(r, "id", "")): r for r in runs}
+                        for r in hierarchy:
+                            rid = str(getattr(r, "id", ""))
+                            if rid not in by_id:
+                                by_id[rid] = r
+                        runs = list(by_id.values())
+            except Exception as enrich_err:
+                logger.debug(f"Could not enrich group {group_key} from DB: {enrich_err}")
             if not runs:
                 return
             logger.info(f"🚚 Flushing grouped OTLP trace {group_key} with {len(runs)} runs after debounce")

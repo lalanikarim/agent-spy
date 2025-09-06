@@ -269,8 +269,18 @@ class OtlpReceiver:
                 if k in attributes:
                     tag_keys.append(f"{k}={attributes[k]}")
 
-            # Create run
-            return RunCreate(
+            # Create run (ensure OTLP trace id is present and parent linkage is set)
+            extra = {
+                "otlp_span_kind": span_proto.kind,
+                "otlp.trace_id": trace_id_hex,
+                "otlp.span_id": span_id_hex,
+            }
+            if parent_span_id_hex:
+                extra["otlp.parent_span_id"] = parent_span_id_hex
+            if attributes.get("workflow.name"):
+                extra["workflow.name"] = attributes.get("workflow.name")
+
+            rc = RunCreate(
                 id=derived_run_id,
                 name=span_proto.name,
                 run_type=run_type,
@@ -279,17 +289,7 @@ class OtlpReceiver:
                 parent_run_id=derived_parent_id,
                 inputs=inputs or {"span_id": span_id_hex},
                 outputs=outputs or ({"status": "completed"} if end_time else {}),
-                extra={
-                    "otlp_span_kind": span_proto.kind,
-                    "otlp.trace_id": trace_id_hex,
-                    "otlp.span_id": span_id_hex,
-                    **({"otlp.parent_span_id": parent_span_id_hex} if parent_span_id_hex else {}),
-                    **(
-                        {"llm.model": attributes.get("llm.response.model") or attributes.get("llm.request.model")}
-                        if (attributes.get("llm.response.model") or attributes.get("llm.request.model"))
-                        else {}
-                    ),
-                },
+                extra=extra,
                 serialized=None,
                 events=events,
                 error=None if status != "failed" else "OTLP span error",
@@ -297,6 +297,15 @@ class OtlpReceiver:
                 reference_example_id=None,
                 project_name=project_name,
             )
+            logger.debug(
+                "OTLP span→run name=%s id=%s parent=%s otlp.trace=%s otlp.span=%s",
+                rc.name,
+                rc.id,
+                rc.parent_run_id,
+                trace_id_hex,
+                span_id_hex,
+            )
+            return rc
 
         except Exception as e:
             logger.error(f"Error converting span {span_proto.span_id.hex()}: {e}")
