@@ -1,6 +1,8 @@
 """OTLP Forwarder Service using OpenTelemetry SDK."""
 
 import asyncio
+from contextlib import suppress
+from typing import Any, cast
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter as OTLPSpanExporterGrpc
@@ -22,8 +24,11 @@ class OtlpForwarderService:
 
     def __init__(self, config: OtlpForwarderConfig):
         self.config = config
-        self.tracer_provider = None
-        self.tracer = None
+        self.tracer_provider: TracerProvider | None = None
+        self.tracer: trace.Tracer | None = None
+        # Pending groups: group_key -> {"runs": {run_id: Run}, "task": asyncio.Task}
+        self._pending_groups: dict[str, dict[str, Any]] = {}
+        self._debounce_seconds: float = 5.0
         self._setup_tracer()
 
     def _setup_tracer(self):
@@ -69,16 +74,14 @@ class OtlpForwarderService:
             self.tracer = None
 
     async def forward_runs(self, runs: list[Run]) -> None:
-        """Forward Agent Spy runs to OTLP endpoint"""
+        """Forward Agent Spy runs to OTLP endpoint, grouped to preserve hierarchy."""
         if not self.tracer or not runs:
             return
 
         try:
-            logger.debug(f"Forwarding {len(runs)} runs to OTLP endpoint")
-
-            # Process runs asynchronously to avoid blocking
-            asyncio.create_task(self._forward_runs_async(runs))
-
+            logger.debug(f"Forwarding {len(runs)} runs to OTLP endpoint (buffered group)")
+            # Buffer runs into pending groups by original trace id
+            self._buffer_runs(runs)
         except Exception as e:
             logger.error(f"Error initiating OTLP forwarding: {e}")
 
@@ -97,6 +100,185 @@ class OtlpForwarderService:
         except Exception as e:
             logger.error(f"Error in async OTLP forwarding: {e}")
 
+    async def _forward_runs_grouped_async(self, runs: list[Run]) -> None:
+        """Group runs by original OTLP trace id (if present) and preserve parent-child hierarchy."""
+        try:
+            tracer = self.tracer
+            if tracer is None:
+                logger.warning("Cannot forward grouped runs: tracer not initialized")
+                return
+            # Build groups by original OTLP trace id if available; fallback to run.id
+            groups: dict[str, list[Run]] = {}
+            for run in runs:
+                group_key = None
+                try:
+                    extra = getattr(run, "extra", None) or {}
+                    group_key = str(extra.get("otlp.trace_id") or extra.get("trace.id") or "")
+                except Exception:
+                    group_key = ""
+                if not group_key:
+                    group_key = str(getattr(run, "id", "ungrouped"))
+                groups.setdefault(group_key, []).append(run)
+
+            for group_key, group_runs in groups.items():
+                # Index by id and build children mapping
+                by_id: dict[str, Run] = {}
+                children: dict[str | None, list[Run]] = {}
+                for r in group_runs:
+                    rid = str(getattr(r, "id", ""))
+                    pid = getattr(r, "parent_run_id", None)
+                    by_id[rid] = r
+                    children.setdefault(str(pid) if pid else None, []).append(r)
+
+                # Identify roots (no parent in this group)
+                roots = []
+                for r in group_runs:
+                    pid = getattr(r, "parent_run_id", None)
+                    if not pid or str(pid) not in by_id:
+                        roots.append(r)
+
+                # Create a trace per root and add descendants
+                for root in roots:
+                    try:
+                        # Compute timing
+                        start_ns, end_ns = self._compute_run_times_ns(root)
+                        # Start root span
+                        root_span = tracer.start_span(
+                            name=getattr(root, "name", "root"),
+                            attributes=self._extract_attributes(root),
+                            start_time=start_ns if start_ns is not None else None,
+                        )
+                        # Build spans under root
+                        from opentelemetry import trace as ot_trace
+
+                        with ot_trace.use_span(root_span, end_on_exit=False):
+                            await self._create_descendant_spans(tracer, root, children, by_id)
+                        # End root span with original end time if available
+                        if end_ns is not None:
+                            root_span.end(end_time=end_ns)
+                        else:
+                            root_span.end()
+                        logger.info(f"✅ Forwarded grouped trace for root {getattr(root, 'id', '?')} with group {group_key}")
+                    except Exception as e:
+                        logger.error(f"Error forwarding grouped trace for root {getattr(root, 'id', '?')}: {e}")
+        except Exception as e:
+            logger.error(f"Error in grouped OTLP forwarding: {e}")
+
+    def _buffer_runs(self, runs: list[Run]) -> None:
+        """Add runs to pending groups and debounce a grouped send."""
+        for run in runs:
+            group_key = None
+            try:
+                extra = getattr(run, "extra", None) or {}
+                group_key = str(extra.get("otlp.trace_id") or extra.get("trace.id") or "")
+            except Exception:
+                group_key = ""
+            if not group_key:
+                group_key = str(getattr(run, "id", "ungrouped"))
+
+            bucket = self._pending_groups.get(group_key)
+            if bucket is None:
+                bucket = {"runs": {}, "task": None}
+                self._pending_groups[group_key] = bucket
+            # Deduplicate by run id
+            try:
+                run_id = str(getattr(run, "id", None) or id(run))
+            except Exception:
+                run_id = str(id(run))
+            runs_dict = cast(dict[str, Run], bucket["runs"])
+            runs_dict[run_id] = run
+
+            # (Re)start debounce task
+            task = bucket.get("task")
+            if task and not task.done():
+                # Cancel previous task to extend debounce window
+                with suppress(Exception):
+                    task.cancel()
+            new_task = asyncio.create_task(self._debounced_flush(group_key))
+            bucket["task"] = new_task
+
+    async def _debounced_flush(self, group_key: str) -> None:
+        """Wait debounce window, then flush the grouped runs to the exporter."""
+        try:
+            await asyncio.sleep(self._debounce_seconds)
+            bucket = self._pending_groups.pop(group_key, None)
+            if not bucket:
+                return
+            runs = list(bucket.get("runs", {}).values())
+            if not runs:
+                return
+            logger.info(f"🚚 Flushing grouped OTLP trace {group_key} with {len(runs)} runs after debounce")
+            await self._forward_runs_grouped_async(runs)
+        except asyncio.CancelledError:
+            # Debounce restarted; ignore
+            pass
+        except Exception as e:
+            logger.error(f"Error during debounced flush for group {group_key}: {e}")
+
+    async def _create_descendant_spans(
+        self, tracer: trace.Tracer, parent: Run, children: dict[str | None, list[Run]], by_id: dict[str, Run]
+    ) -> None:
+        """Create spans for all descendants of parent using parent-child relationships."""
+        try:
+            parent_id = str(getattr(parent, "id", ""))
+            for child in children.get(parent_id, []) or []:
+                try:
+                    start_ns, end_ns = self._compute_run_times_ns(child)
+                    with tracer.start_as_current_span(
+                        name=getattr(child, "name", "child"),
+                        start_time=start_ns if start_ns is not None else None,
+                        end_on_exit=False,
+                        attributes=self._extract_attributes(child),
+                    ) as child_span:
+                        # Recurse to grandchildren
+                        await self._create_descendant_spans(child, children, by_id)
+                        # End child span
+                        if end_ns is not None:
+                            child_span.end(end_time=end_ns)
+                        else:
+                            child_span.end()
+                except Exception as ce:
+                    logger.error(f"Error creating child span for run {getattr(child, 'id', '?')}: {ce}")
+        except Exception as e:
+            logger.error(f"Error walking descendants for run {getattr(parent, 'id', '?')}: {e}")
+
+    def _compute_run_times_ns(self, run: Run) -> tuple[int | None, int | None]:
+        """Compute nanosecond start/end from run fields, tolerant to types."""
+        start_time_ns = None
+        end_time_ns = None
+        try:
+            from datetime import datetime
+
+            if getattr(run, "start_time", None):
+                st = run.start_time
+                try:
+                    ts_method = getattr(st, "timestamp", None)
+                    if callable(ts_method):
+                        start_time_ns = int(float(ts_method()) * 1_000_000_000)
+                    else:
+                        start_time_ns = int(
+                            datetime.fromisoformat(str(st).replace("Z", "+00:00")).timestamp() * 1_000_000_000
+                        )
+                except Exception as inner:
+                    logger.debug(f"Could not parse start_time for run {getattr(run, 'id', '?')}: {inner}")
+            if getattr(run, "end_time", None):
+                et = run.end_time
+                try:
+                    te_method = getattr(et, "timestamp", None)
+                    if callable(te_method):
+                        end_time_ns = int(float(te_method()) * 1_000_000_000)
+                    else:
+                        end_time_ns = int(
+                            datetime.fromisoformat(str(et).replace("Z", "+00:00")).timestamp() * 1_000_000_000
+                        )
+                except Exception as inner:
+                    logger.debug(
+                        f"Could not parse end_time for run {getattr(run, 'id', '?')}: {inner}"
+                    )
+        except Exception as e:
+            logger.debug(f"Could not compute times for run {getattr(run, 'id', '?')}: {e}")
+        return start_time_ns, end_time_ns
+
     async def _forward_single_run(self, run: Run) -> None:
         """Forward a single run to OTLP endpoint"""
         if not self.tracer:
@@ -112,12 +294,13 @@ class OtlpForwarderService:
                 try:
                     from datetime import datetime
 
-                    if isinstance(run.start_time, datetime):
-                        start_dt = run.start_time
+                    st = run.start_time
+                    ts_method = getattr(st, "timestamp", None)
+                    if callable(ts_method):
+                        start_time_ns = int(float(ts_method()) * 1_000_000_000)
                     else:
-                        start_str = str(run.start_time)
-                        start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-                    start_time_ns = int(start_dt.timestamp() * 1_000_000_000)  # Convert to nanoseconds
+                        start_dt = datetime.fromisoformat(str(st).replace("Z", "+00:00"))
+                        start_time_ns = int(start_dt.timestamp() * 1_000_000_000)
                     logger.info(f"🕐 Parsed start_time for run {run.id}: {run.start_time} -> {start_time_ns}")
                 except Exception as e:
                     logger.warning(f"Could not parse start_time for run {run.id}: {e}")
@@ -126,12 +309,13 @@ class OtlpForwarderService:
                 try:
                     from datetime import datetime
 
-                    if isinstance(run.end_time, datetime):
-                        end_dt = run.end_time
+                    et = run.end_time
+                    te_method = getattr(et, "timestamp", None)
+                    if callable(te_method):
+                        end_time_ns = int(float(te_method()) * 1_000_000_000)
                     else:
-                        end_str = str(run.end_time)
-                        end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
-                    end_time_ns = int(end_dt.timestamp() * 1_000_000_000)  # Convert to nanoseconds
+                        end_dt = datetime.fromisoformat(str(et).replace("Z", "+00:00"))
+                        end_time_ns = int(end_dt.timestamp() * 1_000_000_000)
                     logger.info(f"🕐 Parsed end_time for run {run.id}: {run.end_time} -> {end_time_ns}")
                 except Exception as e:
                     logger.warning(f"Could not parse end_time for run {run.id}: {e}")
@@ -473,11 +657,12 @@ class OtlpForwarderService:
                 if isinstance(run.tags, dict):
                     for key, value in run.tags.items():
                         attributes[f"tag.{key}"] = str(value)
-                elif isinstance(run.tags, (list, tuple)):
-                    # OpenTelemetry allows sequences of primitive types
-                    attributes["run.tags"] = [str(tag) for tag in run.tags]
                 else:
-                    attributes["run.tags"] = str(run.tags)
+                    # Treat as a sequence if possible, otherwise stringify
+                    try:
+                        attributes["run.tags"] = [str(tag) for tag in list(run.tags)]  # type: ignore[arg-type]
+                    except Exception:
+                        attributes["run.tags"] = str(run.tags)
             except Exception as e:
                 logger.debug(f"Could not process tags for run {run.id}: {e}")
 

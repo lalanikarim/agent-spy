@@ -1,5 +1,6 @@
 """Simplified OpenTelemetry receiver for Agent Spy."""
 
+import asyncio
 from concurrent import futures
 from datetime import UTC
 from typing import Any
@@ -251,10 +252,11 @@ class OtlpReceiver:
                         ev_attrs: dict[str, Any] = {}
                         for a in ev.attributes:
                             ev_attrs[a.key] = self._extract_attribute_value(a.value)
+                        ev_time = self._nanos_to_datetime(ev.time_unix_nano)
                         events.append(
                             {
                                 "name": ev.name,
-                                "time": self._nanos_to_datetime(ev.time_unix_nano),
+                                "time": ev_time.isoformat() if ev_time else None,
                                 "attributes": ev_attrs or None,
                             }
                         )
@@ -394,7 +396,7 @@ class OtlpReceiver:
 
             otlp_forwarder = get_otlp_forwarder()
             if otlp_forwarder and otlp_forwarder.tracer:
-                await otlp_forwarder.forward_runs(created_runs)
+                asyncio.create_task(otlp_forwarder.forward_runs(created_runs))
                 logger.debug(f"OTLP forwarding initiated for {len(created_runs)} OTLP traces")
         except Exception as e:
             logger.warning(f"Failed to forward OTLP traces to OTLP endpoints: {e}")
