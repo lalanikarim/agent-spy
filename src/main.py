@@ -183,12 +183,34 @@ app = create_app()
 
 if __name__ == "__main__":
     """Run the application directly."""
+    import argparse
+
     import uvicorn
 
-    uvicorn.run(
-        "src.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.reload,
-        log_level=settings.log_level.lower(),
+    parser = argparse.ArgumentParser(description="Agent Spy server")
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["serve", "export-env"],
+        default="serve",
+        help="Command to run: serve (default) or export-env",
     )
+    parser.add_argument(
+        "--out",
+        dest="out",
+        default=".env.generated",
+        help="Output path for export-env",
+    )
+    args = parser.parse_args()
+
+    if args.command == "export-env":
+        path = settings.export_env_file(args.out)
+        logger.info(f"Exported environment to {path}")
+    else:
+        uvicorn.run(
+            "src.main:app",
+            host=settings.host,
+            port=settings.port,
+            reload=settings.reload,
+            log_level=settings.log_level.lower(),
+        )

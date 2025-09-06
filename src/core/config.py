@@ -190,6 +190,35 @@ class Settings(BaseSettings):
             # Default SQLite URL
             return self.database_url
 
+    def export_env_file(self, path: str = ".env.generated") -> str:
+        """Export a .env-style template containing ALL supported keys with DEFAULT values.
+
+        Notes:
+        - Values are defaults from Settings definitions, not current environment overrides.
+        - Complex types (lists/dicts) are JSON-encoded.
+        - Keys are emitted in uppercase snake case, in declaration order.
+        """
+        import json
+        from pathlib import Path
+
+        lines: list[str] = []
+        # Iterate declared fields in class order
+        for key, field in self.model_fields.items():
+            env_key = key.upper()
+            default_value = field.default
+            if default_value is None:
+                val_str = ""
+            elif isinstance(default_value, list | dict):
+                val_str = json.dumps(default_value)
+            else:
+                val_str = str(default_value)
+            lines.append(f"{env_key}={val_str}")
+
+        content = "\n".join(lines) + "\n"
+        out_path = Path(path)
+        out_path.write_text(content, encoding="utf-8")
+        return str(out_path)
+
 
 @lru_cache
 def get_settings() -> Settings:
