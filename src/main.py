@@ -60,6 +60,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
                 service_name=settings.otlp_forwarder_service_name,
                 timeout=settings.otlp_forwarder_timeout,
                 retry_count=settings.otlp_forwarder_retry_count,
+                insecure=settings.otlp_forwarder_insecure,
+                debounce_seconds=settings.forwarder_debounce_seconds,
+                forward_run_timeout_seconds=settings.forward_run_timeout_seconds,
+                max_synthetic_spans=settings.forwarder_max_synthetic_spans,
+                attr_max_str=settings.forwarder_attr_max_str,
+                attr_max_kv_str=settings.forwarder_attr_max_kv_str,
+                attr_max_list_items=settings.forwarder_attr_max_list_items,
             )
             otlp_forwarder = OtlpForwarderService(forwarder_config)
             set_otlp_forwarder(otlp_forwarder)

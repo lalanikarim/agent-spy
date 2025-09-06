@@ -158,8 +158,11 @@ async def get_dashboard_summary(db: AsyncSession = Depends(get_db)) -> Dashboard
     run_repo = RunRepository(db)
 
     try:
-        # Clean up stale running traces first (30-minute timeout)
-        stale_count = await run_repo.mark_stale_runs_as_failed(timeout_minutes=30)
+        # Clean up stale running traces first (configurable timeout)
+        from src.core.config import get_settings
+
+        stale_default = get_settings().stale_run_timeout_minutes_default
+        stale_count = await run_repo.mark_stale_runs_as_failed(timeout_minutes=stale_default)
         if stale_count > 0:
             logger.info(f"Automatically marked {stale_count} stale traces as failed")
             await db.commit()  # Commit the stale run updates

@@ -28,7 +28,7 @@ class OtlpForwarderService:
         self.tracer: trace.Tracer | None = None
         # Pending groups: group_key -> {"runs": {run_id: Run}, "task": asyncio.Task}
         self._pending_groups: dict[str, dict[str, Any]] = {}
-        self._debounce_seconds: float = 5.0
+        self._debounce_seconds: float = float(getattr(self.config, "debounce_seconds", 5.0) or 5.0)
         self._setup_tracer()
 
     def _setup_tracer(self):
@@ -50,7 +50,7 @@ class OtlpForwarderService:
                     endpoint=self.config.endpoint,
                     timeout=self.config.timeout,
                     headers=self.config.headers,
-                    insecure=True,  # Use insecure connection for development
+                    insecure=bool(getattr(self.config, "insecure", True)),
                 )
             else:
                 exporter = OTLPSpanExporter(
@@ -91,7 +91,10 @@ class OtlpForwarderService:
             for run in runs:
                 # Add timeout to prevent hanging
                 try:
-                    await asyncio.wait_for(self._forward_single_run(run), timeout=30.0)
+                    await asyncio.wait_for(
+                        self._forward_single_run(run),
+                        timeout=float(getattr(self.config, "forward_run_timeout_seconds", 30.0) or 30.0),
+                    )
                 except TimeoutError:
                     logger.error(f"Timeout forwarding run {run.id} to OTLP")
                 except Exception as e:
@@ -607,7 +610,7 @@ class OtlpForwarderService:
             logger.info(f"📋 Creating spans for {len(outputs)} outputs: {list(outputs.keys())}")
 
             # Limit the number of child spans to prevent performance issues
-            max_spans = 10
+            max_spans = int(getattr(self.config, "max_synthetic_spans", 10) or 10)
             span_count = 0
 
             # Create child spans for each output that looks like a step
@@ -712,36 +715,41 @@ class OtlpForwarderService:
         """Add step data as attributes to the span, with appropriate truncation"""
         if isinstance(step_data, str):
             # For strings, add the full content if short, truncated if long
-            if len(step_data) <= 500:
+            if len(step_data) <= int(getattr(self.config, "attr_max_str", 500) or 500):
                 step_span.set_attribute("step.data", step_data)
             else:
-                step_span.set_attribute("step.data", step_data[:500] + "...")
+                max_len = int(getattr(self.config, "attr_max_str", 500) or 500)
+                step_span.set_attribute("step.data", step_data[:max_len] + "...")
                 step_span.set_attribute("step.data.length", len(step_data))
         elif isinstance(step_data, dict):
             # For dictionaries, add each key-value pair
             for k, v in step_data.items():
                 value_str = str(v)
-                if len(value_str) <= 200:
+                if len(value_str) <= int(getattr(self.config, "attr_max_kv_str", 200) or 200):
                     step_span.set_attribute(f"step.data.{k}", value_str)
                 else:
-                    step_span.set_attribute(f"step.data.{k}", value_str[:200] + "...")
+                    max_kv = int(getattr(self.config, "attr_max_kv_str", 200) or 200)
+                    step_span.set_attribute(f"step.data.{k}", value_str[:max_kv] + "...")
                     step_span.set_attribute(f"step.data.{k}.length", len(value_str))
         elif isinstance(step_data, list):
             # For lists, add the first few items
             step_span.set_attribute("step.data.count", len(step_data))
-            for i, item in enumerate(step_data[:5]):  # Show first 5 items
+            max_items = int(getattr(self.config, "attr_max_list_items", 5) or 5)
+            for i, item in enumerate(step_data[:max_items]):
                 item_str = str(item)
-                if len(item_str) <= 200:
+                if len(item_str) <= int(getattr(self.config, "attr_max_kv_str", 200) or 200):
                     step_span.set_attribute(f"step.data.item_{i}", item_str)
                 else:
-                    step_span.set_attribute(f"step.data.item_{i}", item_str[:200] + "...")
+                    max_kv = int(getattr(self.config, "attr_max_kv_str", 200) or 200)
+                    step_span.set_attribute(f"step.data.item_{i}", item_str[:max_kv] + "...")
         else:
             # For other types, convert to string
             value_str = str(step_data)
-            if len(value_str) <= 500:
+            if len(value_str) <= int(getattr(self.config, "attr_max_str", 500) or 500):
                 step_span.set_attribute("step.data", value_str)
             else:
-                step_span.set_attribute("step.data", value_str[:500] + "...")
+                max_len = int(getattr(self.config, "attr_max_str", 500) or 500)
+                step_span.set_attribute("step.data", value_str[:max_len] + "...")
 
     def _extract_attributes(self, run: Run) -> dict:
         """Extract attributes from Agent Spy run for OTLP span"""

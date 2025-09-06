@@ -259,11 +259,14 @@ class OtlpGrpcServer:
         """Start the gRPC server."""
         try:
             # Create gRPC server
+            from src.core.config import get_settings as _get_settings
+
+            _s = _get_settings()
             self.server = grpc.aio.server(
-                futures.ThreadPoolExecutor(max_workers=10),
+                futures.ThreadPoolExecutor(max_workers=_s.otlp_grpc_max_workers),
                 options=[
-                    ("grpc.max_send_message_length", 50 * 1024 * 1024),  # 50MB
-                    ("grpc.max_receive_message_length", 50 * 1024 * 1024),  # 50MB
+                    ("grpc.max_send_message_length", _s.otlp_grpc_max_msg_mb * 1024 * 1024),
+                    ("grpc.max_receive_message_length", _s.otlp_grpc_max_msg_mb * 1024 * 1024),
                 ],
             )
 
@@ -293,7 +296,10 @@ class OtlpGrpcServer:
         """Stop the gRPC server."""
         if self.server:
             logger.info("Stopping OTLP gRPC server...")
-            await self.server.stop(grace=5)  # 5 second grace period
+            from src.core.config import get_settings as _get_settings
+
+            _s = _get_settings()
+            await self.server.stop(grace=_s.otlp_grpc_stop_grace_seconds)
             logger.info("OTLP gRPC server stopped")
 
         self._shutdown_event.set()

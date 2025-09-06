@@ -86,11 +86,31 @@ class Settings(BaseSettings):
     otlp_forwarder_timeout: int = Field(default=30, description="OTLP forwarder timeout in seconds")
     otlp_forwarder_retry_count: int = Field(default=3, description="OTLP forwarder retry count")
     otlp_forwarder_headers: dict[str, str] | None = Field(default=None, description="OTLP forwarder headers")
+    # New forwarder tunables (env-backed)
+    otlp_forwarder_insecure: bool = Field(default=True, description="Use insecure (non-TLS) exporter when true")
+    forwarder_debounce_seconds: float = Field(default=5.0, description="Debounce window for grouped forwarding")
+    forward_run_timeout_seconds: float = Field(default=30.0, description="Per-run forwarding timeout in seconds")
+    forwarder_max_synthetic_spans: int = Field(default=10, description="Max synthetic step spans to emit")
+    forwarder_attr_max_str: int = Field(default=500, description="Max length for string attributes")
+    forwarder_attr_max_kv_str: int = Field(default=200, description="Max length for key-value attribute values")
+    forwarder_attr_max_list_items: int = Field(default=5, description="Max number of list items to include as attributes")
 
     # Logging Settings
     log_level: str = Field(default="INFO", description="Logging level")
     log_format: str = Field(default="json", description="Log format (json or text)")
     log_file: str | None = Field(default=None, description="Log file path")
+
+    # OTLP gRPC server tunables
+    otlp_grpc_max_workers: int = Field(default=10, description="gRPC server worker threads")
+    otlp_grpc_max_msg_mb: int = Field(default=50, description="Max gRPC message size in MB")
+    otlp_grpc_stop_grace_seconds: int = Field(default=5, description="gRPC server stop grace period seconds")
+
+    # DB init retry/backoff
+    db_init_max_retries: int = Field(default=3, description="DB init max retries")
+    db_init_initial_delay_seconds: int = Field(default=2, description="DB init initial backoff seconds")
+
+    # Stale run cleanup default
+    stale_run_timeout_minutes_default: int = Field(default=30, description="Default timeout to mark running traces failed")
 
     @field_validator("cors_origins", "cors_methods", "cors_headers", mode="before")
     @classmethod
