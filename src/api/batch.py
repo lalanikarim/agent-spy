@@ -130,21 +130,25 @@ async def batch_ingest_runs(
         # Commit all changes
         await db.commit()
 
-        # Forward to OTLP endpoints (fire and forget)
+        # Forward to OTLP endpoints (fire and forget). Send as one combined batch
+        # so the forwarder can group parent/child runs into a single hierarchical trace.
         try:
             from src.core.otlp_forwarder import get_otlp_forwarder
 
             otlp_forwarder = get_otlp_forwarder()
             if otlp_forwarder and otlp_forwarder.tracer:
-                # Forward created runs
+                combined: list = []
                 if created_runs:
-                    asyncio.create_task(otlp_forwarder.forward_runs(created_runs))
-                    logger.debug(f"OTLP forwarding initiated for {len(created_runs)} batch-created traces")
-
-                # Forward updated runs (for status changes that might be important)
+                    combined.extend(created_runs)
                 if updated_runs:
-                    asyncio.create_task(otlp_forwarder.forward_runs(updated_runs))
-                    logger.debug(f"OTLP forwarding initiated for {len(updated_runs)} batch-updated traces")
+                    combined.extend(updated_runs)
+                if combined:
+                    asyncio.create_task(otlp_forwarder.forward_runs(combined))
+                    logger.debug(
+                        "OTLP forwarding initiated for combined batch: %s created, %s updated",
+                        len(created_runs),
+                        len(updated_runs),
+                    )
         except Exception as e:
             logger.warning(f"Failed to forward batch traces to OTLP endpoints: {e}")
 

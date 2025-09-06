@@ -48,6 +48,17 @@ class RunRepository:
                 f"Creating {run_data.run_type} run '{run_data.name}' in running state, awaiting completion: {run_data.id}"
             )
 
+        # Ensure extra exists and inject root_run_id for grouping/forwarding
+        effective_extra = dict(run_data.extra or {})
+        try:
+            if run_data.parent_run_id:
+                root_run_id = await self._compute_root_run_id(run_data.parent_run_id)
+            else:
+                root_run_id = run_data.id
+            effective_extra.setdefault("root_run_id", str(root_run_id))
+        except Exception:
+            effective_extra.setdefault("root_run_id", str(run_data.id))
+
         run = Run(
             id=run_data.id,
             name=run_data.name,
@@ -57,7 +68,7 @@ class RunRepository:
             parent_run_id=run_data.parent_run_id,
             inputs=run_data.inputs,
             outputs=run_data.outputs,
-            extra=run_data.extra,
+            extra=effective_extra,
             serialized=run_data.serialized,
             events=run_data.events,
             tags=run_data.tags,
@@ -88,6 +99,22 @@ class RunRepository:
 
         logger.info(f"Created run: {run.id}")
         return run
+
+    async def _compute_root_run_id(self, start_parent_id: UUID) -> UUID:
+        """Walk up the parent chain to find the root run id."""
+        current_id = start_parent_id
+        visited: set[UUID] = set()
+        while current_id and current_id not in visited:
+            visited.add(current_id)
+            stmt = select(Run).where(Run.id == current_id)
+            result = await self.session.execute(stmt)
+            parent_run = result.scalar_one_or_none()
+            if not parent_run:
+                break
+            if not parent_run.parent_run_id:
+                return parent_run.id
+            current_id = parent_run.parent_run_id
+        return start_parent_id
 
     async def upsert_langsmith_trace(self, trace_data: RunCreate | RunUpdate) -> Run:
         """
@@ -230,6 +257,19 @@ class RunRepository:
                 run.extra.update(run_data.extra)
             else:
                 run.extra = run_data.extra
+
+        # Maintain/ensure root_run_id presence in extra
+        try:
+            if run.parent_run_id:
+                root_run_id = await self._compute_root_run_id(run.parent_run_id)
+            else:
+                root_run_id = run.id
+            if run.extra is None:
+                run.extra = {}
+            if run.extra.get("root_run_id") != str(root_run_id):
+                run.extra["root_run_id"] = str(root_run_id)
+        except Exception:
+            pass
 
         if run_data.tags is not None:
             run.tags = run_data.tags

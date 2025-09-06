@@ -107,13 +107,16 @@ class OtlpForwarderService:
             if tracer is None:
                 logger.warning("Cannot forward grouped runs: tracer not initialized")
                 return
-            # Build groups by original OTLP trace id if available; fallback to run.id
+            # Build groups by root grouping key:
+            # 1) Prefer extra.root_run_id if present (Agent Spy/LangSmith)
+            # 2) Else prefer original otlp/trace.id attribute
+            # 3) Else fallback to run.id
             groups: dict[str, list[Run]] = {}
             for run in runs:
                 group_key = None
                 try:
                     extra = getattr(run, "extra", None) or {}
-                    group_key = str(extra.get("otlp.trace_id") or extra.get("trace.id") or "")
+                    group_key = str(extra.get("root_run_id") or extra.get("otlp.trace_id") or extra.get("trace.id") or "")
                 except Exception:
                     group_key = ""
                 if not group_key:
@@ -167,11 +170,12 @@ class OtlpForwarderService:
     def _buffer_runs(self, runs: list[Run]) -> None:
         """Add runs to pending groups and debounce a grouped send."""
         for run in runs:
-            # Prefer original OTLP trace id when available
+            # Prefer explicit root_run_id when available (Agent Spy/LangSmith),
+            # then original OTLP trace id attributes
             group_key: str | None = None
             try:
                 extra = getattr(run, "extra", None) or {}
-                group_key = str(extra.get("otlp.trace_id") or extra.get("trace.id") or "")
+                group_key = str(extra.get("root_run_id") or extra.get("otlp.trace_id") or extra.get("trace.id") or "")
             except Exception:
                 group_key = ""
 
@@ -285,7 +289,7 @@ class OtlpForwarderService:
                         attributes=self._extract_attributes(child),
                     ) as child_span:
                         # Recurse to grandchildren
-                        await self._create_descendant_spans(child, children, by_id)
+                        await self._create_descendant_spans(tracer, child, children, by_id)
                         # End child span
                         if end_ns is not None:
                             child_span.end(end_time=end_ns)
