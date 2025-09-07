@@ -106,9 +106,7 @@ export default defineConfig(({ mode }) => {
             proxy.on("error", (err, _req, _res) => {
               console.log("❌ WebSocket proxy error:", err);
             });
-            proxy.on("upgrade", (req, socket, head) => {
-              console.log("🔌 WebSocket upgrade:", req.url);
-            });
+            // Vite handles WebSocket upgrades; no need to attach an 'upgrade' listener here.
           },
         },
       },

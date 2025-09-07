@@ -18,9 +18,10 @@ import {
   Typography,
 } from "antd";
 import type { ColumnsType, TableProps } from "antd/es/table";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTheme } from "../hooks/useThemeStyles";
-import { useRootTraces, useRealTimeUpdates } from "../hooks/useTraces";
+import { useRealTimeUpdates, useRootTraces } from "../hooks/useTraces";
 import type { PaginationParams, TraceFilters, TraceRun } from "../types/traces";
 import { formatters } from "../utils/formatters";
 
@@ -45,12 +46,47 @@ const TraceTable: React.FC<TraceTableProps> = ({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   // State for filters and pagination
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<TraceFilters>({});
   const [pagination, setPagination] = useState<PaginationParams>({
     limit: 50,
     offset: 0,
   });
   const [searchText, setSearchText] = useState("");
+  // Initialize from URL params
+  useEffect(() => {
+    const status = searchParams.get("status") || undefined;
+    const project = searchParams.get("project_name") || undefined;
+    const search = searchParams.get("search") || undefined;
+    const limitParam = parseInt(searchParams.get("limit") || "50", 10);
+    const offsetParam = parseInt(searchParams.get("offset") || "0", 10);
+    setFilters({ status, project_name: project, search });
+    setPagination({
+      limit: isNaN(limitParam) ? 50 : limitParam,
+      offset: isNaN(offsetParam) ? 0 : offsetParam,
+    });
+    setSearchText(search || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Helper to write current filters/pagination/search back to URL
+  const writeStateToUrl = (
+    nextFilters: TraceFilters,
+    nextPagination: PaginationParams,
+    nextSearchText: string
+  ) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextFilters.status) next.set("status", nextFilters.status);
+    else next.delete("status");
+    if (nextFilters.project_name)
+      next.set("project_name", nextFilters.project_name);
+    else next.delete("project_name");
+    if (nextSearchText) next.set("search", nextSearchText);
+    else next.delete("search");
+    next.set("limit", String(nextPagination.limit));
+    next.set("offset", String(nextPagination.offset));
+    setSearchParams(next, { replace: true });
+  };
 
   // Real-time updates for elapsed time
   useRealTimeUpdates(2000); // Update every 2 seconds
@@ -80,8 +116,10 @@ const TraceTable: React.FC<TraceTableProps> = ({
     } else {
       delete newFilters[key];
     }
+    const nextPagination = { ...pagination, offset: 0 };
     setFilters(newFilters);
-    setPagination({ ...pagination, offset: 0 }); // Reset to first page
+    setPagination(nextPagination);
+    writeStateToUrl(newFilters, nextPagination, searchText);
   };
 
   // Handle search
@@ -91,9 +129,12 @@ const TraceTable: React.FC<TraceTableProps> = ({
 
   // Handle clear filters
   const handleClearFilters = () => {
-    setFilters({});
+    const clearedFilters: TraceFilters = {};
+    const nextPagination: PaginationParams = { limit: 50, offset: 0 };
+    setFilters(clearedFilters);
     setSearchText("");
-    setPagination({ limit: 50, offset: 0 });
+    setPagination(nextPagination);
+    writeStateToUrl(clearedFilters, nextPagination, "");
   };
 
   // Handle table pagination
@@ -102,10 +143,12 @@ const TraceTable: React.FC<TraceTableProps> = ({
   ) => {
     const newOffset =
       ((paginationInfo.current || 1) - 1) * (paginationInfo.pageSize || 50);
-    setPagination({
+    const nextPagination = {
       limit: paginationInfo.pageSize || 50,
       offset: newOffset,
-    });
+    };
+    setPagination(nextPagination);
+    writeStateToUrl(filters, nextPagination, searchText);
   };
 
   // Table columns

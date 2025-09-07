@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App as AntApp, ConfigProvider } from "antd";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
-import Dashboard from "./components/Dashboard";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useTheme } from "./hooks/useThemeStyles";
+import Home from "./pages/Home";
+import Traces from "./pages/Traces";
 
 // App module loaded
 
@@ -189,7 +191,14 @@ function App() {
       <ThemeProvider>
         <AntDesignTheme>
           <div className="min-h-screen bg-theme font-theme">
-            <Dashboard />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/traces" element={<Traces />} />
+                <Route path="/traces/:traceId" element={<Traces />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
           </div>
         </AntDesignTheme>
       </ThemeProvider>
