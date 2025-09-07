@@ -24,6 +24,7 @@ class RunRepository:
     def __init__(self, session: AsyncSession):
         """Initialize the repository with a database session."""
         self.session = session
+        self._deferred_updates = {}  # Initialize deferred updates queue
 
     async def create(self, run_data: RunCreate, disable_events: bool = False) -> Run:
         """Create a new run."""
@@ -47,6 +48,17 @@ class RunRepository:
                 f"Creating {run_data.run_type} run '{run_data.name}' in running state, awaiting completion: {run_data.id}"
             )
 
+        # Ensure extra exists and inject root_run_id for grouping/forwarding
+        effective_extra = dict(run_data.extra or {})
+        try:
+            if run_data.parent_run_id:
+                root_run_id = await self._compute_root_run_id(run_data.parent_run_id)
+            else:
+                root_run_id = run_data.id
+            effective_extra.setdefault("root_run_id", str(root_run_id))
+        except Exception:
+            effective_extra.setdefault("root_run_id", str(run_data.id))
+
         run = Run(
             id=run_data.id,
             name=run_data.name,
@@ -56,7 +68,7 @@ class RunRepository:
             parent_run_id=run_data.parent_run_id,
             inputs=run_data.inputs,
             outputs=run_data.outputs,
-            extra=run_data.extra,
+            extra=effective_extra,
             serialized=run_data.serialized,
             events=run_data.events,
             tags=run_data.tags,
@@ -74,8 +86,133 @@ class RunRepository:
             except Exception as e:
                 logger.warning(f"Failed to emit trace.created event for run {run.id}: {e}")
 
+        # Forward to OTLP endpoints (fire and forget)
+        try:
+            from src.core.otlp_forwarder import get_otlp_forwarder
+
+            otlp_forwarder = get_otlp_forwarder()
+            if otlp_forwarder and otlp_forwarder.tracer:
+                asyncio.create_task(otlp_forwarder.forward_runs([run]))
+                logger.debug(f"OTLP forwarding initiated for run {run.id}")
+        except Exception as e:
+            logger.warning(f"Failed to forward run {run.id} to OTLP: {e}")
+
         logger.info(f"Created run: {run.id}")
         return run
+
+    async def _compute_root_run_id(self, start_parent_id: UUID) -> UUID:
+        """Walk up the parent chain to find the root run id."""
+        current_id = start_parent_id
+        visited: set[UUID] = set()
+        while current_id and current_id not in visited:
+            visited.add(current_id)
+            stmt = select(Run).where(Run.id == current_id)
+            result = await self.session.execute(stmt)
+            parent_run = result.scalar_one_or_none()
+            if not parent_run:
+                break
+            if not parent_run.parent_run_id:
+                return parent_run.id
+            current_id = parent_run.parent_run_id
+        return start_parent_id
+
+    async def upsert_langsmith_trace(self, trace_data: RunCreate | RunUpdate) -> Run:
+        """
+        Upsert a LangSmith trace - create if new, update if exists.
+
+        This method handles both RunCreate and RunUpdate data types and provides
+        atomic create/update operations to prevent missing outputs in LangSmith traces.
+        """
+        logger.debug(f"Upserting LangSmith trace: {trace_data.id}")
+
+        # Check if trace exists
+        existing_run = await self.get_by_id(trace_data.id)
+
+        if existing_run:
+            # Update existing trace
+            if isinstance(trace_data, RunUpdate):
+                logger.debug(f"Updating existing trace: {trace_data.id}")
+
+                # Validate message sequence before applying update
+                if not self.validate_message_sequence(existing_run, trace_data):
+                    logger.warning(f"Trace {trace_data.id}: Message sequence validation failed - deferring update")
+                    # Queue update for later processing
+                    await self.queue_deferred_update(trace_data.id, trace_data, "Message sequence validation failed")
+                    # Return existing run with current state
+                    return existing_run
+
+                # Apply update and validate status consistency
+                updated_run = await self.update(trace_data.id, trace_data)
+                if updated_run:
+                    self.validate_trace_status_consistency(updated_run)
+                    # Try to process any deferred updates now that we have more context
+                    await self.process_deferred_updates(trace_data.id)
+                return updated_run
+            else:
+                # Convert RunCreate to RunUpdate for existing trace
+                logger.debug(f"Converting RunCreate to RunUpdate for existing trace: {trace_data.id}")
+
+                update_data = RunUpdate(
+                    id=trace_data.id,
+                    end_time=trace_data.end_time,
+                    outputs=trace_data.outputs,
+                    error=trace_data.error,
+                    extra=trace_data.extra,
+                    tags=trace_data.tags,
+                    events=trace_data.events,
+                    project_name=getattr(trace_data, "project_name", None),
+                )
+
+                # Validate message sequence before applying update
+                if not self.validate_message_sequence(existing_run, update_data):
+                    logger.warning(f"Trace {trace_data.id}: Message sequence validation failed - deferring update")
+                    # Queue update for later processing
+                    await self.queue_deferred_update(trace_data.id, update_data, "Message sequence validation failed")
+                    return existing_run
+
+                # Apply update and validate status consistency
+                updated_run = await self.update(trace_data.id, update_data)
+                if updated_run:
+                    self.validate_trace_status_consistency(updated_run)
+                    # Try to process any deferred updates now that we have more context
+                    await self.process_deferred_updates(trace_data.id)
+                return updated_run
+        else:
+            # Create new trace
+            if isinstance(trace_data, RunCreate):
+                logger.debug(f"Creating new trace: {trace_data.id}")
+                return await self.create(trace_data)
+            else:
+                # Convert RunUpdate to RunCreate for new trace
+                logger.debug(f"Converting RunUpdate to RunCreate for new trace: {trace_data.id}")
+
+                # Extract required fields for creation, with sensible defaults
+                name = getattr(trace_data, "name", None)
+                run_type = getattr(trace_data, "run_type", None)
+                start_time = getattr(trace_data, "start_time", None)
+
+                # If essential fields are missing, we need to create them
+                if not name:
+                    name = f"Trace {trace_data.id}"
+                if not run_type:
+                    run_type = "chain"  # Default LangSmith run type
+                if not start_time:
+                    start_time = datetime.now(UTC)
+
+                create_data = RunCreate(
+                    id=trace_data.id,
+                    name=name,
+                    run_type=run_type,
+                    start_time=start_time,
+                    end_time=trace_data.end_time,
+                    outputs=trace_data.outputs,
+                    error=trace_data.error,
+                    extra=trace_data.extra,
+                    tags=trace_data.tags,
+                    events=trace_data.events,
+                    project_name=getattr(trace_data, "project_name", None),
+                )
+                return await self.create(create_data)
 
     async def update(self, run_id: UUID, run_data: RunUpdate) -> Run | None:
         """Update an existing run."""
@@ -83,6 +220,7 @@ class RunRepository:
 
         stmt = select(Run).where(Run.id == run_id)
         result = await self.session.execute(stmt)
+        logger.debug(f"Found run: {run_id}")
         run = result.scalar_one_or_none()
 
         if not run:
@@ -120,6 +258,19 @@ class RunRepository:
             else:
                 run.extra = run_data.extra
 
+        # Maintain/ensure root_run_id presence in extra
+        try:
+            if run.parent_run_id:
+                root_run_id = await self._compute_root_run_id(run.parent_run_id)
+            else:
+                root_run_id = run.id
+            if run.extra is None:
+                run.extra = {}
+            if run.extra.get("root_run_id") != str(root_run_id):
+                run.extra["root_run_id"] = str(root_run_id)
+        except Exception:
+            pass
+
         if run_data.tags is not None:
             run.tags = run_data.tags
 
@@ -156,8 +307,199 @@ class RunRepository:
                 except Exception as e:
                     logger.warning(f"Failed to emit trace.failed event for run {run.id}: {e}")
 
+        # Forward status changes to OTLP endpoints (fire and forget)
+        if status_changed:
+            try:
+                from src.core.otlp_forwarder import get_otlp_forwarder
+
+                otlp_forwarder = get_otlp_forwarder()
+                if otlp_forwarder and otlp_forwarder.tracer:
+                    asyncio.create_task(otlp_forwarder.forward_runs([run]))
+                    logger.debug(f"OTLP forwarding initiated for status change on run {run.id}")
+            except Exception as e:
+                logger.warning(f"Failed to forward status change for run {run.id} to OTLP: {e}")
+
         logger.info(f"Updated run: {run_id}")
         return run
+
+    def validate_langsmith_completion(self, runs: list[Run]) -> None:
+        """
+        Validate that completed LangSmith traces have outputs.
+
+        This method checks for traces that are marked as completed but missing outputs,
+        which is a common issue with the current separate operations approach.
+        """
+        for run in runs:
+            if run.status == "completed" and not run.outputs:
+                logger.warning(f"LangSmith trace {run.id} marked as completed but missing outputs")
+                # Revert to running status until outputs are received
+                run.status = "running"
+                logger.info(f"Reverted trace {run.id} to running status - awaiting outputs")
+                # Optionally, queue for retry or alert
+
+    def validate_trace_status_consistency(self, run: Run) -> bool:
+        """
+        Validate that trace status is consistent with its data.
+
+        This method implements the smart completion detection logic to ensure
+        status consistency and prevent premature completion.
+
+        Returns:
+            True if status is consistent, False if status needs adjustment
+        """
+        # Check if we have completion indicators
+        has_end_time = run.end_time is not None
+        has_outputs = run.outputs is not None
+        has_error = run.error is not None
+
+        # Determine expected status based on data
+        expected_status = "running"
+
+        if has_error:
+            expected_status = "failed"
+        elif has_end_time and has_outputs:
+            expected_status = "completed"
+        elif has_end_time and not has_outputs:
+            # Has end_time but no outputs - should remain running until outputs arrive
+            expected_status = "running"
+
+        # Check if status needs adjustment
+        if run.status != expected_status:
+            logger.info(f"Adjusting trace {run.id} status from '{run.status}' to '{expected_status}'")
+            logger.info(f"  end_time: {has_end_time}, outputs: {has_outputs}, error: {has_error}")
+            run.status = expected_status
+            return False
+
+        return True
+
+    def validate_message_sequence(self, run: Run, update_data: RunUpdate) -> bool:
+        """
+        Validate message sequence to prevent out-of-order updates.
+
+        This method checks if the update makes sense in the context of the current trace state.
+        It prevents scenarios like receiving outputs before start_time or end_time before outputs.
+
+        Args:
+            run: Current run state
+            update_data: Incoming update data
+
+        Returns:
+            True if update sequence is valid, False if it should be deferred
+        """
+        # Check for out-of-order scenarios
+        if update_data.end_time and not run.start_time:
+            logger.warning(f"Trace {run.id}: Received end_time before start_time - deferring update")
+            return False
+
+        if update_data.outputs and not run.start_time:
+            logger.warning(f"Trace {run.id}: Received outputs before start_time - deferring update")
+            return False
+
+        if update_data.end_time and not update_data.outputs and run.status == "running":
+            # This is a valid scenario - trace is ending but outputs will come later
+            logger.info(f"Trace {run.id}: Received end_time, awaiting outputs")
+            return True
+
+        # Check for premature completion
+        if update_data.end_time and update_data.outputs and not self._has_required_fields_for_completion(run, update_data):
+            logger.warning(f"Trace {run.id}: Incomplete completion data - deferring update")
+            return False
+
+        return True
+
+    def _has_required_fields_for_completion(self, run: Run, update_data: RunUpdate) -> bool:
+        """
+        Check if we have all required fields for trace completion.
+
+        This method ensures that a trace has all necessary data before being marked as completed.
+        """
+        # For LangSmith traces, we need at minimum: name, run_type, start_time, end_time, outputs
+        required_fields = {
+            "name": run.name or getattr(update_data, "name", None),
+            "run_type": run.run_type or getattr(update_data, "run_type", None),
+            "start_time": run.start_time or getattr(update_data, "start_time", None),
+            "end_time": run.end_time or update_data.end_time,
+            "outputs": run.outputs or update_data.outputs,
+        }
+
+        missing_fields = [field for field, value in required_fields.items() if not value]
+
+        if missing_fields:
+            logger.debug(f"Trace {run.id} missing required fields for completion: {missing_fields}")
+            return False
+
+        return True
+
+    async def queue_deferred_update(self, run_id: UUID, update_data: RunUpdate, reason: str) -> None:
+        """
+        Queue a deferred update for later processing.
+
+        This method handles updates that arrive out of order and need to be
+        processed later when the trace has the required context.
+        """
+        logger.info(f"Queueing deferred update for trace {run_id}: {reason}")
+
+        # Store deferred update in memory (could be extended to use Redis/database)
+        if not hasattr(self, "_deferred_updates"):
+            self._deferred_updates = {}
+
+        if run_id not in self._deferred_updates:
+            self._deferred_updates[run_id] = []
+
+        self._deferred_updates[run_id].append({"data": update_data, "reason": reason, "timestamp": datetime.now(UTC)})
+
+        logger.info(f"Queued {len(self._deferred_updates[run_id])} deferred updates for trace {run_id}")
+
+    async def process_deferred_updates(self, run_id: UUID) -> bool:
+        """
+        Process any deferred updates for a specific trace.
+
+        This method attempts to process previously deferred updates when
+        the trace has sufficient context.
+
+        Returns:
+            True if updates were processed, False otherwise
+        """
+        if not hasattr(self, "_deferred_updates") or run_id not in self._deferred_updates:
+            return False
+
+        deferred_updates = self._deferred_updates[run_id]
+        if not deferred_updates:
+            return False
+
+        logger.info(f"Processing {len(deferred_updates)} deferred updates for trace {run_id}")
+
+        # Get current trace state
+        current_run = await self.get_by_id(run_id)
+        if not current_run:
+            logger.warning(f"Trace {run_id} not found for deferred update processing")
+            return False
+
+        processed_count = 0
+        for update_info in deferred_updates[:]:  # Copy list for iteration
+            update_data = update_info["data"]
+
+            # Check if update can now be processed
+            if self.validate_message_sequence(current_run, update_data):
+                try:
+                    logger.info(f"Processing deferred update for trace {run_id}")
+                    updated_run = await self.update(run_id, update_data)
+                    if updated_run:
+                        self.validate_trace_status_consistency(updated_run)
+                        processed_count += 1
+                        # Remove processed update from queue
+                        deferred_updates.remove(update_info)
+                        logger.info(f"Successfully processed deferred update for trace {run_id}")
+                except Exception as e:
+                    logger.error(f"Failed to process deferred update for trace {run_id}: {e}")
+            else:
+                logger.debug(f"Deferred update for trace {run_id} still not ready: {update_info['reason']}")
+
+        if processed_count > 0:
+            logger.info(f"Processed {processed_count} deferred updates for trace {run_id}")
+            return True
+
+        return False
 
     async def get_by_id(self, run_id: UUID) -> Run | None:
         """Get a run by its ID."""
@@ -561,3 +903,207 @@ class RunRepository:
             logger.info(f"Marked as failed: {run.name} (id: {run.id}, started: {run.start_time})")
 
         return count
+
+    # Phase 4.1: Add Trace Completeness Checks
+    async def check_trace_completeness(self, project_name: str | None = None, hours_back: int = 24) -> dict:
+        """
+        Check for incomplete traces that may be missing outputs.
+
+        Args:
+            project_name: Optional project to check (None for all projects)
+            hours_back: How many hours back to check for incomplete traces
+
+        Returns:
+            Dictionary with completeness statistics and problematic traces
+        """
+        logger.info(
+            f"🔍 Checking trace completeness for {hours_back}h back"
+            + (f" in project '{project_name}'" if project_name else " across all projects")
+        )
+
+        from datetime import timedelta
+
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_back)
+
+        # Build the base query for traces that should be complete
+        base_conditions = [Run.start_time >= cutoff_time, Run.status.in_(["running", "completed", "failed"])]
+
+        if project_name:
+            base_conditions.append(Run.project_name == project_name)
+
+        # Find traces that are marked as completed but missing outputs
+        completed_missing_outputs_stmt = select(Run).where(
+            and_(*base_conditions, Run.status == "completed", Run.outputs.is_(None))
+        )
+
+        result = await self.session.execute(completed_missing_outputs_stmt)
+        completed_missing_outputs = result.scalars().all()
+
+        # Find traces that are running but have been running for too long (potential orphans)
+        long_running_cutoff = datetime.now(UTC) - timedelta(hours=2)  # 2 hours
+        long_running_stmt = select(Run).where(
+            and_(*base_conditions, Run.status == "running", Run.start_time < long_running_cutoff)
+        )
+
+        result = await self.session.execute(long_running_stmt)
+        long_running_traces = result.scalars().all()
+
+        # Find traces with end_time but no outputs (incomplete completion)
+        incomplete_completion_stmt = select(Run).where(
+            and_(*base_conditions, Run.end_time.is_not(None), Run.outputs.is_(None), Run.status != "failed")
+        )
+
+        result = await self.session.execute(incomplete_completion_stmt)
+        incomplete_completion = result.scalars().all()
+
+        # Calculate statistics
+        total_traces_stmt = select(func.count(Run.id)).where(and_(*base_conditions))
+        result = await self.session.execute(total_traces_stmt)
+        total_traces = result.scalar() or 0
+
+        completeness_stats = {
+            "total_traces_checked": total_traces,
+            "completed_missing_outputs": len(completed_missing_outputs),
+            "long_running_potential_orphans": len(long_running_traces),
+            "incomplete_completion": len(incomplete_completion),
+            "completeness_score": 0.0,
+            "problematic_traces": [],
+        }
+
+        # Calculate completeness score
+        if total_traces > 0:
+            problematic_count = len(completed_missing_outputs) + len(long_running_traces) + len(incomplete_completion)
+            completeness_stats["completeness_score"] = max(0.0, (total_traces - problematic_count) / total_traces)
+
+        # Collect details of problematic traces
+        for trace in completed_missing_outputs:
+            completeness_stats["problematic_traces"].append(
+                {
+                    "id": str(trace.id),
+                    "name": trace.name,
+                    "project": trace.project_name,
+                    "status": trace.status,
+                    "issue": "completed_missing_outputs",
+                    "start_time": trace.start_time.isoformat() if trace.start_time else None,
+                    "end_time": trace.end_time.isoformat() if trace.end_time else None,
+                }
+            )
+
+        for trace in long_running_traces:
+            completeness_stats["problematic_traces"].append(
+                {
+                    "id": str(trace.id),
+                    "name": trace.name,
+                    "project": trace.project_name,
+                    "status": trace.status,
+                    "issue": "long_running_potential_orphan",
+                    "start_time": trace.start_time.isoformat() if trace.start_time else None,
+                    "end_time": trace.end_time.isoformat() if trace.end_time else None,
+                    "duration_hours": (datetime.now(UTC) - trace.start_time).total_seconds() / 3600
+                    if trace.start_time
+                    else None,
+                }
+            )
+
+        for trace in incomplete_completion:
+            completeness_stats["problematic_traces"].append(
+                {
+                    "id": str(trace.id),
+                    "name": trace.name,
+                    "project": trace.project_name,
+                    "status": trace.status,
+                    "issue": "incomplete_completion",
+                    "start_time": trace.start_time.isoformat() if trace.start_time else None,
+                    "end_time": trace.end_time.isoformat() if trace.end_time else None,
+                }
+            )
+
+        logger.info(
+            f"🔍 Trace completeness check completed: {completeness_stats['completeness_score']:.2%} completeness score"
+        )
+        if completeness_stats["problematic_traces"]:
+            logger.warning(f"⚠️ Found {len(completeness_stats['problematic_traces'])} problematic traces")
+
+        return completeness_stats
+
+    async def get_trace_hierarchy_completeness(self, root_trace_id: UUID) -> dict:
+        """
+        Check completeness of a specific trace hierarchy.
+
+        Args:
+            root_trace_id: ID of the root trace to check
+
+        Returns:
+            Dictionary with hierarchy completeness information
+        """
+        logger.info(f"🔍 Checking completeness of trace hierarchy: {root_trace_id}")
+
+        # Get all traces in the hierarchy
+        hierarchy_traces = await self.get_run_hierarchy(root_trace_id)
+
+        if not hierarchy_traces:
+            return {
+                "root_trace_id": str(root_trace_id),
+                "hierarchy_found": False,
+                "completeness_score": 0.0,
+                "missing_outputs": [],
+                "orphaned_traces": [],
+            }
+
+        # Analyze each trace in the hierarchy
+        missing_outputs = []
+        orphaned_traces = []
+        total_traces = len(hierarchy_traces)
+        complete_traces = 0
+
+        for trace in hierarchy_traces:
+            # Check if trace has outputs
+            if trace.outputs:
+                complete_traces += 1
+            else:
+                # Check if it's a completed trace without outputs
+                if trace.status == "completed":
+                    missing_outputs.append(
+                        {
+                            "id": str(trace.id),
+                            "name": trace.name,
+                            "parent_id": str(trace.parent_run_id) if trace.parent_run_id else None,
+                            "start_time": trace.start_time.isoformat() if trace.start_time else None,
+                            "end_time": trace.end_time.isoformat() if trace.end_time else None,
+                        }
+                    )
+
+                # Check if it's a long-running trace (potential orphan)
+                if trace.status == "running" and trace.start_time:
+                    duration_hours = (datetime.now(UTC) - trace.start_time).total_seconds() / 3600
+                    if duration_hours > 2:  # More than 2 hours
+                        orphaned_traces.append(
+                            {
+                                "id": str(trace.id),
+                                "name": trace.name,
+                                "parent_id": str(trace.parent_run_id) if trace.parent_run_id else None,
+                                "duration_hours": duration_hours,
+                                "start_time": trace.start_time.isoformat(),
+                            }
+                        )
+
+        completeness_score = complete_traces / total_traces if total_traces > 0 else 0.0
+
+        hierarchy_stats = {
+            "root_trace_id": str(root_trace_id),
+            "hierarchy_found": True,
+            "total_traces": total_traces,
+            "complete_traces": complete_traces,
+            "completeness_score": completeness_score,
+            "missing_outputs": missing_outputs,
+            "orphaned_traces": orphaned_traces,
+            "hierarchy_depth": 1,  # Simplified depth calculation for now
+        }
+
+        logger.info(f"🔍 Hierarchy completeness: {completeness_score:.2%} ({complete_traces}/{total_traces})")
+        if missing_outputs:
+            logger.warning(f"⚠️ Found {len(missing_outputs)} traces missing outputs in hierarchy")
+        if orphaned_traces:
+            logger.warning(f"⚠️ Found {len(orphaned_traces)} potentially orphaned traces in hierarchy")
+
+        return hierarchy_stats

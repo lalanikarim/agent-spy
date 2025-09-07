@@ -12,7 +12,8 @@ from src.api import debug, health, runs, websocket
 from src.core.config import get_settings
 from src.core.database import close_database, init_database
 from src.core.logging import setup_logging
-from src.otel.receiver import OtlpGrpcServer, OtlpHttpServer
+from src.core.otlp_forwarder import set_otlp_forwarder
+from src.otel.otlp_receiver import OtlpReceiver
 
 # Get settings
 settings = get_settings()
@@ -32,28 +33,61 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Initialize database connection
     await init_database()
 
-    # Initialize OTLP servers
-    otlp_grpc_server = None
-    if settings.otlp_grpc_enabled:
+    # Initialize OTLP receiver
+    otlp_receiver = None
+    if settings.otlp_grpc_enabled or settings.otlp_http_enabled:
         try:
-            otlp_grpc_server = OtlpGrpcServer(host=settings.otlp_grpc_host, port=settings.otlp_grpc_port)
-            # Start gRPC server in background
-            asyncio.create_task(otlp_grpc_server.start())
-            logger.info(f"OTLP gRPC server configured on {settings.otlp_grpc_host}:{settings.otlp_grpc_port}")
+            otlp_receiver = OtlpReceiver(
+                http_path=settings.otlp_http_path, grpc_host=settings.otlp_grpc_host, grpc_port=settings.otlp_grpc_port
+            )
+            # Start gRPC server in background if enabled
+            if settings.otlp_grpc_enabled:
+                asyncio.create_task(otlp_receiver.start_grpc_server())
+                logger.info(f"OTLP gRPC server configured on {settings.otlp_grpc_host}:{settings.otlp_grpc_port}")
+            logger.info(f"OTLP receiver configured with HTTP path: {settings.otlp_http_path}")
         except Exception as e:
-            logger.error(f"Failed to start OTLP gRPC server: {e}")
+            logger.error(f"Failed to start OTLP receiver: {e}")
+
+    # Initialize OTLP forwarder
+    if settings.otlp_forwarder_enabled:
+        try:
+            from src.otel.forwarder import OtlpForwarderConfig, OtlpForwarderService
+
+            forwarder_config = OtlpForwarderConfig(
+                enabled=settings.otlp_forwarder_enabled,
+                endpoint=settings.otlp_forwarder_endpoint,
+                protocol=settings.otlp_forwarder_protocol,
+                service_name=settings.otlp_forwarder_service_name,
+                timeout=settings.otlp_forwarder_timeout,
+                retry_count=settings.otlp_forwarder_retry_count,
+                insecure=settings.otlp_forwarder_insecure,
+                debounce_seconds=settings.forwarder_debounce_seconds,
+                forward_run_timeout_seconds=settings.forward_run_timeout_seconds,
+                max_synthetic_spans=settings.forwarder_max_synthetic_spans,
+                attr_max_str=settings.forwarder_attr_max_str,
+                attr_max_kv_str=settings.forwarder_attr_max_kv_str,
+                attr_max_list_items=settings.forwarder_attr_max_list_items,
+            )
+            otlp_forwarder = OtlpForwarderService(forwarder_config)
+            set_otlp_forwarder(otlp_forwarder)
+            logger.info(f"OTLP forwarder initialized: {settings.otlp_forwarder_protocol}://{settings.otlp_forwarder_endpoint}")
+        except Exception as e:
+            logger.error(f"Failed to initialize OTLP forwarder: {e}")
+            set_otlp_forwarder(None)
+    else:
+        logger.info("OTLP forwarder disabled")
 
     yield
 
     # Shutdown
     logger.info("Shutting down application")
 
-    # Stop OTLP gRPC server
-    if otlp_grpc_server:
+    # Stop OTLP receiver
+    if otlp_receiver:
         try:
-            await otlp_grpc_server.stop()
+            await otlp_receiver.stop_grpc_server()
         except Exception as e:
-            logger.error(f"Error stopping OTLP gRPC server: {e}")
+            logger.error(f"Error stopping OTLP receiver: {e}")
 
     # Close database connections
     await close_database()
@@ -94,6 +128,8 @@ def create_app() -> FastAPI:
         response.headers["X-Request-ID"] = request_id
         return response
 
+    # Note: No default project injection; clients must send project via headers or payload
+
     # Add exception handlers
     @app.exception_handler(ValueError)
     async def value_error_handler(request, exc):
@@ -126,15 +162,17 @@ def create_app() -> FastAPI:
     app.include_router(websocket.router, tags=["websocket"])
     app.include_router(debug.router, tags=["debug"])
 
-    # Include OTLP HTTP server
+    # Include OTLP receiver router
     if settings.otlp_http_enabled:
         try:
-            otlp_http_server = OtlpHttpServer(path=settings.otlp_http_path)
-            # Note: RunRepository will be set with proper session in the request handlers
-            app.include_router(otlp_http_server.router)
-            logger.info(f"OTLP HTTP server configured at {settings.otlp_http_path}")
+            # Create OTLP receiver for HTTP routing
+            otlp_receiver = OtlpReceiver(
+                http_path=settings.otlp_http_path, grpc_host=settings.otlp_grpc_host, grpc_port=settings.otlp_grpc_port
+            )
+            app.include_router(otlp_receiver.router)
+            logger.info(f"OTLP HTTP receiver configured at {settings.otlp_http_path}")
         except Exception as e:
-            logger.error(f"Failed to configure OTLP HTTP server: {e}")
+            logger.error(f"Failed to configure OTLP HTTP receiver: {e}")
 
     return app
 
@@ -145,12 +183,34 @@ app = create_app()
 
 if __name__ == "__main__":
     """Run the application directly."""
+    import argparse
+
     import uvicorn
 
-    uvicorn.run(
-        "src.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.reload,
-        log_level=settings.log_level.lower(),
+    parser = argparse.ArgumentParser(description="Agent Spy server")
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["serve", "export-env"],
+        default="serve",
+        help="Command to run: serve (default) or export-env",
     )
+    parser.add_argument(
+        "--out",
+        dest="out",
+        default=".env.generated",
+        help="Output path for export-env",
+    )
+    args = parser.parse_args()
+
+    if args.command == "export-env":
+        path = settings.export_env_file(args.out)
+        logger.info(f"Exported environment to {path}")
+    else:
+        uvicorn.run(
+            "src.main:app",
+            host=settings.host,
+            port=settings.port,
+            reload=settings.reload,
+            log_level=settings.log_level.lower(),
+        )

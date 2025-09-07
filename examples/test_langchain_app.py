@@ -39,7 +39,7 @@ def setup_agent_spy_tracing():
     os.environ["LANGSMITH_TRACING"] = "true"
     os.environ["LANGSMITH_ENDPOINT"] = os.getenv("LANGSMITH_ENDPOINT", "http://localhost:8000/api/v1")
     os.environ["LANGSMITH_API_KEY"] = "test-api-key-123"
-    os.environ["LANGSMITH_PROJECT"] = "agent-spy-demo"
+    os.environ["LANGSMITH_PROJECT"] = os.getenv("LANGSMITH_PROJECT", "agent-spy-demo")
 
     print(f"  ✅ Tracing enabled: {os.environ['LANGSMITH_TRACING']}")
     print(f"  ✅ Endpoint: {os.environ['LANGSMITH_ENDPOINT']}")

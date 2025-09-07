@@ -72,8 +72,8 @@ async def init_database() -> None:
 
     # Create all tables with retry logic
     logger.info("Creating database tables...")
-    max_retries = 3
-    retry_delay = 2
+    max_retries = settings.db_init_max_retries
+    retry_delay = settings.db_init_initial_delay_seconds
 
     for attempt in range(max_retries):
         try:

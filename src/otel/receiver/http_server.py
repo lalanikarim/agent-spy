@@ -1,5 +1,6 @@
 """OTLP HTTP receiver for Agent Spy."""
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -267,6 +268,17 @@ class OtlpHttpServer:
                                     + f"{updated_run.name}: {ws_error}"
                                 )
                                 # Don't fail the OTLP request if WebSocket fails
+
+                        # Forward to OTLP endpoints (fire and forget)
+                        try:
+                            from src.core.otlp_forwarder import get_otlp_forwarder
+
+                            otlp_forwarder = get_otlp_forwarder()
+                            if otlp_forwarder and otlp_forwarder.tracer:
+                                asyncio.create_task(otlp_forwarder.forward_runs(created_runs))
+                                logger.debug(f"OTLP forwarding initiated for {len(created_runs)} HTTP OTLP traces")
+                        except Exception as e:
+                            logger.warning(f"Failed to forward HTTP OTLP traces to OTLP endpoints: {e}")
 
                     except Exception as e:
                         logger.error(f"❌ DEBUG: Failed to create runs via HTTP: {e}")

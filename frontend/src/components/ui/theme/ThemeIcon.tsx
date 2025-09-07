@@ -17,7 +17,7 @@ const ThemeIcon: React.FC<ThemeIconProps> = ({
   style = {},
 }) => {
   const { getColor } = useThemeColors();
-  
+
   const sizeStyles = {
     xs: { fontSize: "12px", width: "12px", height: "12px" },
     sm: { fontSize: "14px", width: "14px", height: "14px" },

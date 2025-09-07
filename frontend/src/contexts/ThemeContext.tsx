@@ -36,7 +36,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     localStorage.setItem("agent-spy-theme", newTheme);
-    
+
     // Apply theme using new utility function
     applyThemeToDocument(newTheme);
   };

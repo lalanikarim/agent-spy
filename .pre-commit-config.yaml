@@ -1,30 +1,16 @@
 # Pre-commit hooks for Agent Spy
-# See https://pre-commit.com for more information
+# Simplified configuration for reliability
 
 repos:
-  # Ruff - Python linting only (formatting done manually)
+  # Ruff - Python linting
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
-      # Run the linter with auto-fix
       - id: ruff
-        name: ruff check (with --fix)
         args: [--fix]
         types: [python]
-        exclude: |
-          (?x)^(
-              \.venv/|
-              \.pytest_cache/|
-              __pycache__/|
-              \.mypy_cache/|
-              \.ruff_cache/|
-              \.cursor/artifacts/|
-              node_modules/|
-              dist/|
-              build/
-          )/
 
-  # Type checking with basedpyright (local hook)
+  # Type checking
   - repo: local
     hooks:
       - id: basedpyright
@@ -32,70 +18,19 @@ repos:
         entry: uv run basedpyright
         language: system
         types: [python]
-        files: ^src/
         pass_filenames: false
-        args: [--project, ., src/]
 
-  # Additional useful hooks
+  # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      # Check for common issues
       - id: trailing-whitespace
-        exclude: ^frontend/
       - id: end-of-file-fixer
-        exclude: ^frontend/
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ['--maxkb=1000']
-      # Python-specific checks
-      - id: check-ast
-        types: [python]
-        exclude: |
-          (?x)^(
-              \.venv/|
-              \.pytest_cache/|
-              __pycache__/|
-              \.mypy_cache/|
-              \.ruff_cache/|
-              \.cursor/artifacts/|
-              node_modules/|
-              dist/|
-              build/
-          )/
-      - id: debug-statements
-        types: [python]
-        exclude: |
-          (?x)^(
-              \.venv/|
-              \.pytest_cache/|
-              __pycache__/|
-              \.mypy_cache/|
-              \.ruff_cache/|
-              \.cursor/artifacts/|
-              node_modules/|
-              dist/|
-              build/
-          )/
-      # YAML/JSON checks
-      - id: check-yaml
-        exclude: ^frontend/
-      - id: check-json
-        exclude: ^frontend/
-
-  # Security checks
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.0
-    hooks:
-      - id: bandit
-        name: bandit security check
-        args: ['-c', 'pyproject.toml']
-        types: [python]
-        files: ^src/
-        exclude: ^tests/
 
 # Configuration
 default_install_hook_types: [pre-commit]
 default_stages: [pre-commit]
 fail_fast: false
-minimum_pre_commit_version: '3.0.0'

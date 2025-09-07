@@ -1,8 +1,7 @@
-"""Configuration management for Agent Spy."""
+"""Simplified configuration management for Agent Spy."""
 
 import os
 from functools import lru_cache
-from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,7 +14,6 @@ class Settings(BaseSettings):
         env_file=".env",
         env_ignore_empty=True,
         extra="ignore",
-        # Load .env file first, then allow environment variables to override
         env_file_encoding="utf-8",
     )
 
@@ -29,7 +27,7 @@ class Settings(BaseSettings):
     )
 
     # Server Settings
-    host: str = Field(default="0.0.0.0", description="Server host")  # nosec B104
+    host: str = Field(default="127.0.0.1", description="Server host")
     port: int = Field(default=8000, description="Server port")
     reload: bool = Field(default=False, description="Auto-reload on code changes")
 
@@ -44,27 +42,22 @@ class Settings(BaseSettings):
     )
     database_pool_size: int = Field(default=20, description="Database connection pool size")
     database_echo: bool = Field(default=False, description="Echo SQL queries")
+    database_ssl_mode: str = Field(default="prefer", description="PostgreSQL SSL mode")
+    database_max_connections: int = Field(default=20, description="PostgreSQL max connections")
 
-    # PostgreSQL-specific settings (used when database_type is postgresql)
+    # PostgreSQL-specific settings
     database_host: str = Field(default="localhost", description="PostgreSQL host")
     database_port: int = Field(default=5432, description="PostgreSQL port")
     database_name: str = Field(default="agentspy", description="PostgreSQL database name")
     database_user: str = Field(default="agentspy_user", description="PostgreSQL username")
     database_password: str = Field(default="", description="PostgreSQL password")
-    database_ssl_mode: str = Field(default="prefer", description="PostgreSQL SSL mode")
-    database_max_connections: int = Field(default=20, description="PostgreSQL max connections")
 
     # API Settings
-    api_prefix: str = Field(default="/api/v1", description="API route prefix")
     api_title: str = Field(default="Agent Spy API", description="API documentation title")
     api_description: str = Field(
         default=("LangSmith-compatible observability layer for AI agents and LangChain applications"),
         description="API documentation description",
     )
-
-    # Authentication Settings
-    api_keys: list[str] | None = Field(default=None, description="Comma-separated list of valid API keys")
-    require_auth: bool = Field(default=False, description="Require authentication for all endpoints")
 
     # CORS Settings
     cors_origins: list[str] | str = Field(default=["*"], description="Allowed CORS origins")
@@ -74,20 +67,13 @@ class Settings(BaseSettings):
 
     # LangSmith Compatibility Settings
     langsmith_endpoint_base: str = Field(default="/api/v1", description="Base path for LangSmith-compatible endpoints")
-    support_legacy_endpoints: bool = Field(default=True, description="Support legacy LangChain endpoint formats")
-
-    # Performance Settings
-    max_trace_size_mb: int = Field(default=10, description="Maximum trace size in MB")
-    request_timeout: int = Field(default=30, description="Request timeout in seconds")
 
     # WebSocket Settings
     websocket_enabled: bool = Field(default=True, description="Enable WebSocket support")
-    websocket_max_connections: int = Field(default=100, description="Maximum WebSocket connections")
-    websocket_heartbeat_interval: int = Field(default=30, description="WebSocket heartbeat interval in seconds")
 
     # OpenTelemetry Settings
     otlp_grpc_enabled: bool = Field(default=True, description="Enable OTLP gRPC receiver")
-    otlp_grpc_host: str = Field(default="0.0.0.0", description="OTLP gRPC server host")  # nosec B104
+    otlp_grpc_host: str = Field(default="127.0.0.1", description="OTLP gRPC server host")
     otlp_grpc_port: int = Field(default=4317, description="OTLP gRPC server port")
     otlp_http_enabled: bool = Field(default=True, description="Enable OTLP HTTP receiver")
     otlp_http_path: str = Field(default="/v1/traces", description="OTLP HTTP endpoint path")
@@ -100,19 +86,31 @@ class Settings(BaseSettings):
     otlp_forwarder_timeout: int = Field(default=30, description="OTLP forwarder timeout in seconds")
     otlp_forwarder_retry_count: int = Field(default=3, description="OTLP forwarder retry count")
     otlp_forwarder_headers: dict[str, str] | None = Field(default=None, description="OTLP forwarder headers")
+    # New forwarder tunables (env-backed)
+    otlp_forwarder_insecure: bool = Field(default=True, description="Use insecure (non-TLS) exporter when true")
+    forwarder_debounce_seconds: float = Field(default=5.0, description="Debounce window for grouped forwarding")
+    forward_run_timeout_seconds: float = Field(default=30.0, description="Per-run forwarding timeout in seconds")
+    forwarder_max_synthetic_spans: int = Field(default=10, description="Max synthetic step spans to emit")
+    forwarder_attr_max_str: int = Field(default=500, description="Max length for string attributes")
+    forwarder_attr_max_kv_str: int = Field(default=200, description="Max length for key-value attribute values")
+    forwarder_attr_max_list_items: int = Field(default=5, description="Max number of list items to include as attributes")
 
     # Logging Settings
     log_level: str = Field(default="INFO", description="Logging level")
     log_format: str = Field(default="json", description="Log format (json or text)")
     log_file: str | None = Field(default=None, description="Log file path")
 
-    @field_validator("api_keys", mode="before")
-    @classmethod
-    def parse_api_keys(cls, v: str | None) -> list[str] | None:
-        """Parse comma-separated API keys from environment variable."""
-        if isinstance(v, str) and v:
-            return [key.strip() for key in v.split(",") if key.strip()]
-        return v if isinstance(v, list) else None
+    # OTLP gRPC server tunables
+    otlp_grpc_max_workers: int = Field(default=10, description="gRPC server worker threads")
+    otlp_grpc_max_msg_mb: int = Field(default=50, description="Max gRPC message size in MB")
+    otlp_grpc_stop_grace_seconds: int = Field(default=5, description="gRPC server stop grace period seconds")
+
+    # DB init retry/backoff
+    db_init_max_retries: int = Field(default=3, description="DB init max retries")
+    db_init_initial_delay_seconds: int = Field(default=2, description="DB init initial backoff seconds")
+
+    # Stale run cleanup default
+    stale_run_timeout_minutes_default: int = Field(default=30, description="Default timeout to mark running traces failed")
 
     @field_validator("cors_origins", "cors_methods", "cors_headers", mode="before")
     @classmethod
@@ -121,9 +119,7 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             if v == "*":
                 return ["*"]
-            # Handle comma-separated values
             return [item.strip() for item in v.split(",") if item.strip()]
-        # v is already a list[str] at this point
         return v
 
     @field_validator("environment")
@@ -186,32 +182,42 @@ class Settings(BaseSettings):
         # Construct URL based on database type
         if self.database_type == "postgresql":
             # Build PostgreSQL URL from components
-            password_part = f":{self.database_password}" if self.database_password else ""
+            password_part = (
+                f":{self.database_password}" if hasattr(self, "database_password") and self.database_password else ""
+            )
             return f"postgresql+asyncpg://{self.database_user}{password_part}@{self.database_host}:{self.database_port}/{self.database_name}"
         else:
             # Default SQLite URL
             return self.database_url
 
-    @classmethod
-    def load_env_file_priority(cls) -> dict[str, str]:
-        """Load environment variables with environment variables taking priority over .env file."""
-        env_vars = {}
+    def export_env_file(self, path: str = ".env.generated") -> str:
+        """Export a .env-style template containing ALL supported keys with DEFAULT values.
 
-        # First, load from .env file as defaults
-        env_file = Path(".env")
-        if env_file.exists():
-            with open(env_file, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        key, value = line.split("=", 1)
-                        env_vars[key] = value
+        Notes:
+        - Values are defaults from Settings definitions, not current environment overrides.
+        - Complex types (lists/dicts) are JSON-encoded.
+        - Keys are emitted in uppercase snake case, in declaration order.
+        """
+        import json
+        from pathlib import Path
 
-        # Then, override with environment variables (environment variables take priority)
-        for key, value in os.environ.items():
-            env_vars[key] = value
+        lines: list[str] = []
+        # Iterate declared fields in class order
+        for key, field in self.model_fields.items():
+            env_key = key.upper()
+            default_value = field.default
+            if default_value is None:
+                val_str = ""
+            elif isinstance(default_value, list | dict):
+                val_str = json.dumps(default_value)
+            else:
+                val_str = str(default_value)
+            lines.append(f"{env_key}={val_str}")
 
-        return env_vars
+        content = "\n".join(lines) + "\n"
+        out_path = Path(path)
+        out_path.write_text(content, encoding="utf-8")
+        return str(out_path)
 
 
 @lru_cache
@@ -219,27 +225,7 @@ def get_settings() -> Settings:
     """Get cached settings instance."""
     # Check if we're in a test environment
     if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING"):
-        # In test environment, prioritize environment variables over .env file
         return Settings(_env_file=None)
 
-    # Use custom environment loading to prioritize .env file
-    env_vars = Settings.load_env_file_priority()
-
-    # Temporarily set environment variables with .env file priority
-    original_env = dict(os.environ)
-    try:
-        # Clear existing environment variables that are in .env file
-        for key in env_vars:
-            if key in os.environ:
-                del os.environ[key]
-
-        # Set environment variables with .env file values first
-        for key, value in env_vars.items():
-            os.environ[key] = value
-
-        # Create settings instance
-        return Settings()
-    finally:
-        # Restore original environment
-        os.environ.clear()
-        os.environ.update(original_env)
+    # Use standard Pydantic settings loading
+    return Settings()
