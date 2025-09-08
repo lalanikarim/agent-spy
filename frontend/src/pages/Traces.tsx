@@ -18,8 +18,8 @@ const Traces: React.FC = () => {
     [params.traceId]
   );
   const isDetailExpanded = useMemo(
-    () => searchParams.get("expanded") === "1",
-    [searchParams]
+    () => !!selectedTraceId && searchParams.get("expanded") === "1",
+    [searchParams, selectedTraceId]
   );
 
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
@@ -53,6 +53,8 @@ const Traces: React.FC = () => {
   const handleTraceDeselect = useCallback(() => {
     // Preserve current filters/search/pagination params but clear trace
     const next = new URLSearchParams(searchParams);
+    // Also clear expanded state to avoid empty screen when no trace is selected
+    next.delete("expanded");
     navigate({ pathname: "/traces", search: next.toString() });
   }, [navigate, searchParams]);
 
