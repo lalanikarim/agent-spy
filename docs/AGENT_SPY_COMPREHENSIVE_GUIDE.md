@@ -17,7 +17,7 @@ Agent Spy is a powerful, self-hosted observability platform for AI agents and mu
 - **LangSmith Compatibility**: Drop-in replacement for LangSmith tracing
 - **OpenTelemetry Protocol (OTLP) Support**: Native OTLP HTTP and gRPC receivers for industry-standard tracing
 - **Smart Completion Detection**: Universal pattern-based detection for accurate run status
-- **Production Ready**: High-performance, scalable architecture with Docker support
+
 - **Advanced Theming**: Comprehensive theme system with dark/light mode support
 - **Real-time Notifications**: Live updates and status notifications
 - **Live Elapsed Time Updates**: Real-time duration tracking for running traces

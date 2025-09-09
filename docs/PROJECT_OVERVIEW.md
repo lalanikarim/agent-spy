@@ -22,7 +22,7 @@ Agent Spy is a powerful, self-hosted observability platform specifically designe
 - **Timeline Visualization**: Advanced timeline component for execution flow analysis
 - **Coordinated Refresh**: Synchronized updates across all dashboard components
 
-### 🏗️ **Production Ready Architecture**
+### 🏗️ **Architecture**
 
 - **High Performance**: Optimized for handling thousands of concurrent traces
 - **Scalable Storage**: SQLite for development, PostgreSQL support planned for production
@@ -131,15 +131,9 @@ uv sync
 PYTHONPATH=. uv run python src/main.py
 ```
 
-### 2. Docker Compose (Recommended)
+### 2. Container Deployment (Docker Compose)
 
-```bash
-# Production deployment
-docker compose -f docker/docker-compose.yml up -d
-
-# Development with hot reloading
-docker compose -f docker/docker-compose.dev.yml up -d
-```
+See `docs/DOCKER_SETUP.md` for container deployment instructions. Podman Compose is also supported; Docker commands are provided for reference.
 
 ### 3. Container Orchestration
 
@@ -156,7 +150,7 @@ docker compose -f docker/docker-compose.dev.yml up -d
 - **Performance Analysis**: Find bottlenecks in agent reasoning chains
 - **Input/Output Inspection**: Examine data flow between components
 
-### 2. Production Monitoring
+### 2. Monitoring
 
 - **Real-time Observability**: Monitor live agent performance
 - **Error Tracking**: Get alerts when agents fail or perform poorly
@@ -196,7 +190,7 @@ docker compose -f docker/docker-compose.dev.yml up -d
 - **Nginx** for serving frontend assets
 - **Health checks** and monitoring built-in
 
-## Project Status & Metrics
+## Project Status
 
 ### ✅ Completed Features
 
@@ -208,14 +202,6 @@ docker compose -f docker/docker-compose.dev.yml up -d
 - Coordinated dashboard refresh
 - Health monitoring and logging
 - Comprehensive examples and testing
-
-### 📊 Current Metrics
-
-- **Test Coverage**: 51% (32 tests passing)
-- **Code Quality**: All linting and type checks passing
-- **API Endpoints**: 15+ endpoints implemented
-- **Frontend Components**: 6+ React components
-- **Documentation**: 10+ comprehensive guides
 
 ### 🚧 In Progress
 
@@ -249,11 +235,9 @@ docker compose -f docker/docker-compose.dev.yml up -d
 - **Improved UX**: Single refresh action updates the entire dashboard view
 - **Efficient Coordination**: Centralized refresh trigger mechanism prevents inconsistent states
 
-### Enhanced Examples
+### Examples
 
-- **Complex Multi-Step Workflow**: 7-step linear pipeline with deep trace hierarchies
-- **Dual Chain Agent**: Multiple LLM chains with specialized analysis nodes
-- **Comprehensive Testing**: Examples demonstrate various trace patterns and use cases
+See `docs/EXAMPLES_GUIDE.md` for end-to-end examples and usage patterns.
 
 ## Getting Started
 
