@@ -7,17 +7,20 @@ Agent Spy provides comprehensive Docker support with separate configurations for
 ## Quick Start
 
 ### Prerequisites
+
 - [Docker](https://docker.com/) (version 20.10+)
 - [Docker Compose](https://docs.docker.com/compose/) (version 2.0+)
 - Git (for cloning the repository)
 
 ### 1. Clone Repository
+
 ```bash
 git clone https://github.com/lalanikarim/agent-spy.git
 cd agent-spy
 ```
 
 ### 2. Configure Environment
+
 ```bash
 # Copy the environment template
 cp env.example .env
@@ -29,31 +32,30 @@ nano .env  # or your preferred editor
 ### 3. Start Agent Spy
 
 #### Production Deployment
-```bash
-# Using the production convenience script (RECOMMENDED)
-bash scripts/docker-prod.sh
 
-# Or manually with docker compose using production environment
+```bash
+# Using docker compose with production environment
 docker compose -f docker/docker-compose.yml --env-file .env.production up -d
 ```
 
 **Important**: For production deployment, you should:
+
 1. Copy `env.example.production` to `.env.production`
 2. Customize the production settings, especially:
    - `POSTGRES_PASSWORD` and `DATABASE_PASSWORD` (use strong passwords)
    - `API_KEYS` (set secure API keys)
    - `CORS_ORIGINS` (restrict to your domain)
    - `DATABASE_TYPE=postgresql` (required for production)
-3. Use the `docker-prod.sh` script which validates these settings
+3. Use `--env-file .env.production` with compose commands
 
 #### Development Environment
-```bash
-# Using the convenience script
-bash scripts/docker-dev.sh
 
-# Or manually with docker compose
+```bash
+# Start development environment
 docker compose -f docker/docker-compose.dev.yml up -d
 ```
+
+> Podman users: replace `docker` with `podman` and `docker compose` with `podman compose`.
 
 ## Docker Architecture
 
@@ -93,6 +95,7 @@ graph TB
 ### Container Details
 
 #### Frontend Container (`agentspy-frontend`)
+
 - **Base Image**: `nginx:alpine`
 - **Build Process**: Multi-stage build with Node.js 20
 - **Served Content**: Optimized React production build
@@ -101,6 +104,7 @@ graph TB
 - **Health Check**: HTTP request to root path
 
 #### Backend Container (`agentspy-backend`)
+
 - **Base Image**: `python:3.13-slim`
 - **Package Manager**: uv for fast dependency management
 - **Runtime**: FastAPI with Uvicorn server
@@ -113,10 +117,10 @@ graph TB
 ### Production Configuration (`docker-compose.yml`)
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
-  backend:
+  prod-backend:
     build:
       context: ..
       dockerfile: docker/backend/Dockerfile
@@ -140,7 +144,7 @@ services:
       retries: 3
       start_period: 40s
 
-  frontend:
+  prod-frontend:
     build:
       context: ../frontend
       dockerfile: ../docker/frontend/Dockerfile
@@ -149,7 +153,7 @@ services:
     ports:
       - "${FRONTEND_EXTERNAL_PORT:-3000}:80"
     depends_on:
-      - backend
+      - prod-backend
     environment:
       - VITE_BACKEND_HOST=${BACKEND_HOST:-localhost}
       - VITE_BACKEND_PORT=${BACKEND_EXTERNAL_PORT:-8000}
@@ -167,15 +171,17 @@ networks:
 ### Development Configuration (`docker-compose.dev.yml`)
 
 Key differences from production:
+
 - **Hot Reloading**: Source code mounted as volumes
 - **Debug Mode**: Enabled for both frontend and backend
-- **Different Ports**: 8001 (backend), 3000 (frontend) to avoid conflicts
+- **Default Ports**: 8000 (backend), 3000 (frontend)
 - **Verbose Logging**: DEBUG level logging enabled
 - **Development Database**: Separate SQLite file (`agentspy_dev.db`)
 
 ## Environment Variables
 
 ### Core Settings
+
 ```bash
 # Environment type
 ENVIRONMENT=production  # or development
@@ -193,6 +199,7 @@ BACKEND_HOST=localhost       # Hostname for frontend to connect to backend
 ```
 
 ### Database Configuration
+
 ```bash
 # Database settings
 DATABASE_ECHO=false  # Set to true to see SQL queries
@@ -202,6 +209,7 @@ DATABASE_ECHO=false  # Set to true to see SQL queries
 ```
 
 ### API Configuration
+
 ```bash
 # Authentication (optional)
 REQUIRE_AUTH=false
@@ -213,6 +221,7 @@ CORS_CREDENTIALS=true
 ```
 
 ### Performance Settings
+
 ```bash
 # Resource limits
 MAX_TRACE_SIZE_MB=10
@@ -226,6 +235,7 @@ LOG_FORMAT=json
 ## Docker Commands Reference
 
 ### Basic Operations
+
 ```bash
 # Start services
 docker compose -f docker/docker-compose.yml up -d
@@ -241,21 +251,23 @@ docker compose -f docker/docker-compose.yml ps
 ```
 
 ### Development Commands
+
 ```bash
 # Start development environment
 docker compose -f docker/docker-compose.dev.yml up -d
 
 # Follow backend logs
-docker compose -f docker/docker-compose.dev.yml logs -f backend
+docker compose -f docker/docker-compose.dev.yml logs -f dev-backend
 
 # Follow frontend logs
-docker compose -f docker/docker-compose.dev.yml logs -f frontend
+docker compose -f docker/docker-compose.dev.yml logs -f dev-frontend
 
 # Restart a specific service
-docker compose -f docker/docker-compose.dev.yml restart backend
+docker compose -f docker/docker-compose.dev.yml restart dev-backend
 ```
 
 ### Maintenance Commands
+
 ```bash
 # Rebuild containers (after code changes)
 docker compose -f docker/docker-compose.yml up -d --build
@@ -309,6 +321,7 @@ CMD ["uv", "run", "python", "src/main.py"]
 ```
 
 **Key Features:**
+
 - **Multi-stage optimization**: Efficient layer caching
 - **Security**: Non-root user execution
 - **Fast dependencies**: uv package manager
@@ -336,6 +349,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ```
 
 **Key Features:**
+
 - **Multi-stage build**: Separates build and runtime environments
 - **Optimized size**: Alpine-based images
 - **Static serving**: Nginx for efficient asset delivery
@@ -344,12 +358,14 @@ CMD ["nginx", "-g", "daemon off;"]
 ## Networking
 
 ### Docker Network Configuration
+
 - **Network Name**: `agentspy-network` (production) / `agentspy-dev-network` (development)
 - **Driver**: Bridge network for container communication
 - **Port Mapping**: Host ports mapped to container ports
 - **Service Discovery**: Containers can communicate by service name
 
 ### Port Mapping
+
 ```
 Host Port → Container Port
 FRONTEND_EXTERNAL_PORT (3000) → 80    # Frontend web interface (nginx)
@@ -358,6 +374,7 @@ OTLP_EXTERNAL_PORT (4317) → 4317      # OTLP gRPC receiver
 ```
 
 ### Internal Communication
+
 ```
 frontend → backend:8000  # API requests
 backend → sqlite_data    # Database access
@@ -366,6 +383,7 @@ backend → sqlite_data    # Database access
 ## Data Persistence
 
 ### Volume Management
+
 ```bash
 # Production volume
 sqlite_data:/app/data  # Persistent SQLite database
@@ -375,6 +393,7 @@ sqlite_dev_data:/app/data  # Separate development database
 ```
 
 ### Backup Strategy
+
 ```bash
 # Create database backup
 docker run --rm -v agentspy_sqlite_data:/data -v $(pwd):/backup alpine \
@@ -388,6 +407,7 @@ docker run --rm -v agentspy_sqlite_data:/data -v $(pwd):/backup alpine \
 ## Health Monitoring
 
 ### Container Health Checks
+
 Both containers include built-in health checks:
 
 ```bash
@@ -399,6 +419,7 @@ docker inspect agentspy-backend --format='{{json .State.Health}}'
 ```
 
 ### Application Health Endpoints
+
 ```bash
 # Basic health check
 curl http://localhost:8000/health
@@ -415,6 +436,7 @@ curl http://localhost:8000/health/live
 ### Common Issues
 
 #### 1. Port Conflicts
+
 ```bash
 # Check if ports are in use
 lsof -i :8000  # Backend port
@@ -426,6 +448,7 @@ FRONTEND_EXTERNAL_PORT=8080
 ```
 
 #### 2. Permission Issues
+
 ```bash
 # Fix volume permissions
 sudo chown -R $USER:$USER ./data
@@ -436,6 +459,7 @@ docker compose up -d
 ```
 
 #### 3. Build Failures
+
 ```bash
 # Clear Docker cache
 docker system prune -a
@@ -445,6 +469,7 @@ docker compose build --no-cache
 ```
 
 #### 4. Database Issues
+
 ```bash
 # Check database volume
 docker volume inspect agentspy_sqlite_data
@@ -454,7 +479,9 @@ docker exec -it agentspy-backend sqlite3 /app/data/agentspy.db
 ```
 
 #### 5. Wrong Database Type in Production
+
 If you see SQLite being used instead of PostgreSQL in production logs:
+
 ```bash
 # Check current database configuration
 docker compose -f docker/docker-compose.yml --env-file .env.production logs backend | grep "database connection"
@@ -462,11 +489,12 @@ docker compose -f docker/docker-compose.yml --env-file .env.production logs back
 # Verify .env.production has correct settings
 grep DATABASE_TYPE .env.production
 
-# Solution: Use the production script
-bash scripts/docker-prod.sh
+# Solution: Ensure DATABASE_TYPE=postgresql in .env.production and restart
+docker compose -f docker/docker-compose.yml --env-file .env.production up -d --build
 ```
 
 ### Debugging Commands
+
 ```bash
 # Access backend container shell
 docker exec -it agentspy-backend bash
@@ -475,7 +503,7 @@ docker exec -it agentspy-backend bash
 docker exec -it agentspy-frontend sh
 
 # View container logs with timestamps
-docker compose logs -f -t backend
+docker compose -f docker/docker-compose.yml logs -f -t prod-backend
 
 # Monitor container resources
 docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
@@ -484,6 +512,7 @@ docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 ## Production Deployment
 
 ### Recommended Production Setup
+
 1. **Reverse Proxy**: Use Nginx or Traefik for SSL termination
 2. **Domain Configuration**: Set up proper domain names
 3. **SSL Certificates**: Use Let's Encrypt for HTTPS
@@ -492,6 +521,7 @@ docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 6. **Log Management**: Centralized logging with ELK stack
 
 ### Security Considerations
+
 - **API Keys**: Enable authentication with strong API keys
 - **CORS**: Restrict origins to known domains
 - **Firewall**: Limit access to necessary ports only
@@ -499,6 +529,7 @@ docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 - **Secrets**: Use Docker secrets for sensitive data
 
 ### Scaling Considerations
+
 - **Load Balancing**: Multiple backend instances behind load balancer
 - **Database**: PostgreSQL is included in production setup for better performance and scalability
 - **Caching**: Add Redis for session and response caching

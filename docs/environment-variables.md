@@ -97,15 +97,15 @@ This document provides a comprehensive overview of all environment variables use
 
 #### OTLP Forwarder Settings
 
-| Variable                      | Type    | Default               | Description                            | Usage                                          |
-| ----------------------------- | ------- | --------------------- | -------------------------------------- | ---------------------------------------------- |
-| `OTLP_FORWARDER_ENABLED`      | boolean | false                 | Enable OTLP forwarder                  | Used in `src/api/runs.py` for trace forwarding |
-| `OTLP_FORWARDER_ENDPOINT`     | string  | ""                    | OTLP forwarder endpoint URL            | Used in `src/api/runs.py` for trace forwarding |
-| `OTLP_FORWARDER_PROTOCL`      | string  | "grpc"                | OTLP forwarder protocol (http or grpc) | Used in `src/api/runs.py` for trace forwarding |
-| `OTLP_FORWARDER_SERVICE_NAME` | string  | "agent-spy-forwarder" | Service name for forwarded traces      | Used in `src/api/runs.py` for trace forwarding |
-| `OTLP_FORWARDER_TIMEOUT`      | integer | 30                    | OTLP forwarder timeout in seconds      | Used in `src/api/runs.py` for trace forwarding |
-| `OTLP_FORWARDER_RETRY_COUNT`  | integer | 3                     | OTLP forwarder retry count             | Used in `src/api/runs.py` for trace forwarding |
-| `OTLP_FORWARDER_HEADERS`      | object  | null                  | OTLP forwarder headers                 | Used in `src/api/runs.py` for trace forwarding |
+| Variable                      | Type    | Default               | Description                            | Usage                                            |
+| ----------------------------- | ------- | --------------------- | -------------------------------------- | ------------------------------------------------ |
+| `OTLP_FORWARDER_ENABLED`      | boolean | false                 | Enable OTLP forwarder                  | Used in `src/api/runs.py` for trace forwarding   |
+| `OTLP_FORWARDER_ENDPOINT`     | string  | ""                    | OTLP forwarder endpoint URL            | Used in `src/api/runs.py` for trace forwarding   |
+| `OTLP_FORWARDER_PROTOCOL`     | string  | "grpc"                | OTLP forwarder protocol (http or grpc) | Used in `src/core/config.py` for forwarder setup |
+| `OTLP_FORWARDER_SERVICE_NAME` | string  | "agent-spy-forwarder" | Service name for forwarded traces      | Used in `src/api/runs.py` for trace forwarding   |
+| `OTLP_FORWARDER_TIMEOUT`      | integer | 30                    | OTLP forwarder timeout in seconds      | Used in `src/api/runs.py` for trace forwarding   |
+| `OTLP_FORWARDER_RETRY_COUNT`  | integer | 3                     | OTLP forwarder retry count             | Used in `src/api/runs.py` for trace forwarding   |
+| `OTLP_FORWARDER_HEADERS`      | object  | null                  | OTLP forwarder headers                 | Used in `src/api/runs.py` for trace forwarding   |
 
 ### Performance Settings
 

@@ -59,81 +59,14 @@ While Agent Spy aims to provide a powerful open-source alternative for AI observ
 - **LangGraph Support**: Multi-node agent workflows with complex hierarchies
 - **Custom Agents**: REST API for any framework to send trace data
 
-## 🎉 **Docker Compose Verification - COMPLETED ✅**
+## 🚦 Health Endpoints
 
-**Status**: ✅ **VERIFICATION COMPLETE**
-**Success Rate**: **100% (12/12 examples working)**
-**Total Traces Created**: **208 traces**
-**Completion Date**: August 19, 2025
+Use these endpoints for basic service checks:
 
-## 🚀 **System Reliability & Monitoring**
-
-**Status**: ✅ **Production Ready**
-**Features**: **Enterprise-grade reliability with comprehensive monitoring**
-
-### **Health Check Endpoints** 🏥
-
-Monitor system health and trace completeness:
-
-- **`/health/traces`** - Trace completeness health check
-- **`/health/ready`** - Application readiness check
-- **`/health/live`** - Application liveness check
-- **`/health`** - Comprehensive system health status
-
-### **Advanced Features**
-
-- **Real-time monitoring** with proactive issue detection
-- **Comprehensive validation** at multiple levels
-- **Automatic recovery** from partial failures
-- **Trace completeness analysis** for debugging and monitoring
-
-All Docker Compose verification tasks have been completed successfully. All three categories of examples are now working perfectly:
-
-### ✅ **LangSmith Examples (5/5 Working)**
-
-- `test_simple_tracing.py` - Basic LangSmith tracing
-- `test_langchain_app.py` - LangChain application with Ollama
-- `test_langgraph_agent.py` - LangGraph agent with Ollama
-- `test_complex_langgraph_workflow.py` - Complex LangGraph workflow
-- `test_dual_chain_agent.py` - Dual chain agent
-
-### ✅ **OTeL to HTTP Examples (3/3 Working)**
-
-- `ollama_otel_instrumentation.py` - OpenTelemetry with Ollama
-- `ollama_direct_http.py` - Direct HTTP with protobuf conversion
-- `simple_ollama_test.py` - Simple Ollama connection test
-
-### ✅ **OTeL to gRPC Examples (4/4 Working)**
-
-- `nested_workflow_otlp_grpc.py` - Nested workflow with HTTP
-- `nested_workflow_otlp_grpc_real.py` - Real gRPC with single-span sending
-- `multi_step_otlp_workflow.py` - Multi-step workflow
-- `openai_otel_instrumentation.py` - OpenAI-compatible API with Ollama
-
-### 🔧 **Environment Variables for Testing**
-
-#### **For Ollama Examples:**
-
-```bash
-export OLLAMA_HOST="http://192.168.1.200:11434"
-```
-
-#### **For OpenAI-Compatible API:**
-
-```bash
-export OPENAI_API_KEY="dummy-key"
-export OPENAI_API_BASE="http://192.168.1.200:11434/v1"
-export OPENAI_MODEL_NAME="qwen2.5:7b"
-```
-
-#### **For LangSmith Examples:**
-
-```bash
-export LANGSMITH_TRACING="true"
-export LANGSMITH_ENDPOINT="http://localhost:8000/api/v1"
-export LANGSMITH_API_KEY="test-key"
-export LANGSMITH_PROJECT="agent-spy-demo"
-```
+- `GET /health` – Basic service health
+- `GET /health/ready` – Readiness probe
+- `GET /health/live` – Liveness probe
+- `GET /health/traces` – Trace completeness health check
 
 ---
 
@@ -172,36 +105,6 @@ export LANGSMITH_PROJECT="agent-spy-demo"
    ```
 
 The server will be running at `http://localhost:8000` with the API documentation available at `http://localhost:8000/docs`.
-
-5. **Try the examples** (optional)
-
-   ```bash
-   # Set up environment variables for Ollama
-   export OLLAMA_HOST="http://192.168.1.200:11434"
-
-   # LangSmith Examples (5 examples)
-   uv run python examples/test_simple_tracing.py
-   uv run python examples/test_langchain_app.py
-   uv run python examples/test_langgraph_agent.py
-   uv run python examples/test_complex_langgraph_workflow.py
-   uv run python examples/test_dual_chain_agent.py
-
-   # OTeL HTTP Examples (3 examples)
-   uv run python examples/ollama_otel_instrumentation.py
-   uv run python examples/ollama_direct_http.py
-   uv run python examples/simple_ollama_test.py
-
-   # OTeL gRPC Examples (4 examples)
-   uv run python examples/nested_workflow_otlp_grpc.py
-   uv run python examples/nested_workflow_otlp_grpc_real.py
-   uv run python examples/multi_step_otlp_workflow.py
-
-   # OpenAI-compatible API Example
-   export OPENAI_API_KEY="dummy-key"
-   export OPENAI_API_BASE="http://192.168.1.200:11434/v1"
-   export OPENAI_MODEL_NAME="qwen2.5:7b"
-   uv run python examples/openai_otel_instrumentation.py
-   ```
 
 ### Docker Deployment
 
@@ -244,99 +147,6 @@ For development, research, or testing environments using containerized deploymen
 - **OTLP gRPC Endpoint**: localhost:4317 (dedicated port)
 
 ## 📖 Usage
-
-### Agent Integration
-
-To send traces from your agents to Agent Spy, configure these environment variables in your agent application:
-
-#### LangSmith API Compatibility
-
-```bash
-# Enable tracing (compatible with LangChain SDK)
-LANGSMITH_TRACING=true
-
-# Point to Agent Spy (compatible with LangSmith API specification)
-LANGSMITH_ENDPOINT=http://localhost:8000/api/v1
-
-# API key (can be any value for now, authentication is optional)
-LANGSMITH_API_KEY=your-api-key
-
-# Project name for organizing traces
-LANGSMITH_PROJECT=your-project-name
-```
-
-#### OpenTelemetry Protocol (OTLP)
-
-```bash
-# OTLP HTTP endpoint (shares main API port)
-OTLP_ENDPOINT=http://localhost:8000/v1/traces/
-
-# OTLP gRPC endpoint (dedicated port)
-OTLP_GRPC_ENDPOINT=localhost:4317
-
-# Service name for OTLP traces
-OTEL_SERVICE_NAME=your-agent-service
-```
-
-### Basic Trace Ingestion
-
-Agent Spy accepts traces through multiple protocols:
-
-#### LangSmith API Specification (REST)
-
-Agent Spy accepts traces through a REST API compatible with the LangSmith API specification:
-
-```python
-import requests
-import json
-from datetime import datetime
-from uuid import uuid4
-
-# Create a trace
-trace_data = {
-    "id": str(uuid4()),
-    "name": "Agent Planning Session",
-    "run_type": "chain",
-    "start_time": datetime.now().isoformat(),
-    "inputs": {"query": "Analyze market trends"},
-    "project_name": "market-analysis"
-}
-
-# Send to Agent Spy
-response = requests.post(
-    "http://localhost:8000/api/v1/runs/batch",
-    json={"post": [trace_data], "patch": []}
-)
-```
-
-#### OpenTelemetry Protocol (OTLP)
-
-Agent Spy also supports the OpenTelemetry Protocol for industry-standard tracing:
-
-```python
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
-# Configure OTLP exporter
-otlp_exporter = OTLPSpanExporter(
-    endpoint="http://localhost:8000/v1/traces/"
-)
-
-# Set up tracing
-provider = TracerProvider()
-processor = SimpleSpanProcessor(otlp_exporter)
-provider.add_span_processor(processor)
-trace.set_tracer_provider(provider)
-
-# Create spans
-tracer = trace.get_tracer(__name__)
-with tracer.start_as_current_span("agent-operation") as span:
-    span.set_attribute("input.prompt", "Analyze market trends")
-    # Your agent logic here
-    span.set_attribute("output.response", "Market analysis complete")
-```
 
 ### Dashboard Access
 
@@ -435,56 +245,7 @@ Agent Spy uses intelligent pattern-based detection to automatically mark runs as
 - **Improved UX**: Single refresh action updates the entire dashboard view
 - **Efficient Coordination**: Centralized refresh trigger mechanism prevents inconsistent states
 
-### Enhanced Examples
-
-- **Complex Multi-Step Workflow**: 7-step linear pipeline with deep trace hierarchies
-- **Dual Chain Agent**: Multiple LLM chains with specialized analysis nodes
-- **OTLP Integration Examples**: Complete OTLP workflow examples with HTTP and gRPC
-- **Comprehensive Testing**: Examples demonstrate various trace patterns and use cases
-
 ## 🔧 API Reference
-
-### Trace Ingestion
-
-#### LangSmith API (Batch Ingest)
-
-```http
-POST /api/v1/runs/batch
-Content-Type: application/json
-
-{
-  "post": [/* new traces */],
-  "patch": [/* trace updates */]
-}
-```
-
-#### LangSmith API (Individual Operations)
-
-```http
-POST /api/v1/runs              # Create trace
-PATCH /api/v1/runs/{id}        # Update trace
-GET /api/v1/runs/{id}          # Get trace details
-```
-
-#### OpenTelemetry Protocol (OTLP)
-
-```http
-POST /v1/traces/
-Content-Type: application/x-protobuf
-
-[OTLP protobuf trace data]
-```
-
-**OTLP Features:**
-
-- HTTP receiver (shares main API port 8000)
-- gRPC receiver (dedicated port 4317)
-- Real-time WebSocket notifications
-- Automatic span-to-run conversion
-- Hierarchical trace support
-- Status code mapping
-- Attribute preservation
-- Configurable paths and ports
 
 ### Dashboard API
 
